@@ -1,97 +1,253 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: 'Welcome to Alter Vault'
+description: 'Secure OAuth token management for modern applications'
 ---
 
-## Setting up
+## Build Integrations in Minutes, Not Months
 
-Get your documentation site up and running in minutes.
+Alter Vault handles OAuth tokens and API credentials so you can focus on building your product. Connect your users to Google, Microsoft, Slack, GitHub, and dozens of other services without managing tokens, refresh logic, or security.
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
+<CardGroup cols={2}>
   <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
+    title="Quickstart"
+    icon="rocket"
+    href="/quickstart"
   >
-    Edit your docs locally and preview them in real time.
+    Get up and running in under 5 minutes
   </Card>
   <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
+    title="Python SDK"
+    icon="python"
+    href="/sdks/python/installation"
   >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+    Install and use our Python SDK
   </Card>
   <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
+    title="Alter Connect"
+    icon="window"
+    href="/sdks/javascript/installation"
   >
-    Auto-generate API documentation from OpenAPI specifications.
+    Frontend SDK for OAuth connection UI
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## Why Choose Alter Vault?
 
-Everything you need to create world-class documentation.
+### Never Store Tokens
+Your database stays clean. We handle all token storage, encryption, and management in our secure infrastructure.
 
-<Columns cols={2}>
+### Automatic Token Refresh
+Tokens are refreshed automatically before they expire. Your API calls never fail due to expired credentials.
+
+### Enterprise Security
+Bank-grade encryption, SOC 2 compliance, and complete audit trails protect your users' data.
+
+### Universal Compatibility
+Works with your existing authentication system. Use JWT tokens from Auth0, Clerk, Supabase, or any provider.
+
+## How It Works
+
+<Steps>
+  <Step title="Your User Connects">
+    User authorizes access through our secure OAuth flow
+  </Step>
+
+  <Step title="We Store Tokens">
+    Tokens are encrypted and stored in our secure vault
+  </Step>
+
+  <Step title="You Request Tokens">
+    Get fresh, valid tokens whenever you need them
+  </Step>
+
+  <Step title="Make API Calls">
+    Use tokens to access provider APIs on behalf of your users
+  </Step>
+</Steps>
+
+## Our SDKs
+
+<Info>
+**Two SDKs for different purposes:**
+- **Python SDK (`alter-sdk`)** - Backend SDK for retrieving and using OAuth tokens
+- **Alter Connect (`@alter-ai/connect`)** - Frontend SDK for OAuth connection UI
+</Info>
+
+## Quick Example
+
+<CodeGroup>
+
+```python Python
+import asyncio
+from alter_sdk import AlterVault, Provider
+
+async def use_google_calendar():
+    # Initialize the SDK
+    vault = AlterVault(
+        api_key="alter_key_...",
+        app_id="app_..."
+    )
+
+    # Get Google client - tokens injected automatically!
+    google = await vault.get_client(
+        provider=Provider.GOOGLE,
+        user={"user_id": "alice"}
+    )
+
+    # Use Google APIs normally - no token handling!
+    calendar = await google.build("calendar", "v3")
+    events = calendar.events().list(
+        calendarId="primary"
+    ).execute()
+
+    await vault.close()
+
+asyncio.run(use_google_calendar())
+```
+
+```javascript JavaScript
+import AlterConnect from '@alter-ai/connect';
+
+// Create Connect instance
+const alterConnect = AlterConnect.create({
+    customization: {
+        colors: { primary: '#6366f1' }
+    }
+});
+
+// Open OAuth flow
+async function connectProvider() {
+    // Get session from YOUR backend
+    const { session_token } = await fetch('/api/oauth/session')
+        .then(r => r.json());
+
+    await alterConnect.open({
+        token: session_token,
+        onSuccess: (connection) => {
+            console.log('Connected!', connection);
+        }
+    });
+}
+```
+
+```python Direct API
+import requests
+
+# Create session for frontend
+response = requests.post(
+    "https://api.alter.com/oauth/connect/session",
+    headers={"x-api-key": "alter_key_..."},
+    json={
+        "end_user": {"id": "user_123"},
+        "attributes": {"user_id": "user_123"}
+    }
+)
+session_token = response.json()["session_token"]
+
+# Get token for backend use
+response = requests.post(
+    "https://api.alter.com/oauth/token",
+    headers={"x-api-key": "alter_key_..."},
+    json={
+        "provider_id": "google",
+        "attributes": {"user_id": "user_123"}
+    }
+)
+access_token = response.json()["access_token"]
+```
+
+</CodeGroup>
+
+## Supported Providers
+
+Connect to the services your users already use:
+
+<CardGroup cols={4}>
+  <Card title="Google" icon="google">
+    Gmail, Calendar, Drive, Sheets
+  </Card>
+  <Card title="Microsoft" icon="microsoft">
+    Outlook, Teams, OneDrive, Azure
+  </Card>
+  <Card title="Slack" icon="slack">
+    Messages, Channels, Files
+  </Card>
+  <Card title="GitHub" icon="github">
+    Repos, Issues, PRs, Actions
+  </Card>
+  <Card title="Salesforce" icon="cloud">
+    CRM, Contacts, Opportunities
+  </Card>
+  <Card title="HubSpot" icon="hubspot">
+    Contacts, Deals, Companies
+  </Card>
+  <Card title="Notion" icon="n">
+    Pages, Databases, Workspaces
+  </Card>
+  <Card title="More" icon="plus">
+    LinkedIn, Discord, Twitter, and more
+  </Card>
+</CardGroup>
+
+## Built for Developers
+
+<AccordionGroup>
+  <Accordion title="Simple Integration">
+    Drop-in SDKs for Python and JavaScript. REST API for everything else. Get started in minutes.
+  </Accordion>
+
+  <Accordion title="Your Auth System">
+    Works with Auth0, Clerk, Supabase, Firebase, or any JWT-based authentication.
+  </Accordion>
+
+  <Accordion title="Complete Control">
+    Fine-grained permissions, audit logs, and webhooks give you full visibility and control.
+  </Accordion>
+
+  <Accordion title="Scale Confidently">
+    Handle millions of tokens with our infrastructure. We scale so you don't have to.
+  </Accordion>
+</AccordionGroup>
+
+## Getting Started
+
+<Steps>
+  <Step title="Sign Up">
+    Create your free account at [portal.alter.com](https://portal.alter.com)
+  </Step>
+
+  <Step title="Create an App">
+    Set up your first application in the Developer Portal
+  </Step>
+
+  <Step title="Configure Providers">
+    Add OAuth credentials for Google, Slack, Microsoft, etc.
+  </Step>
+
+  <Step title="Install SDK">
+    Add `alter-sdk` (Python) or `@alter-ai/connect` (JavaScript)
+  </Step>
+
+  <Step title="Connect Users">
+    Use Alter Connect UI for OAuth authorization
+  </Step>
+</Steps>
+
+## Support
+
+<CardGroup cols={2}>
   <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
+    title="Documentation"
+    icon="book"
+    href="/quickstart"
   >
-    Use MDX to style your docs pages.
+    Read our guides and tutorials
   </Card>
   <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
+    title="Email Support"
+    icon="envelope"
+    href="mailto:support@alter.com"
   >
-    Add sample code to demonstrate how to use your product.
+    Contact our support team
   </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
-
-## Need inspiration?
-
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+</CardGroup>

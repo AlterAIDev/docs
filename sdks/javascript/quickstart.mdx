@@ -1,0 +1,473 @@
+---
+title: 'Quickstart'
+description: 'Connect your first OAuth integration in 5 minutes'
+---
+
+Get started with the Alter Connect SDK to add OAuth integrations to your application.
+
+## Overview
+
+The SDK follows a secure three-step process:
+
+<Steps>
+  <Step title="Backend creates session">
+    Your backend uses your API key to create a session token
+  </Step>
+
+  <Step title="Frontend opens Connect UI">
+    SDK opens the OAuth flow using the session token
+  </Step>
+
+  <Step title="User completes OAuth">
+    User authorizes and connection details are returned
+  </Step>
+</Steps>
+
+## Session Tokens
+
+<Warning>
+Session tokens are temporary credentials created by your backend. They allow Alter Connect to work without exposing your API keys in frontend code.
+</Warning>
+
+## Complete Example
+
+### Step 1: Backend Endpoint
+
+Create an endpoint in YOUR backend to generate session tokens:
+
+<CodeGroup>
+
+```javascript Node.js/Express
+app.post('/api/alter/session', async (req, res) => {
+  const response = await fetch('https://api.alter.com/oauth/connect/session', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ALTER_API_KEY,  // Never expose this!
+      'x-app-id': process.env.ALTER_APP_ID,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      end_user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name
+      },
+      attributes: {
+        user_id: req.user.id,
+        organization_id: req.user.org_id
+      },
+      allowed_providers: ['google', 'slack', 'microsoft']
+    })
+  });
+
+  const data = await response.json();
+  res.json({ session_token: data.session_token });
+});
+```
+
+```python FastAPI
+from fastapi import Depends
+import httpx
+
+@app.post("/api/alter/session")
+async def create_alter_session(current_user = Depends(get_current_user)):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.alter.com/oauth/connect/session",
+            headers={
+                "x-api-key": os.environ["ALTER_API_KEY"],
+                "x-app-id": os.environ["ALTER_APP_ID"]
+            },
+            json={
+                "end_user": {
+                    "id": current_user.id,
+                    "email": current_user.email,
+                    "name": current_user.name
+                },
+                "attributes": {
+                    "user_id": current_user.id,
+                    "organization_id": current_user.org_id
+                },
+                "allowed_providers": ["google", "slack", "microsoft"]
+            }
+        )
+
+    data = response.json()
+    return {"session_token": data["session_token"]}
+```
+
+```ruby Rails
+class AlterController < ApplicationController
+  def create_session
+    response = HTTParty.post(
+      'https://api.alter.com/oauth/connect/session',
+      headers: {
+        'x-api-key' => ENV['ALTER_API_KEY'],
+        'x-app-id' => ENV['ALTER_APP_ID'],
+        'Content-Type' => 'application/json'
+      },
+      body: {
+        end_user: {
+          id: current_user.id,
+          email: current_user.email,
+          name: current_user.name
+        },
+        attributes: {
+          user_id: current_user.id,
+          organization_id: current_user.organization_id
+        },
+        allowed_providers: ['google', 'slack', 'microsoft']
+      }.to_json
+    )
+
+    render json: { session_token: response['session_token'] }
+  end
+end
+```
+
+</CodeGroup>
+
+### Step 2: Frontend Integration
+
+Use the SDK in your frontend to open the Connect UI:
+
+<CodeGroup>
+
+```javascript Vanilla JavaScript
+import AlterConnect from '@alter-ai/connect';
+
+// Initialize SDK
+const alterConnect = AlterConnect.create();
+
+// Handle connect button click
+async function connectAccount() {
+  // Get session token from YOUR backend
+  const response = await fetch('/api/alter/session', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${userToken}`
+    }
+  });
+  const { session_token } = await response.json();
+
+  // Open Connect UI
+  await alterConnect.open({
+    token: session_token,
+    onSuccess: (connection) => {
+      console.log('Connected!', connection);
+      // Save connection.connection_id to your database
+      saveConnection(connection);
+    },
+    onError: (error) => {
+      console.error('Connection failed:', error);
+    },
+    onExit: () => {
+      console.log('User closed the modal');
+    }
+  });
+}
+```
+
+```jsx React
+import { useState } from 'react';
+import AlterConnect from '@alter-ai/connect';
+
+function ConnectButton() {
+  const [alterConnect] = useState(() => AlterConnect.create());
+  const [loading, setLoading] = useState(false);
+
+  const handleConnect = async () => {
+    setLoading(true);
+
+    try {
+      // Get session token from your backend
+      const response = await fetch('/api/alter/session', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userToken}`
+        }
+      });
+      const { session_token } = await response.json();
+
+      // Open Connect UI
+      await alterConnect.open({
+        token: session_token,
+        onSuccess: async (connection) => {
+          console.log('Connected!', connection);
+
+          // Save to your database
+          await fetch('/api/connections', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${userToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              connection_id: connection.connection_id,
+              provider: connection.provider,
+              account: connection.account_identifier
+            })
+          });
+
+          // Update UI
+          refreshConnections();
+        },
+        onError: (error) => {
+          if (error.code === 'popup_blocked') {
+            alert('Please allow popups for this site');
+          } else {
+            alert(`Connection failed: ${error.message}`);
+          }
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <button onClick={handleConnect} disabled={loading}>
+      {loading ? 'Connecting...' : 'Connect Account'}
+    </button>
+  );
+}
+```
+
+```vue Vue 3
+<template>
+  <button @click="handleConnect" :disabled="loading">
+    {{ loading ? 'Connecting...' : 'Connect Account' }}
+  </button>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+import AlterConnect from '@alter-ai/connect';
+
+const alterConnect = ref(null);
+const loading = ref(false);
+
+onMounted(() => {
+  alterConnect.value = AlterConnect.create();
+});
+
+async function handleConnect() {
+  loading.value = true;
+
+  try {
+    // Get session token from your backend
+    const response = await fetch('/api/alter/session', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${userToken}`
+      }
+    });
+    const { session_token } = await response.json();
+
+    // Open Connect UI
+    await alterConnect.value.open({
+      token: session_token,
+      onSuccess: async (connection) => {
+        console.log('Connected!', connection);
+
+        // Save to your database
+        await saveConnection(connection);
+
+        // Update UI
+        emit('connection-created', connection);
+      },
+      onError: (error) => {
+        console.error('Connection failed:', error);
+      }
+    });
+  } finally {
+    loading.value = false;
+  }
+}
+</script>
+```
+
+</CodeGroup>
+
+## Connection Response
+
+When a user successfully connects, you receive a connection object:
+
+```typescript
+{
+  connection_id: "550e8400-e29b-41d4-a716-446655440000",  // Store this!
+  provider: "google",
+  provider_name: "Google",
+  account_identifier: "user@gmail.com",
+  timestamp: "2024-01-15T10:30:00Z",
+  operation: "creation",  // or "reauth"
+  scopes: [
+    "openid",
+    "email",
+    "profile",
+    "https://www.googleapis.com/auth/calendar.readonly"
+  ],
+  status: "active",
+  metadata: {
+    // Additional provider-specific data
+  }
+}
+```
+
+<Note>
+  **Important**: Store the `connection_id` in your database. You'll use this to retrieve OAuth tokens for API calls.
+</Note>
+
+## Smart UX Features
+
+### Single Provider Flow
+
+When only one provider is allowed, the SDK **automatically skips** the selection screen:
+
+```javascript
+// Backend: Only Google allowed
+allowed_providers: ['google']
+
+// Result: Opens Google OAuth directly (no selection modal)
+```
+
+### Multiple Provider Flow
+
+When multiple providers are allowed, users see a **provider selection grid**:
+
+```javascript
+// Backend: Multiple providers
+allowed_providers: ['google', 'slack', 'microsoft', 'github']
+
+// Result: Shows beautiful provider selection UI
+```
+
+## Common Patterns
+
+### Validate Provider Type
+
+```javascript
+await alterConnect.open({
+  token: session_token,
+  onSuccess: async (connection) => {
+    // Ensure user connected the right provider
+    if (connection.provider !== 'google') {
+      alert('Please connect your Google account for calendar sync');
+      return;
+    }
+
+    await saveConnection(connection);
+  }
+});
+```
+
+### Validate Email Domain
+
+```javascript
+await alterConnect.open({
+  token: session_token,
+  onSuccess: async (connection) => {
+    // Ensure work email
+    if (!connection.account_identifier.endsWith('@company.com')) {
+      alert('Please use your @company.com work email');
+      return;
+    }
+
+    await saveConnection(connection);
+  }
+});
+```
+
+### Handle Reauthentication
+
+```javascript
+await alterConnect.open({
+  token: session_token,
+  onSuccess: async (connection) => {
+    if (connection.operation === 'reauth') {
+      console.log('Successfully reauthenticated');
+      // Update existing connection
+      await updateConnection(connection);
+    } else {
+      console.log('New connection created');
+      // Create new connection
+      await createConnection(connection);
+    }
+  }
+});
+```
+
+## Error Handling
+
+<AccordionGroup>
+  <Accordion title="Popup Blocked" icon="window-restore">
+    ```javascript
+    onError: (error) => {
+      if (error.code === 'popup_blocked') {
+        alert('Please allow popups to connect your account');
+      }
+    }
+    ```
+
+    **Fix**: Ensure `open()` is called directly from user interaction (click event)
+  </Accordion>
+
+  <Accordion title="Session Expired" icon="clock">
+    ```javascript
+    onError: (error) => {
+      if (error.code === 'session_expired') {
+        // Get new session token and retry
+        const newToken = await getNewSessionToken();
+        alterConnect.open({ token: newToken, ... });
+      }
+    }
+    ```
+
+    **Note**: Session tokens expire after 10 minutes
+  </Accordion>
+
+  <Accordion title="Invalid Token" icon="key">
+    ```javascript
+    onError: (error) => {
+      if (error.code === 'invalid_token') {
+        console.error('Invalid session token');
+        // Check backend implementation
+      }
+    }
+    ```
+
+    **Fix**: Verify your backend is creating tokens correctly
+  </Accordion>
+</AccordionGroup>
+
+## TypeScript Support
+
+Full TypeScript support with type definitions:
+
+```typescript
+import AlterConnect, { Connection, AlterError } from '@alter-ai/connect';
+
+const alterConnect = AlterConnect.create({
+  debug: true
+});
+
+await alterConnect.open({
+  token: sessionToken,
+  onSuccess: (connection: Connection) => {
+    // TypeScript knows all properties
+    const id: string = connection.connection_id;
+    const provider: string = connection.provider;
+    const scopes: string[] = connection.scopes;
+  },
+  onError: (error: AlterError) => {
+    const code: string = error.code;
+    const message: string = error.message;
+  }
+});
+```
+
+## Next Steps
+
+<Card title="API Reference" icon="code" href="/sdks/javascript/reference">
+  Complete SDK API documentation
+</Card>

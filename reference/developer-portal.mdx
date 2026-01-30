@@ -1,0 +1,299 @@
+---
+title: 'Developer Portal'
+description: 'Configure OAuth providers and manage your Alter Vault application'
+---
+
+## Getting Started
+
+The Developer Portal ([portal.alter.com](https://portal.alter.com)) is where you configure OAuth providers, set security policies, and manage your application.
+
+<Steps>
+  <Step title="Create Account">
+    Sign up at [portal.alter.com](https://portal.alter.com)
+  </Step>
+
+  <Step title="Create Application">
+    Each app has its own OAuth connections and API keys
+  </Step>
+
+  <Step title="Add OAuth Providers">
+    Configure Google, Slack, Microsoft, etc.
+  </Step>
+
+  <Step title="Copy Credentials">
+    Get your API Key and App ID for the SDK
+  </Step>
+</Steps>
+
+## OAuth Provider Setup
+
+### Add Your OAuth Apps
+
+For each provider you want to support:
+
+1. Go to **OAuth Providers** → **Add Provider**
+2. Enter credentials from the provider's console:
+   - **Client ID**
+   - **Client Secret**
+   - **Redirect URI**: Always use `https://api.alter.com/oauth/callback`
+3. Select the scopes you need
+4. Save and activate
+
+### Provider Consoles
+
+| Provider | Where to Get Credentials |
+|----------|-------------------------|
+| Google | [console.cloud.google.com](https://console.cloud.google.com) |
+| Microsoft | [portal.azure.com](https://portal.azure.com) |
+| Slack | [api.slack.com/apps](https://api.slack.com/apps) |
+| GitHub | [github.com/settings/apps](https://github.com/settings/apps) |
+
+## Attribution
+
+Define how you identify users for OAuth connections:
+
+1. Go to **Application** → **Attribution**
+2. Add your user identifier fields:
+   ```json
+   // Single user
+   {"user_id": "string"}
+
+   // Multi-tenant
+   {"org_id": "string", "user_id": "string"}
+
+   // Team shared
+   {"team_id": "string"}
+   ```
+3. Mark required fields
+4. Save
+
+This must match what you pass in your SDK calls.
+
+## Custom Schemas
+
+Add structured data to any OAuth connection for enhanced functionality.
+
+### Use Cases
+- **Sync Settings**: Which data to sync, how often
+- **User Preferences**: Per-connection configuration
+- **Metadata**: Labels, tags, categories
+- **Internal Mapping**: Link to your database records
+
+### Creating a Schema
+
+1. Go to **Application** → **Custom Schemas**
+2. Click **Create Schema**
+3. Use the visual builder to add fields:
+   ```json
+   {
+     "sync_preferences": {
+       "calendar": {
+         "enabled": true,
+         "frequency": "hourly"
+       },
+       "email": {
+         "enabled": false
+       }
+     },
+     "department": "engineering",
+     "cost_center": "CC-001"
+   }
+   ```
+4. Set field types and validation:
+   - **Types**: string, number, boolean, object, array
+   - **Validation**: required, min/max, enum values
+   - **Defaults**: Set default values
+5. Save and apply to connections
+
+### Using Schema Data
+
+```python
+# Set custom data when creating connection
+connection_data = {
+    "sync_preferences": {
+        "calendar": {"enabled": True, "frequency": "hourly"}
+    },
+    "department": "engineering"
+}
+
+# Query connections by schema fields
+connections = await vault.list_connections(
+    filters={"department": "engineering"}
+)
+```
+
+## Security Policies
+
+Control how and when OAuth tokens can be accessed.
+
+### Policy Types
+
+- **IP Restrictions**: Whitelist specific IPs or CIDR ranges
+- **Rate Limiting**: Prevent abuse (per second/minute/hour/day)
+- **Time-Based Access**: Business hours only, weekdays only
+- **Scope Requirements**: Control which OAuth permissions are allowed
+
+### Creating Policies
+
+1. Go to **Application Settings** → **Policies**
+2. Click **Add Policy**
+3. Configure your rules:
+
+**IP Restriction Example:**
+```
+Type: IP Allowlist
+IPs: 192.168.1.0/24, 10.0.0.0/8
+Action: Block if not matched
+```
+
+**Rate Limit Example:**
+```
+Type: Rate Limit
+Limit: 100 requests per second
+1000 requests per minute
+10000 requests per hour
+Action: Block when exceeded
+```
+
+**Time Window Example:**
+```
+Type: Time-Based Access
+Window: Mon-Fri, 9 AM - 5 PM EST
+Action: Block outside window
+```
+
+4. Set enforcement level:
+   - **Block**: Deny access
+   - **Warn**: Allow but log warning
+   - **Log**: Allow and log for monitoring
+5. Apply to all connections or specific providers
+
+### Policy Evaluation Order
+
+1. IP Restrictions (checked first)
+2. Rate Limits
+3. Time Windows
+4. Scope Requirements
+
+All policies must pass for token access.
+
+## API Keys
+
+### Get Your Keys
+
+1. Go to **Application** → **API Keys**
+2. Copy:
+   - **API Key**: `alter_key_...`
+   - **App ID**: `app_...`
+
+### Security Best Practices
+
+- **Backend Only**: Never put API keys in frontend code
+- **Session Tokens**: Create temporary tokens for frontend
+- **Rotate Keys**: Generate new keys every 90 days
+- **IP Restrictions**: Add allowlists for production
+- **Environment Variables**: Never commit keys to code
+
+## Connection Management
+
+View and manage all OAuth connections:
+
+### Connections Dashboard
+
+- **Filter**: By provider, user, date, or custom schema fields
+- **Search**: Find specific users or attributes
+- **Bulk Actions**: Update or revoke multiple connections
+- **Export**: Download connection data as CSV
+
+### Connection Details
+
+For each connection, view:
+- Provider and account info
+- Attribution data
+- Custom schema data
+- Token status and refresh history
+- Audit logs of all access
+
+### Revoke Access
+
+1. Find the connection
+2. Click **Revoke**
+3. Choose:
+   - **Soft Revoke**: Mark inactive (can reactivate)
+   - **Hard Revoke**: Delete completely
+
+## Organizations & Teams
+
+### Team Management
+
+1. Go to **Organization** → **Team**
+2. Invite members with roles:
+   - **Admin**: Full access
+   - **Developer**: Manage apps and connections
+   - **Viewer**: Read-only access
+
+### Multiple Applications
+
+Create separate apps for different environments:
+
+| Environment | Purpose | API Key Type |
+|------------|---------|--------------|
+| Development | Local testing | Auto-expires in 30 days |
+| Staging | QA testing | Standard |
+| Production | Live users | IP-restricted |
+
+## Monitoring
+
+### Dashboard Metrics
+
+- **Active Connections**: Total by provider
+- **API Usage**: Calls per day/month
+- **Token Refreshes**: Automatic refresh count
+- **Error Rate**: Failed requests percentage
+- **Policy Violations**: Blocked requests
+
+### Alerts
+
+Set up notifications for:
+- High error rates
+- Policy violations
+- Approaching rate limits
+- Connection failures
+
+## Quick Reference
+
+### Backend Code
+```python
+# Initialize SDK with portal credentials
+vault = AlterVault(
+    api_key="alter_key_...",  # From portal
+    app_id="app_..."          # From portal
+)
+
+# Use attribution from portal config
+google = await vault.get_client(
+    provider=Provider.GOOGLE,
+    user={"user_id": "alice"}  # Must match attribution
+)
+```
+
+### Frontend Code
+```javascript
+// Create session on YOUR backend (using API key)
+const { session_token } = await fetch('/api/oauth/session');
+
+// Open OAuth flow (no API key needed)
+await alterConnect.open({
+    token: session_token,
+    onSuccess: (connection) => {
+        console.log('Connected!', connection);
+    }
+});
+```
+
+## Support
+
+- **Documentation**: [docs.alter.com](https://docs.alter.com)
+- **API Reference**: [api.alter.com/docs](https://api.alter.com/docs)
+- **Email**: [support@alter.com](mailto:support@alter.com)
+- **Status**: [status.alter.com](https://status.alter.com)

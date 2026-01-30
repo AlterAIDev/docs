@@ -1,0 +1,99 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Alter Vault",
+  "logo": {
+    "dark": "/logo/alter-logo-dark.svg",
+    "light": "/logo/alter-logo-light.svg",
+    "href": "https://alter.com"
+  },
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#7C3AED",
+    "light": "#A78BFA",
+    "dark": "#5B21B6",
+    "background": {
+      "dark": "#0F0F0F",
+      "light": "#FFFFFF"
+    },
+    "anchors": {
+      "from": "#7C3AED",
+      "to": "#EC4899"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Support",
+      "url": "mailto:support@alter.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "type": "github",
+    "url": "https://github.com/AlterAIDev/alter-vault"
+  },
+  "anchors": [
+    {
+      "name": "Developer Portal",
+      "icon": "browser",
+      "url": "https://portal.alter.com"
+    },
+    {
+      "name": "API Status",
+      "icon": "signal",
+      "url": "https://status.alter.com"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://alter.com/blog"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Getting Started",
+      "pages": [
+        "index",
+        "quickstart"
+      ]
+    },
+    {
+      "group": "SDKs",
+      "pages": [
+        {
+          "group": "Python SDK",
+          "pages": [
+            "sdks/python/installation",
+            "sdks/python/quickstart"
+          ]
+        },
+        {
+          "group": "Alter Connect",
+          "pages": [
+            "sdks/javascript/installation",
+            "sdks/javascript/quickstart",
+            "sdks/javascript/reference"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": [
+        "reference/architecture",
+        "reference/developer-portal"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/AlterAIDev",
+    "linkedin": "https://linkedin.com/company/alter-ai",
+    "twitter": "https://twitter.com/alter_ai"
+  },
+  "feedback": {
+    "thumbsRating": true,
+    "suggestEdit": true,
+    "raiseIssue": true
+  },
+  "modeToggle": {
+    "default": "dark"
+  }
+}

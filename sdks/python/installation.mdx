@@ -1,0 +1,123 @@
+---
+title: 'Installation'
+description: 'Install the Alter SDK for Python'
+---
+
+The Alter SDK for Python provides secure OAuth token management with automatic token injection and comprehensive audit logging.
+
+## Requirements
+
+- Python 3.11 or higher
+- `pip` or `poetry` package manager
+
+## Installation Options
+
+<Tabs>
+  <Tab title="Core SDK">
+    ```bash
+    pip install alter-sdk
+    ```
+
+    Includes core functionality for token retrieval and generic API calls
+  </Tab>
+
+  <Tab title="With Google">
+    ```bash
+    pip install alter-sdk[google]
+    ```
+
+    Adds Google API client library support with automatic token injection
+  </Tab>
+
+  <Tab title="With GitHub">
+    ```bash
+    pip install alter-sdk[github]
+    ```
+
+    Adds PyGithub support with automatic token injection
+  </Tab>
+
+  <Tab title="All Providers">
+    ```bash
+    pip install alter-sdk[all]
+    ```
+
+    Includes all provider-specific integrations
+  </Tab>
+</Tabs>
+
+## Using Poetry
+
+If you're using Poetry for dependency management:
+
+```bash
+poetry add alter-sdk
+
+# With specific providers
+poetry add alter-sdk[google]
+poetry add alter-sdk[github]
+poetry add alter-sdk[all]
+```
+
+## Verify Installation
+
+```python
+import alter_sdk
+print(alter_sdk.__version__)
+# Output: 0.1.1
+```
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Zero Token Exposure" icon="lock">
+    Tokens are never exposed to your code - all injection happens behind the scenes
+  </Card>
+
+  <Card title="Provider Wrappers" icon="plug">
+    Native support for Google, GitHub, and more providers
+  </Card>
+
+  <Card title="Automatic Refresh" icon="arrows-rotate">
+    Tokens are refreshed automatically when expired
+  </Card>
+
+  <Card title="Audit Logging" icon="clipboard-list">
+    All API calls are logged automatically for compliance
+  </Card>
+</CardGroup>
+
+## Dependencies
+
+The SDK has minimal core dependencies:
+
+- `httpx` - Async HTTP client with connection pooling
+- `pydantic` - Data validation and settings management
+- `typing-extensions` - Python typing backports
+
+Provider-specific extras add:
+
+- `google-api-python-client` - For Google APIs (with `[google]`)
+- `PyGithub` - For GitHub API (with `[github]`)
+
+## Architecture Notes
+
+<Note>
+  The SDK uses **two separate HTTP clients** for security:
+  1. **Alter client** - Communicates with Alter Vault backend (includes API key)
+  2. **Provider client** - Calls external APIs (no API key, prevents credential leakage)
+</Note>
+
+<Warning>
+  The SDK **does not cache tokens locally** by design. This ensures:
+  - You always get the most current, valid token
+  - Instant revocation when users disconnect
+  - Complete audit trail for compliance
+  - Maximum security with no local token storage
+</Warning>
+
+## Next Steps
+
+<Card title="Quickstart" icon="rocket" href="/sdks/python/quickstart">
+  Get started with your first API call
+</Card>
