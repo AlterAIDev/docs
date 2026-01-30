@@ -26,10 +26,6 @@
       "url": "mailto:support@alter.com"
     }
   ],
-  "topbarCtaButton": {
-    "type": "github",
-    "url": "https://github.com/AlterAIDev/alter-vault"
-  },
   "anchors": [
     {
       "name": "Developer Portal",
@@ -84,7 +80,6 @@
     }
   ],
   "footerSocials": {
-    "github": "https://github.com/AlterAIDev",
     "linkedin": "https://linkedin.com/company/alter-ai",
     "twitter": "https://twitter.com/alter_ai"
   },
