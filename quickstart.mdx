@@ -134,6 +134,8 @@ def create_oauth_session():
                 "org_id": user.organization_id  # For multi-tenant apps
             },
             "allowed_providers": ["google", "slack", "microsoft"]
+            # Note: allowed_origin is optional. If omitted, uses app.website_url
+            # from Developer Portal. Wildcard '*' is NOT supported.
         }
     )
 
@@ -165,6 +167,8 @@ app.post('/api/oauth/session', async (req, res) => {
                 org_id: user.organizationId  // For multi-tenant apps
             },
             allowed_providers: ['google', 'slack', 'microsoft']
+            // Note: allowed_origin is optional. If omitted, uses app.website_url
+            // from Developer Portal. Wildcard '*' is NOT supported.
         },
         {
             headers: { 'x-api-key': ALTER_API_KEY }

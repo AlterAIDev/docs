@@ -14,7 +14,7 @@ Session tokens are temporary credentials that authorize Alter Connect without ex
 | **Lifetime** | How long token is valid | 15 minutes |
 | **Single use** | Can only create one connection | No |
 | **IP restricted** | Locked to user's IP | Optional |
-| **Provider list** | Which providers to show | All enabled |
+| **Provider list** | Which providers to show | All configured (if omitted) |
 
 ### Creating Secure Sessions
 
@@ -37,14 +37,32 @@ const response = await fetch('https://api.alter.com/oauth/connect/session', {
       user_id: user.id  // Must match when retrieving tokens
     },
     allowed_providers: ['google', 'slack'],
-    settings: {
-      expires_in: 900,  // 15 minutes
-      single_use: true,
-      ip_restriction: req.ip
-    }
+    allowed_origin: 'https://yourapp.com'  // Optional, see below
   })
 });
 ```
+
+### Understanding `allowed_origin`
+
+The `allowed_origin` parameter controls postMessage security for desktop popup flows:
+
+| Scenario | What to Pass | Example |
+|----------|-------------|---------|
+| Single domain | Omit field (uses `website_url` from Developer Portal) | Configure in Portal |
+| Multiple environments | Pass specific origin | `'https://staging.myapp.com'` |
+| Local development | Pass localhost | `'http://localhost:3000'` |
+| Server-to-server | Omit field | No validation needed |
+
+<Warning>
+**Wildcard `*` is NOT supported.** To allow any origin, omit the field or pass `null` - the system will use your `website_url` configured in the Developer Portal as a fallback.
+</Warning>
+
+**Valid origin formats:**
+- ✅ `https://myapp.com`
+- ✅ `http://localhost:3000`
+- ⚠️ `https://myapp.com/` (trailing slash auto-removed)
+- ❌ `https://myapp.com/path` (no path)
+- ❌ `*` (wildcard not supported)
 
 ## Customization
 

@@ -80,6 +80,130 @@ google = await vault.get_client(
 | **Multi-tenant** | `{"org_id": "acme", "user_id": "alice"}` | B2B SaaS |
 | **Shared Team** | `{"team_id": "engineering"}` | Team resources |
 
+## Connection Deduplication
+
+Alter Vault automatically prevents duplicate OAuth connections for the same account. When a user re-authorizes (for example, after switching organizations), we **update** the existing connection instead of creating a duplicate. This works even when attribution attributes change.
+
+### How It Works
+
+We use a two-phase lookup strategy to find existing connections:
+
+```mermaid
+graph TD
+    A[User Re-authorizes] --> B{Phase 1: Check account_identifier}
+    B -->|Found| C{Attributes Match?}
+    C -->|Yes| D[Return Existing Connection]
+    C -->|No| E[Update Attributes & Tokens]
+    B -->|Not Found| F{Phase 2: Check Attributes}
+    F -->|Found| D
+    F -->|Not Found| G[Create New Connection]
+    
+    D --> H[Use Connection]
+    E --> H
+    G --> H
+```
+
+**Phase 1: Account Identifier Lookup**
+- Search by the OAuth account identifier (email, sub, or ID from the provider)
+- If found, check whether attributes match the current request
+- If attributes differ, mark the connection for update
+
+**Phase 2: Attributes Lookup**
+- If Phase 1 doesn't find a connection, search by exact attribute match
+- This handles cases where account_identifier isn't available
+
+**Result**: The existing connection is updated with new tokens and attributes, OR a new connection is created if neither lookup finds a match.
+
+### Example: User Changes Organization
+
+When a user switches organizations and re-authorizes, Alter Vault updates the existing connection:
+
+```python
+# Scenario: Alice switches from Acme Corp to Globex Corp
+
+# First authorization (Acme):
+# Connection created:
+{
+    "id": "conn-abc123",
+    "account_identifier": "alice@example.com",
+    "attributes": {"user_id": "alice", "org_id": "acme"}
+}
+
+# Alice switches orgs and re-authorizes (Globex):
+# Connection UPDATED (NOT duplicated):
+{
+    "id": "conn-abc123",  # SAME connection ID
+    "account_identifier": "alice@example.com",  # Same account
+    "attributes": {"user_id": "alice", "org_id": "globex"}  # NEW attributes
+}
+
+# Result: ONE connection with updated attributes and fresh tokens
+```
+
+### When Separate Connections Are Created
+
+Separate connections exist when **different OAuth accounts** are used, even with the same attributes:
+
+```python
+# Connection 1: Alice's account
+{
+    "account_identifier": "alice@example.com",
+    "attributes": {"org_id": "acme"}
+}
+
+# Connection 2: Bob's account
+{
+    "account_identifier": "bob@example.com",
+    "attributes": {"org_id": "acme"}  # Same org, different user
+}
+
+# Result: TWO connections (different OAuth accounts)
+```
+
+### Choosing Your Attribution Strategy
+
+Your attribution strategy determines how connections are deduplicated. Choose based on your use case:
+
+| Strategy | Attributes | Use Case | Deduplication Behavior |
+|----------|------------|----------|------------------------|
+| **Org-level** | `{"org_id": "acme"}` | Shared team resources | One connection per org, any user can authorize |
+| **User-level** | `{"user_id": "alice"}` | Personal accounts | One connection per user across all orgs |
+| **Hybrid** | `{"org_id": "acme", "user_id": "alice"}` | User-specific org data | Separate connection per user per org |
+
+**Organization-Level Attribution** (Recommended for B2B SaaS):
+
+```python
+# Any user in the org can use this connection
+google = await vault.get_client(
+    provider=Provider.GOOGLE,
+    user={"org_id": "acme"}
+)
+```
+
+**User-Level Attribution** (Recommended for Personal Apps):
+
+```python
+# One connection per user, follows them across orgs
+google = await vault.get_client(
+    provider=Provider.GOOGLE,
+    user={"user_id": "alice"}
+)
+```
+
+**Hybrid Attribution** (For complex multi-tenant scenarios):
+
+```python
+# Separate connection per user per org
+google = await vault.get_client(
+    provider=Provider.GOOGLE,
+    user={"org_id": "acme", "user_id": "alice"}
+)
+```
+
+<Note>
+If a user re-authorizes with the same OAuth account but different attributes, the connection is automatically updated. You don't need to handle this in your code.
+</Note>
+
 ## Custom Schemas
 
 Add structured data to any OAuth connection:

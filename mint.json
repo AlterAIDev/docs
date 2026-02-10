@@ -72,6 +72,12 @@
       ]
     },
     {
+      "group": "Integrations",
+      "pages": [
+        "integrations/openclaw"
+      ]
+    },
+    {
       "group": "Reference",
       "pages": [
         "reference/architecture",

@@ -318,14 +318,155 @@ When a user successfully connects, you receive a connection object:
   **Important**: Store the `connection_id` in your database. You'll use this to retrieve OAuth tokens for API calls.
 </Note>
 
+## Provider Filtering
+
+### Automatic Provider Display (Recommended)
+
+**Omit `allowed_providers`** to automatically show ALL providers configured in your Developer Portal:
+
+<CodeGroup>
+
+```javascript Node.js/Express
+app.post('/api/alter/session', async (req, res) => {
+  const response = await fetch('https://api.alter.com/oauth/connect/session', {
+    method: 'POST',
+    headers: {
+      'x-api-key': process.env.ALTER_API_KEY,
+      'x-app-id': process.env.ALTER_APP_ID,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      end_user: {
+        id: req.user.id,
+        email: req.user.email,
+        name: req.user.name
+      },
+      attributes: {
+        user_id: req.user.id,
+        organization_id: req.user.org_id
+      }
+      // ✅ No allowed_providers = show all configured providers
+    })
+  });
+
+  const data = await response.json();
+  res.json({ session_token: data.session_token });
+});
+```
+
+```python FastAPI
+@app.post("/api/alter/session")
+async def create_alter_session(current_user = Depends(get_current_user)):
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            "https://api.alter.com/oauth/connect/session",
+            headers={
+                "x-api-key": os.environ["ALTER_API_KEY"],
+                "x-app-id": os.environ["ALTER_APP_ID"]
+            },
+            json={
+                "end_user": {
+                    "id": current_user.id,
+                    "email": current_user.email,
+                    "name": current_user.name
+                },
+                "attributes": {
+                    "user_id": current_user.id,
+                    "organization_id": current_user.org_id
+                }
+                # ✅ No allowed_providers = show all configured providers
+            }
+        )
+
+    data = response.json()
+    return {"session_token": data["session_token"]}
+```
+
+</CodeGroup>
+
+<Tip>
+**Best Practice**: Configure providers in the Developer Portal, then omit `allowed_providers` in your code. This keeps provider management centralized and avoids hardcoding provider lists.
+</Tip>
+
+### Restrict by User Tier or Feature
+
+Use `allowed_providers` to **dynamically filter** which providers users can access:
+
+<CodeGroup>
+
+```javascript Premium Users Only
+// Show only premium providers to paying users
+const allowed = req.user.isPremium
+  ? ['google', 'microsoft', 'salesforce']  // Premium providers
+  : ['google'];  // Free tier
+
+const response = await fetch('https://api.alter.com/oauth/connect/session', {
+  method: 'POST',
+  headers: { /* ... */ },
+  body: JSON.stringify({
+    end_user: { /* ... */ },
+    attributes: { /* ... */ },
+    allowed_providers: allowed  // Dynamic filtering
+  })
+});
+```
+
+```javascript Regional Restrictions
+// Show providers based on user region
+const providers = {
+  'US': ['google', 'microsoft', 'slack'],
+  'EU': ['google', 'microsoft'],  // GDPR-compliant only
+  'APAC': ['google', 'slack', 'github']
+};
+
+const response = await fetch('https://api.alter.com/oauth/connect/session', {
+  method: 'POST',
+  headers: { /* ... */ },
+  body: JSON.stringify({
+    end_user: { /* ... */ },
+    attributes: { /* ... */ },
+    allowed_providers: providers[req.user.region]
+  })
+});
+```
+
+```javascript Feature Flags
+// Enable/disable providers via feature flags
+const enabledProviders = ['google'];
+
+if (featureFlags.slackIntegration) {
+  enabledProviders.push('slack');
+}
+
+if (featureFlags.microsoftIntegration) {
+  enabledProviders.push('microsoft');
+}
+
+const response = await fetch('https://api.alter.com/oauth/connect/session', {
+  method: 'POST',
+  headers: { /* ... */ },
+  body: JSON.stringify({
+    end_user: { /* ... */ },
+    attributes: { /* ... */ },
+    allowed_providers: enabledProviders
+  })
+});
+```
+
+</CodeGroup>
+
+<Warning>
+**Security**: Alter automatically filters requested providers to only those configured in your Developer Portal. Users cannot access unconfigured providers even if listed in `allowed_providers`.
+</Warning>
+
 ## Smart UX Features
 
 ### Single Provider Flow
 
-When only one provider is allowed, the SDK **automatically skips** the selection screen:
+When only one provider is available, the SDK **automatically skips** the selection screen:
 
 ```javascript
-// Backend: Only Google allowed
+// Backend: Only Google configured or requested
 allowed_providers: ['google']
 
 // Result: Opens Google OAuth directly (no selection modal)
@@ -333,7 +474,7 @@ allowed_providers: ['google']
 
 ### Multiple Provider Flow
 
-When multiple providers are allowed, users see a **provider selection grid**:
+When multiple providers are available, users see a **provider selection grid**:
 
 ```javascript
 // Backend: Multiple providers
