@@ -11,7 +11,7 @@ Session tokens are temporary credentials that authorize Alter Connect without ex
 
 | Property | Description | Default |
 |----------|-------------|---------|
-| **Lifetime** | How long token is valid | 15 minutes |
+| **Lifetime** | How long token is valid | 10 minutes |
 | **Single use** | Can only create one connection | No |
 | **IP restricted** | Locked to user's IP | Optional |
 | **Provider list** | Which providers to show | All configured (if omitted) |
@@ -105,9 +105,8 @@ await alterConnect.open({
 
   // Optional
   onError: (error) => {},        // Error callback
-  onClose: () => {},             // Close callback
-  provider: 'google',            // Pre-select provider
-  container: '#widget',          // Embed in element (vs modal)
+  onExit: () => {},              // Called when user closes without connecting
+  onEvent: (name, meta) => {},   // Analytics events
   baseURL: 'https://...'        // Override API URL (testing)
 });
 ```
@@ -123,8 +122,13 @@ interface Connection {
   provider_name: string;       // Display name (e.g., 'Google')
   account_identifier: string;  // User's email/username
   timestamp: string;           // ISO 8601 timestamp
+  operation: 'creation' | 'reauth';  // New connection or re-authorization
   scopes: string[];           // OAuth scopes granted
   status: 'active' | 'pending' | 'error';
+  metadata?: {                // Optional provider-specific data
+    account_display_name?: string;
+    account_email?: string;
+  };
 }
 ```
 
@@ -143,15 +147,21 @@ await alterConnect.open({
     console.error('Connection failed:', error);
 
     switch(error.code) {
-      case 'user_cancelled':
-        // User closed the window
+      case 'popup_blocked':
+        // Browser blocked the popup
+        alert('Please allow popups for this site');
         break;
-      case 'token_expired':
-        // Session expired - create new one
-        break;
-      case 'provider_error':
+      case 'oauth_error':
         // OAuth provider issue
         alert('Provider error. Please try again.');
+        break;
+      case 'network_error':
+        // Could not reach Alter API
+        alert('Network error. Please check your connection.');
+        break;
+      case 'timeout':
+        // Request timed out
+        alert('Request timed out. Please try again.');
         break;
       default:
         alert('Connection failed. Please try again.');
@@ -261,7 +271,7 @@ alterConnect.on('connection_complete', (connection) => {
 ## Security Best Practices
 
 1. **Never expose API keys** - Always create sessions server-side
-2. **Use short-lived tokens** - 15 minutes or less
+2. **Use short-lived tokens** - 10 minutes or less
 3. **Implement IP restrictions** - Lock sessions to user's IP
 4. **Validate on backend** - Always verify connection on your server
 5. **Use HTTPS** - Never use in production without HTTPS

@@ -81,6 +81,7 @@
       "group": "Reference",
       "pages": [
         "reference/architecture",
+        "reference/audit-logs",
         "reference/developer-portal"
       ]
     }

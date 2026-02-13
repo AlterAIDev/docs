@@ -20,8 +20,8 @@ The Developer Portal ([portal.alter.com](https://portal.alter.com)) is where you
     Configure Google, Slack, Microsoft, etc.
   </Step>
 
-  <Step title="Copy Credentials">
-    Get your API Key and App ID for the SDK
+  <Step title="Copy Your API Key">
+    Get your API Key (`alter_key_...`) for the SDK
   </Step>
 </Steps>
 
@@ -108,83 +108,102 @@ Add structured data to any OAuth connection for enhanced functionality.
 ### Using Schema Data
 
 ```python
-# Set custom data when creating connection
-connection_data = {
-    "sync_preferences": {
-        "calendar": {"enabled": True, "frequency": "hourly"}
-    },
-    "department": "engineering"
-}
-
-# Query connections by schema fields
-connections = await vault.list_connections(
-    filters={"department": "engineering"}
-)
+# Custom schema data is set during the OAuth connection flow
+# via the Alter Connect session endpoint, then available
+# in the Alter Vault dashboard for filtering and management.
+#
+# The SDK's vault.request() uses attribution (user dict) to
+# find the right connection. Custom schema data enriches
+# the connection metadata for your dashboard workflows.
 ```
 
 ## Security Policies
 
-Control how and when OAuth tokens can be accessed.
+Control how and when OAuth tokens can be accessed. Policies are enforced in real-time by [Cerbos](https://cerbos.dev) before tokens are returned from the API.
 
-### Policy Types
+<Note>
+  Policies can only be configured for OAuth providers that you've already set up in the **OAuth Providers** tab. Add a provider there first, then configure its policy.
+</Note>
 
-- **IP Restrictions**: Whitelist specific IPs or CIDR ranges
-- **Rate Limiting**: Prevent abuse (per second/minute/hour/day)
-- **Time-Based Access**: Business hours only, weekdays only
-- **Scope Requirements**: Control which OAuth permissions are allowed
+### Policy Rule Types
+
+| Rule | Description | Example |
+|------|-------------|---------|
+| **Scope Restrictions** | Limit which OAuth scopes can be retrieved | Only allow `calendar.readonly` |
+| **Time-Based Access** | Restrict to business hours or weekdays | Mon-Fri, 9am-5pm |
+| **IP Allowlist** | Only allow access from specific IPs | Office network `203.0.113.0/24` |
+| **Required Attributes** | Require connection metadata | Must have `user_id` and `org_id` |
 
 ### Creating Policies
 
-1. Go to **Application Settings** → **Policies**
-2. Click **Add Policy**
-3. Configure your rules:
+<Steps>
+  <Step title="Configure a Provider">
+    Go to **App Details** → **OAuth Providers** and add at least one provider (e.g., Google)
+  </Step>
 
-**IP Restriction Example:**
+  <Step title="Open Policies Tab">
+    Go to **App Details** → **Policies**. Only your configured providers appear here.
+  </Step>
+
+  <Step title="Add Policy">
+    Click **Add Policy** next to a provider and configure rules:
+
+    - **OAuth Scopes**: Check which scopes are allowed (if none checked, all scopes are permitted)
+    - **Time Restrictions**: Check "Business hours only" (9am-5pm) or "Weekdays only" (Mon-Fri)
+    - **IP Allowlist**: Add IPv4/IPv6 addresses or CIDR ranges
+    - **Required Attributes**: Add attribute keys that must exist on the connection
+  </Step>
+
+  <Step title="Save">
+    Click **Save Policy**. Changes take effect immediately for new token retrievals.
+  </Step>
+</Steps>
+
+### Policy Examples
+
+**Scope restriction** — only allow read-only calendar access:
+```json
+{
+  "allowed_scopes": ["openid", "profile", "https://www.googleapis.com/auth/calendar.readonly"]
+}
 ```
-Type: IP Allowlist
-IPs: 192.168.1.0/24, 10.0.0.0/8
-Action: Block if not matched
+
+**Business hours + IP allowlist** — restrict to office network during work hours:
+```json
+{
+  "time_restrictions": { "business_hours_only": true, "weekdays_only": true },
+  "ip_allowlist": ["203.0.113.0/24"]
+}
 ```
 
-**Rate Limit Example:**
-```
-Type: Rate Limit
-Limit: 100 requests per second
-1000 requests per minute
-10000 requests per hour
-Action: Block when exceeded
+**Required attributes** — ensure every token access is attributed to a user and org:
+```json
+{
+  "required_attributes": ["user_id", "org_id"]
+}
 ```
 
-**Time Window Example:**
-```
-Type: Time-Based Access
-Window: Mon-Fri, 9 AM - 5 PM EST
-Action: Block outside window
-```
+### Policy Evaluation
 
-4. Set enforcement level:
-   - **Block**: Deny access
-   - **Warn**: Allow but log warning
-   - **Log**: Allow and log for monitoring
-5. Apply to all connections or specific providers
+All configured rules are evaluated with **AND logic** — every rule must pass for token access to be granted.
 
-### Policy Evaluation Order
+1. Scope restrictions (are the connection's scopes in the allowed list?)
+2. Time restrictions (is it within business hours / a weekday?)
+3. IP allowlist (is the client IP in the list?)
+4. Required attributes (does the connection have all required attributes?)
 
-1. IP Restrictions (checked first)
-2. Rate Limits
-3. Time Windows
-4. Scope Requirements
+If **any** rule fails, access is denied with a specific reason. If **no policy** is configured for a provider, all token accesses are allowed (permissive default).
 
-All policies must pass for token access.
+### Fail-Closed Security
+
+If the policy service (Cerbos) is unavailable, the system **denies all token access** rather than bypassing policies. This ensures security even during outages.
 
 ## API Keys
 
-### Get Your Keys
+### Get Your API Key
 
 1. Go to **Application** → **API Keys**
-2. Copy:
-   - **API Key**: `alter_key_...`
-   - **App ID**: `app_...`
+2. Copy your **API Key**: `alter_key_...`
 
 ### Security Best Practices
 
@@ -242,6 +261,17 @@ Create separate apps for different environments:
 | Staging | QA testing | Standard |
 | Production | Live users | IP-restricted |
 
+## Audit Logs
+
+View all activity across your application under **Audit Logs** in the sidebar.
+
+- **Filter** by event type, provider, user, actor, or date range
+- **Search** for specific connections, users, or AI agents
+- **Click** any entry for full details
+- **Export** as CSV for compliance reporting
+
+See the [Audit Logs guide](/reference/audit-logs) for more details.
+
 ## Monitoring
 
 ### Dashboard Metrics
@@ -264,17 +294,19 @@ Set up notifications for:
 
 ### Backend Code
 ```python
-# Initialize SDK with portal credentials
-vault = AlterVault(
-    api_key="alter_key_...",  # From portal
-    app_id="app_..."          # From portal
-)
+from alter_sdk import AlterVault, Provider, HttpMethod
 
-# Use attribution from portal config
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"user_id": "alice"}  # Must match attribution
+# Initialize SDK with your API key from portal
+vault = AlterVault(api_key="alter_key_...")
+
+# Make API calls - token injected automatically
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},  # Must match attribution config
 )
+events = response.json()
 ```
 
 ### Frontend Code

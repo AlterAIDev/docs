@@ -29,6 +29,13 @@ Alter Vault handles OAuth tokens and API credentials so you can focus on buildin
   >
     Frontend SDK for OAuth connection UI
   </Card>
+  <Card
+    title="OpenClaw Plugin"
+    icon="robot"
+    href="/integrations/openclaw"
+  >
+    Give your AI agent OAuth access
+  </Card>
 </CardGroup>
 
 ## Why Choose Alter Vault?
@@ -42,6 +49,12 @@ Tokens are refreshed automatically before they expire. Your API calls never fail
 ### Enterprise Security
 Bank-grade encryption, SOC 2 compliance, and complete audit trails protect your users' data.
 
+### Built for AI Agents
+First-class actor tracking for AI agents and MCP servers. Know exactly which agent accessed what data and when, with per-request context (run ID, thread ID, tool call ID).
+
+### Complete Audit Trail
+Every token access, connection change, and API call is logged automatically. View, filter, and export logs from the dashboard for SOC 2, GDPR, and HIPAA compliance.
+
 ### Universal Compatibility
 Works with your existing authentication system. Use JWT tokens from Auth0, Clerk, Supabase, or any provider.
 
@@ -49,19 +62,19 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 <Steps>
   <Step title="Your User Connects">
-    User authorizes access through our secure OAuth flow
+    User authorizes access through our secure OAuth flow (Alter Connect UI)
   </Step>
 
   <Step title="We Store Tokens">
-    Tokens are encrypted and stored in our secure vault
+    Tokens are encrypted and stored in our secure vault - never in your database
   </Step>
 
-  <Step title="You Request Tokens">
-    Get fresh, valid tokens whenever you need them
+  <Step title="You Make API Calls">
+    Call `vault.request()` and we inject the right token automatically
   </Step>
 
-  <Step title="Make API Calls">
-    Use tokens to access provider APIs on behalf of your users
+  <Step title="We Handle the Rest">
+    Token refresh, policy enforcement, audit logging - all automatic
   </Step>
 </Steps>
 
@@ -69,8 +82,8 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 <Info>
 **Two SDKs for different purposes:**
-- **Python SDK (`alter-sdk`)** - Backend SDK for retrieving and using OAuth tokens
-- **Alter Connect (`@alter-ai/connect`)** - Frontend SDK for OAuth connection UI
+- **Python SDK (`alter-sdk`)** - Backend SDK for making authenticated API calls with automatic token injection
+- **Alter Connect (`@alter-ai/connect`)** - Frontend SDK for the OAuth connection UI
 </Info>
 
 ## Quick Example
@@ -79,26 +92,21 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 ```python Python
 import asyncio
-from alter_sdk import AlterVault, Provider
+from alter_sdk import AlterVault, Provider, HttpMethod
 
 async def use_google_calendar():
-    # Initialize the SDK
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="app_..."
-    )
+    vault = AlterVault(api_key="alter_key_...")
 
-    # Get Google client - tokens injected automatically!
-    google = await vault.get_client(
-        provider=Provider.GOOGLE,
-        user={"user_id": "alice"}
+    # Make API request - token injected automatically!
+    response = await vault.request(
+        Provider.GOOGLE,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        user={"user_id": "alice"},
+        query_params={"maxResults": "10"},
     )
-
-    # Use Google APIs normally - no token handling!
-    calendar = await google.build("calendar", "v3")
-    events = calendar.events().list(
-        calendarId="primary"
-    ).execute()
+    events = response.json()
+    print(f"Found {len(events.get('items', []))} events")
 
     await vault.close()
 
@@ -143,17 +151,6 @@ response = requests.post(
     }
 )
 session_token = response.json()["session_token"]
-
-# Get token for backend use
-response = requests.post(
-    "https://api.alter.com/oauth/token",
-    headers={"x-api-key": "alter_key_..."},
-    json={
-        "provider_id": "google",
-        "attributes": {"user_id": "user_123"}
-    }
-)
-access_token = response.json()["access_token"]
 ```
 
 </CodeGroup>
@@ -193,7 +190,7 @@ Connect to the services your users already use:
 
 <AccordionGroup>
   <Accordion title="Simple Integration">
-    Drop-in SDKs for Python and JavaScript. REST API for everything else. Get started in minutes.
+    Drop-in SDK for Python with a single method (`vault.request()`) for any provider. REST API for everything else. Get started in minutes.
   </Accordion>
 
   <Accordion title="Your Auth System">
@@ -201,11 +198,11 @@ Connect to the services your users already use:
   </Accordion>
 
   <Accordion title="Complete Control">
-    Fine-grained permissions, audit logs, and webhooks give you full visibility and control.
+    Fine-grained policies, audit logs, and actor tracking give you full visibility and control over who accesses what.
   </Accordion>
 
   <Accordion title="Scale Confidently">
-    Handle millions of tokens with our infrastructure. We scale so you don't have to.
+    Handle millions of tokens with our infrastructure. Redis-cached token retrieval under 10ms.
   </Accordion>
 </AccordionGroup>
 
@@ -242,6 +239,20 @@ Connect to the services your users already use:
     href="/quickstart"
   >
     Read our guides and tutorials
+  </Card>
+  <Card
+    title="Audit Logs"
+    icon="clipboard-list"
+    href="/reference/audit-logs"
+  >
+    Compliance and observability
+  </Card>
+  <Card
+    title="Architecture"
+    icon="building"
+    href="/reference/architecture"
+  >
+    Security model and design
   </Card>
   <Card
     title="Email Support"

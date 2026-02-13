@@ -17,13 +17,13 @@ graph LR
     A[Your App] --> B[Create Session]
     B --> C[Alter Connect UI]
     C --> D[User Authorizes]
-    D --> E[SDK Gets Tokens]
-    E --> F[Make API Calls]
+    D --> E[vault.request]
+    E --> F[API Response]
 ```
 
 ### Key Components
 
-1. **Python SDK (`alter-sdk`)** - Backend SDK that handles token retrieval and API calls
+1. **Python SDK (`alter-sdk`)** - Backend SDK that makes authenticated API calls via `vault.request()`
 2. **Connect SDK (`@alter-ai/connect`)** - Frontend JavaScript SDK for OAuth flow UI
 3. **Alter API** - Backend API at `https://api.alter.com`
 
@@ -46,7 +46,7 @@ Before you begin, you'll need:
   </Step>
 
   <Step title="Get Your Credentials">
-    Copy your API Key (starts with `alter_key_`) and App ID - you'll need these soon
+    Copy your API Key (starts with `alter_key_`) - you'll need this soon
   </Step>
 
   <Step title="Set Up Attribution">
@@ -83,19 +83,11 @@ Let's set up Google as an example (other providers work similarly):
 
 <CodeGroup>
 
-```bash Python Backend (Core)
-# Core SDK only
+```bash Python Backend
 pip install alter-sdk
-
-# With Google API support
-pip install alter-sdk[google]
-
-# With all provider support
-pip install alter-sdk[all]
 ```
 
 ```bash JavaScript Frontend
-# Install Connect SDK for OAuth UI
 npm install @alter-ai/connect
 ```
 
@@ -114,7 +106,6 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 ALTER_API_KEY = "alter_key_..."
-ALTER_APP_ID = "app_..."
 
 @app.route('/api/oauth/session', methods=['POST'])
 def create_oauth_session():
@@ -149,7 +140,6 @@ const axios = require('axios');
 const app = express();
 
 const ALTER_API_KEY = 'alter_key_...';
-const ALTER_APP_ID = 'app_...';
 
 app.post('/api/oauth/session', async (req, res) => {
     const user = req.user; // Your auth
@@ -275,36 +265,29 @@ Now use the SDK to make API calls with automatic token injection:
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, Provider
+from alter_sdk import AlterVault, Provider, HttpMethod
 
-async def fetch_google_calendar_events(user_id):
-    # Initialize SDK
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="app_..."
-    )
+async def fetch_calendar_events(user_id: str):
+    vault = AlterVault(api_key="alter_key_...")
 
     try:
-        # Get Google client - tokens are injected automatically!
-        google = await vault.get_client(
-            provider=Provider.GOOGLE,
-            user={"user_id": str(user_id)},
-            reason="Fetching calendar events"
+        # Make API request - token is injected automatically!
+        response = await vault.request(
+            Provider.GOOGLE,
+            HttpMethod.GET,
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            user={"user_id": user_id},
+            query_params={
+                "maxResults": "10",
+                "singleEvents": "true",
+                "orderBy": "startTime",
+            },
+            reason="Fetching calendar events",
         )
 
-        # Use Google APIs normally - no token handling!
-        calendar = await google.build("calendar", "v3")
-
-        events = calendar.events().list(
-            calendarId='primary',
-            maxResults=10,
-            singleEvents=True,
-            orderBy='startTime'
-        ).execute()
-
-        # Process events
-        for event in events.get('items', []):
-            start = event['start'].get('dateTime', event['start'].get('date'))
+        events = response.json()
+        for event in events.get("items", []):
+            start = event["start"].get("dateTime", event["start"].get("date"))
             print(f"{start}: {event.get('summary', 'No title')}")
 
         return events
@@ -312,181 +295,150 @@ async def fetch_google_calendar_events(user_id):
     finally:
         await vault.close()
 
-# Run the async function
-asyncio.run(fetch_google_calendar_events("user_123"))
+asyncio.run(fetch_calendar_events("user_123"))
 ```
 
-### Generic API Calls
-
-For providers without dedicated wrappers, use `call_api()`:
+### Using Context Managers
 
 ```python
-async def call_stripe_api(user_id):
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="app_..."
+async with AlterVault(api_key="alter_key_...") as vault:
+    response = await vault.request(
+        Provider.GOOGLE,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        user={"user_id": "alice"},
     )
-
-    # Make API call - token injected automatically!
-    response = await vault.call_api(
-        provider=Provider.STRIPE,
-        method="GET",
-        endpoint="https://api.stripe.com/v1/customers",
-        user={"user_id": user_id},
-        reason="Fetching customer list"
-    )
-
-    customers = response.json()
-    print(f"Found {len(customers['data'])} customers")
-
-    await vault.close()
+    events = response.json()
+# Clients automatically closed
 ```
 
-## Complete Example: Gmail Integration
+### POST Requests and URL Templating
 
-Here's a full example showing a Flask API that fetches Gmail messages:
+```python
+async with AlterVault(api_key="alter_key_...") as vault:
+    # POST with JSON body
+    response = await vault.request(
+        Provider.SLACK,
+        HttpMethod.POST,
+        "https://slack.com/api/chat.postMessage",
+        user={"user_id": "alice"},
+        json={"channel": "#general", "text": "Hello from Alter!"},
+    )
+
+    # URL path templating with automatic URL encoding
+    response = await vault.request(
+        Provider.SALESFORCE,
+        HttpMethod.GET,
+        "https://api.example.com/v1/accounts/{account_id}/contacts",
+        user={"user_id": "alice"},
+        path_params={"account_id": "acc-123"},
+        query_params={"limit": "50"},
+    )
+```
+
+### Error Handling
+
+```python
+from alter_sdk.exceptions import (
+    PolicyViolationError,
+    ConnectionNotFoundError,
+    TokenExpiredError,
+    NetworkError,
+    ProviderAPIError,
+)
+
+try:
+    response = await vault.request(
+        Provider.GOOGLE, HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        user={"user_id": "alice"},
+    )
+except PolicyViolationError as e:
+    print(f"Access denied by policy: {e.message}")
+except ConnectionNotFoundError:
+    print("User hasn't connected Google yet - redirect to Alter Connect")
+except TokenExpiredError:
+    print("Token refresh failed - user needs to re-authenticate")
+except NetworkError as e:
+    print(f"Network issue: {e.message}")
+except ProviderAPIError as e:
+    print(f"Google API error {e.status_code}: {e.response_body}")
+```
+
+### AI Agent Integration
+
+If you're building AI agents, add actor tracking for full observability:
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type="ai_agent",
+    actor_identifier="email-assistant-v2",
+    actor_name="Email Assistant",
+    actor_version="2.0.0",
+    framework="langgraph",
+)
+
+# Actor identity is sent automatically on every request
+# Per-request tracking adds execution context
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+    user={"user_id": "alice"},
+    run_id="run-001",
+    thread_id="thread-daily-digest",
+    tool_call_id="call_read_emails",
+    reason="Reading emails for daily digest",
+)
+```
+
+See the [Python SDK Quickstart](/sdks/python/quickstart#actor-tracking-ai-agents--mcp-servers) for the complete actor tracking guide.
+
+## Complete Example: Flask + Google Calendar
+
+Here's a full example showing a Flask API that fetches calendar events:
 
 ```python
 import asyncio
 from flask import Flask, jsonify
-from alter_sdk import AlterVault, Provider
+from alter_sdk import AlterVault, Provider, HttpMethod
 from alter_sdk.exceptions import ConnectionNotFoundError
 
 app = Flask(__name__)
+vault = AlterVault(api_key="alter_key_...")
 
-# Initialize Alter SDK
-vault = AlterVault(
-    api_key="alter_key_...",
-    app_id="app_..."
-)
+@app.route('/api/users/<user_id>/events')
+def get_user_events(user_id):
+    """Fetch user's calendar events using Alter SDK."""
 
-@app.route('/api/users/<user_id>/emails')
-def get_user_emails(user_id):
-    """Fetch user's Gmail messages using Alter SDK."""
-
-    async def fetch_emails():
+    async def fetch_events():
         try:
-            # Get Google client with automatic token injection
-            google = await vault.get_client(
-                provider=Provider.GOOGLE,
-                user={"user_id": user_id}
+            response = await vault.request(
+                Provider.GOOGLE,
+                HttpMethod.GET,
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                user={"user_id": user_id},
+                query_params={
+                    "maxResults": "10",
+                    "singleEvents": "true",
+                    "orderBy": "startTime",
+                },
+                reason="User viewing calendar events",
             )
-
-            # Build Gmail service
-            gmail = await google.build("gmail", "v1")
-
-            # Fetch messages - tokens handled automatically!
-            messages = gmail.users().messages().list(
-                userId='me',
-                maxResults=10
-            ).execute()
-
-            return messages
-
+            return response.json()
         except ConnectionNotFoundError:
             return None
 
-    # Run async function
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    result = loop.run_until_complete(fetch_emails())
+    result = asyncio.run(fetch_events())
 
     if result is None:
         return jsonify({"error": "User hasn't connected Google account"}), 404
 
     return jsonify(result)
 
-@app.teardown_appcontext
-def close_vault(error):
-    """Clean up SDK on app teardown."""
-    loop = asyncio.new_event_loop()
-    loop.run_until_complete(vault.close())
-
 if __name__ == '__main__':
     app.run(debug=True)
-```
-
-## More Examples
-
-### Sync Google Calendar
-
-```python
-async def sync_calendar_events(user_id):
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="app_..."
-    )
-
-    google = await vault.get_client(
-        provider=Provider.GOOGLE,
-        user={"user_id": user_id},
-        reason="Syncing calendar events"
-    )
-
-    calendar = await google.build("calendar", "v3")
-
-    events_result = calendar.events().list(
-        calendarId="primary",
-        timeMin=datetime.now().isoformat() + 'Z',
-        maxResults=10,
-        singleEvents=True,
-        orderBy='startTime'
-    ).execute()
-
-    # Save to your database
-    for event in events_result.get("items", []):
-        save_event_to_db(user_id, event)
-
-    await vault.close()
-```
-
-### Post to Slack
-
-```python
-async def post_slack_message(user_id, channel, text):
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="app_..."
-    )
-
-    response = await vault.call_api(
-        provider=Provider.SLACK,
-        method="POST",
-        endpoint="https://slack.com/api/chat.postMessage",
-        user={"user_id": user_id},
-        body={
-            "channel": channel,
-            "text": text
-        },
-        reason="Posting message to Slack"
-    )
-
-    await vault.close()
-    return response.json()
-```
-
-### List GitHub Repos
-
-```python
-async def list_github_repos(user_id):
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="app_..."
-    )
-
-    github = await vault.get_client(
-        provider=Provider.GITHUB,
-        user={"user_id": user_id}
-    )
-
-    # Use PyGithub API normally
-    user = github.get_user()
-    repos = user.get_repos()
-
-    for repo in repos:
-        print(f"Repo: {repo.name} - {repo.description}")
-
-    await vault.close()
 ```
 
 ## Key Concepts
@@ -494,7 +446,7 @@ async def list_github_repos(user_id):
 ### Zero Token Exposure
 The Alter SDK **never exposes OAuth tokens** to your code:
 - Tokens are retrieved internally by the SDK
-- Automatically injected into API calls
+- Automatically injected into API calls as Bearer headers
 - Refreshed transparently when needed
 - You only work with API results, not credentials
 
@@ -513,34 +465,41 @@ user={"team_id": "engineering"}
 ```
 
 ### Provider Support
-The SDK provides native wrappers for:
-- **Google**: Calendar, Gmail, Drive, Sheets
-- **GitHub**: Repos, Issues, PRs
-- **Slack**: Channels, Messages
-- **Generic**: Any OAuth provider via `call_api()`
+The SDK works with **any** OAuth provider through a single method:
+
+```python
+# Use Provider enums for supported providers
+await vault.request(Provider.GOOGLE, HttpMethod.GET, url, user=user)
+await vault.request(Provider.GITHUB, HttpMethod.GET, url, user=user)
+await vault.request(Provider.SLACK, HttpMethod.POST, url, user=user)
+
+# Use strings for any provider
+await vault.request("notion", HttpMethod.GET, url, user=user)
+await vault.request("hubspot", HttpMethod.POST, url, user=user)
+```
 
 ## Best Practices
-
-### Token Management
-- Use the SDK's `get_client()` for automatic token handling
-- Never cache tokens client-side
-- Always use `async`/`await` with the Python SDK
-
-### Attribution
-- Use consistent user identifiers
-- Include organizational context for multi-tenant apps
-- Don't change attribution after connections are made
 
 ### Security
 - Keep API keys server-side only
 - Use session tokens (short-lived) for frontend
 - Set IP restrictions in production
 
+### Attribution
+- Use consistent user identifiers
+- Include organizational context for multi-tenant apps
+- Don't change attribution after connections are made
+
+### Error Handling
+- Always handle `PolicyViolationError` and `ConnectionNotFoundError` explicitly
+- Don't catch all exceptions with a bare `except Exception`
+- Use retry logic for `NetworkError` (with exponential backoff)
+
 ## Troubleshooting
 
 ### Connection Not Found
 If you get `ConnectionNotFoundError`, ensure:
-- User has completed OAuth flow
+- User has completed OAuth flow via Alter Connect
 - Attribution matches exactly (same keys and values)
 - Connection hasn't been revoked
 
@@ -552,9 +511,16 @@ The SDK automatically refreshes tokens. If refresh fails:
 
 ### Policy Violation
 If you get `PolicyViolationError`:
-- Check IP restrictions
-- Verify rate limits
-- Review scope requirements
+- Check the error message for the specific rule that failed (scopes, time, IP, or attributes)
+- Review the policy configuration in **App Details → Policies** in the Developer Portal
+- Verify the connection's scopes match the policy's `allowed_scopes`
+- If using IP allowlist, confirm your server's IP is included
+- If using time restrictions, check if you're within business hours / weekdays
+
+### Provider Not Configured
+If you get `TokenRetrievalError` with "not configured":
+- Add the provider in the Alter Vault dashboard
+- Enter your OAuth Client ID and Client Secret
 
 ## What's Next?
 
@@ -564,7 +530,7 @@ If you get `PolicyViolationError`:
     icon="python"
     href="/sdks/python/quickstart"
   >
-    Deep dive into the Python SDK
+    Deep dive into the Python SDK with actor tracking
   </Card>
   <Card
     title="Alter Connect"
@@ -579,6 +545,20 @@ If you get `PolicyViolationError`:
     href="/reference/architecture"
   >
     Understand the security architecture
+  </Card>
+  <Card
+    title="Audit Logs"
+    icon="clipboard-list"
+    href="/reference/audit-logs"
+  >
+    Compliance and observability
+  </Card>
+  <Card
+    title="OpenClaw Plugin"
+    icon="robot"
+    href="/integrations/openclaw"
+  >
+    AI agent OAuth integration
   </Card>
   <Card
     title="Portal Guide"

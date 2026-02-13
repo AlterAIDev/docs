@@ -1,0 +1,162 @@
+---
+title: 'Audit Logs'
+description: 'Monitor, search, and export all activity across your application'
+---
+
+## Overview
+
+Alter Vault automatically logs all activity across your application, including token access, connection changes, API calls, and admin actions. You can view, filter, and export these logs from the Developer Portal and Wallet Dashboard.
+
+<CardGroup cols={3}>
+  <Card title="Automatic" icon="wand-magic-sparkles">
+    All activity is logged automatically with no code changes needed
+  </Card>
+
+  <Card title="Searchable" icon="magnifying-glass">
+    Filter by provider, user, actor, date, and event type
+  </Card>
+
+  <Card title="Exportable" icon="file-export">
+    Export as CSV for compliance reporting
+  </Card>
+</CardGroup>
+
+## Viewing Audit Logs in the Developer Portal
+
+Go to **Audit Logs** in the Developer Portal sidebar to see all activity across your application.
+
+### Filtering
+
+Use the filter bar to narrow down results:
+
+- **Event type**: Token access, connection changes, API calls, admin actions
+- **Provider**: Google, Slack, Microsoft, GitHub, Salesforce, Sentry, etc.
+- **User**: Search by user ID or email
+- **Actor**: Filter by AI agent or MCP server name
+- **Date range**: Pick a custom time window
+
+### Detail View
+
+Click any audit log entry to see full details:
+
+- Who made the request (user, AI agent, or admin)
+- What was accessed (provider, endpoint, scopes)
+- When it happened (timestamp with timezone)
+- The outcome (success, policy denial, error)
+- Request context (reason, run ID, thread ID)
+
+### Exporting
+
+Export filtered audit logs as CSV for compliance reporting:
+
+1. Apply your filters
+2. Click **Export**
+3. Download the CSV file
+
+## Viewing Activity in the Wallet Dashboard
+
+End users can view their own activity in the Wallet Dashboard under **Activity**:
+
+- Which apps accessed their data
+- Which AI agents made API calls on their behalf
+- When connections were created or revoked
+- Recent token access history
+
+This gives your users transparency into how their connected accounts are being used.
+
+## What Gets Logged
+
+Alter Vault logs five categories of events automatically:
+
+<AccordionGroup>
+  <Accordion title="Token Access" icon="key">
+    Every time a token is retrieved via `vault.request()`. Includes provider, scopes, policy decision, actor, and reason.
+  </Accordion>
+
+  <Accordion title="Connection Lifecycle" icon="link">
+    Connection created, updated, revoked, re-authenticated, or expired.
+  </Accordion>
+
+  <Accordion title="API Calls" icon="bolt">
+    Every external API call made through the SDK. Includes HTTP method, URL, response status, and latency.
+  </Accordion>
+
+  <Accordion title="Developer Portal Actions" icon="browser">
+    Admin actions like creating apps, configuring providers, updating policies, and rotating API keys.
+  </Accordion>
+
+  <Accordion title="End User Activity" icon="user">
+    Wallet Dashboard activity like login, logout, viewing connections, and revoking access.
+  </Accordion>
+</AccordionGroup>
+
+## Adding Context to Audit Logs
+
+Add a `reason` parameter to your API calls for richer audit context:
+
+```python
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},
+    reason="Syncing calendar for weekly digest email",
+)
+```
+
+The reason appears in the audit log detail view, making it easy to understand why each API call was made.
+
+## AI Agent Tracking
+
+When using AI agents or MCP servers, audit logs automatically capture actor context:
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type="ai_agent",
+    actor_identifier="email-assistant-v2",
+    actor_name="Email Assistant",
+)
+
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+    user={"user_id": "alice"},
+    run_id="run-001",
+    thread_id="thread-daily-digest",
+    reason="Reading emails for daily digest",
+)
+```
+
+In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. See the [Python SDK Actor Tracking guide](/sdks/python/quickstart#actor-tracking-ai-agents--mcp-servers) for setup details.
+
+## Compliance
+
+Audit logs are designed for compliance out of the box:
+
+| Standard | What Audit Logs Provide |
+|----------|------------------------|
+| **SOC 2** | Evidence of access controls, change management, and monitoring |
+| **GDPR** | Complete data access records for right-of-access requests |
+| **HIPAA** | Full audit trail of PHI access through OAuth connections |
+
+## Data Retention
+
+| Environment | Retention Period |
+|-------------|-----------------|
+| Production | 90 days (configurable) |
+| Development | 30 days |
+
+Contact support for extended retention or custom archival policies.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Actor Tracking" icon="robot" href="/sdks/python/quickstart#actor-tracking-ai-agents--mcp-servers">
+    Set up AI agent tracking in the Python SDK
+  </Card>
+  <Card title="Security Policies" icon="shield" href="/reference/developer-portal#security-policies">
+    Configure access policies that are enforced and logged
+  </Card>
+</CardGroup>

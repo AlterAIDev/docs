@@ -14,9 +14,9 @@ graph LR
     A[Your User] --> B[Clicks Connect]
     B --> C[OAuth Flow]
     C --> D[Tokens Stored in Vault]
-    D --> E[You Request Token]
-    E --> F[Fresh Token Returned]
-    F --> G[Make API Calls]
+    D --> E[vault.request]
+    E --> F[Token Injected Automatically]
+    F --> G[API Response Returned]
 ```
 
 ## Zero Token Exposure
@@ -32,8 +32,8 @@ Your application **never sees or stores OAuth tokens**. Here's what happens inst
     OAuth tokens are encrypted and stored in our secure vault
   </Step>
 
-  <Step title="You Use Our SDK">
-    Python SDK automatically injects tokens into API calls
+  <Step title="You Call vault.request()">
+    Python SDK retrieves and injects tokens into API calls automatically
   </Step>
 
   <Step title="Automatic Refresh">
@@ -51,8 +51,9 @@ Your application **never sees or stores OAuth tokens**. Here's what happens inst
 ### Access Control
 - **API key authentication** for your backend
 - **Session tokens** for frontend (never expose API keys)
-- **IP restrictions** available for additional security
+- **Policy enforcement** via Cerbos (scope restrictions, time-based access, IP allowlist, required attributes)
 - **Rate limiting** to prevent abuse
+- **Fail-closed design** — if the policy service is unavailable, all token access is denied
 
 ### Compliance
 - **SOC 2 Type II** certified
@@ -66,9 +67,11 @@ Attribution is how you identify which OAuth connection to use. Instead of managi
 
 ```python
 # Use YOUR user IDs, not ours
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"user_id": "alice"}  # Your user ID
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},  # Your user ID
 )
 ```
 
@@ -97,7 +100,7 @@ graph TD
     B -->|Not Found| F{Phase 2: Check Attributes}
     F -->|Found| D
     F -->|Not Found| G[Create New Connection]
-    
+
     D --> H[Use Connection]
     E --> H
     G --> H
@@ -174,9 +177,9 @@ Your attribution strategy determines how connections are deduplicated. Choose ba
 
 ```python
 # Any user in the org can use this connection
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"org_id": "acme"}
+response = await vault.request(
+    Provider.GOOGLE, HttpMethod.GET, url,
+    user={"org_id": "acme"},
 )
 ```
 
@@ -184,9 +187,9 @@ google = await vault.get_client(
 
 ```python
 # One connection per user, follows them across orgs
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"user_id": "alice"}
+response = await vault.request(
+    Provider.GOOGLE, HttpMethod.GET, url,
+    user={"user_id": "alice"},
 )
 ```
 
@@ -194,9 +197,9 @@ google = await vault.get_client(
 
 ```python
 # Separate connection per user per org
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"org_id": "acme", "user_id": "alice"}
+response = await vault.request(
+    Provider.GOOGLE, HttpMethod.GET, url,
+    user={"org_id": "acme", "user_id": "alice"},
 )
 ```
 
@@ -227,6 +230,12 @@ Use cases:
 - **User preferences** - Per-connection configuration
 - **Metadata** - Labels, tags, categories
 - **Mapping** - Link to your internal records
+
+## Audit Logs
+
+All activity is logged automatically, including token access, connection changes, API calls, and admin actions. View, filter, and export logs from the Developer Portal. AI agents and MCP servers are tracked with full context (actor name, run ID, thread ID).
+
+See the [Audit Logs guide](/reference/audit-logs) for details on viewing and exporting logs.
 
 ## Performance
 
@@ -304,14 +313,18 @@ await alterConnect.open({
 ### 2. Backend: Use the Connection
 
 ```python
-# Make API calls with auto-injected tokens
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"user_id": "alice"}
-)
+from alter_sdk import AlterVault, Provider, HttpMethod
 
-calendar = await google.build("calendar", "v3")
-events = calendar.events().list(calendarId="primary").execute()
+vault = AlterVault(api_key="alter_key_...")
+
+# Make API calls with auto-injected tokens
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},
+)
+events = response.json()
 ```
 
 That's it. No token handling, no refresh logic, no storage concerns.
@@ -323,7 +336,15 @@ That's it. No token handling, no refresh logic, no storage concerns.
     Connect your first integration in 5 minutes
   </Card>
 
+  <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
+    Compliance and observability
+  </Card>
+
   <Card title="Developer Portal" icon="browser" href="/reference/developer-portal">
     Configure your OAuth providers
+  </Card>
+
+  <Card title="OpenClaw Plugin" icon="robot" href="/integrations/openclaw">
+    AI agent OAuth integration
   </Card>
 </CardGroup>

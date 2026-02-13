@@ -131,11 +131,13 @@ Key security features:
 ```javascript
 // ESM
 import AlterConnect from '@alter-ai/connect';
-console.log(AlterConnect.version); // "0.1.0"
+const ac = AlterConnect.create();
+console.log(ac.getVersion()); // "0.1.1"
 
 // CommonJS
 const AlterConnect = require('@alter-ai/connect');
-console.log(AlterConnect.version); // "0.1.0"
+const ac = AlterConnect.create();
+console.log(ac.getVersion()); // "0.1.1"
 ```
 
 ### CDN Global
@@ -143,7 +145,8 @@ console.log(AlterConnect.version); // "0.1.0"
 ```html
 <script src="https://cdn.jsdelivr.net/npm/@alter-ai/connect@latest/dist/alter-connect.umd.js"></script>
 <script>
-  console.log(window.AlterConnect.version); // "0.1.0"
+  const ac = window.AlterConnect.create();
+  console.log(ac.getVersion()); // "0.1.1"
 </script>
 ```
 

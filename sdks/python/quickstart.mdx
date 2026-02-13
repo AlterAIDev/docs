@@ -3,42 +3,38 @@ title: 'Quickstart'
 description: 'Start using the Alter SDK for Python in minutes'
 ---
 
-Get started with the Alter SDK for Python to retrieve OAuth tokens and call provider APIs securely.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider - without ever touching a token.
 
 ## Basic Setup
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, Provider
+from alter_sdk import AlterVault, Provider, HttpMethod
 
 async def main():
     # Initialize the SDK
-    vault = AlterVault(
-        api_key="alter_key_...",  # Your API key from dashboard
-        app_id="123e4567-e89b-12d3-a456-426614174000"  # Your app ID
-    )
+    vault = AlterVault(api_key="alter_key_...")
 
-    # Get a provider client (tokens handled automatically)
-    google = await vault.get_client(
-        provider=Provider.GOOGLE,
-        user={"user_id": "alice", "email": "alice@example.com"}
+    # Make an API request - token is injected automatically
+    response = await vault.request(
+        Provider.GOOGLE,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        user={"user_id": "alice"},
+        query_params={"maxResults": "10"},
     )
-
-    # Use the Google API normally - no token handling needed!
-    calendar = await google.build("calendar", "v3")
-    events = calendar.events().list(calendarId="primary").execute()
+    events = response.json()
 
     for event in events.get("items", []):
         print(f"Event: {event['summary']}")
 
-    # Always close when done
     await vault.close()
 
 asyncio.run(main())
 ```
 
 <Note>
-  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically into API calls. All token caching happens on the backend for performance (less than 10ms).
+  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All token caching happens on the backend via Redis (under 10ms).
 </Note>
 
 ## Architecture & Security
@@ -48,108 +44,141 @@ asyncio.run(main())
 Tokens are **never exposed** to your code - this is a fundamental security principle:
 
 ```python
-# ✅ CORRECT - Tokens handled automatically behind the scenes
-google = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-calendar = await google.build("calendar", "v3")
+# ✅ CORRECT - Token injected automatically behind the scenes
+response = await vault.request(
+    Provider.GOOGLE, HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},
+)
 
 # ❌ IMPOSSIBLE - No method to access tokens directly
 token = vault.get_token()  # This method doesn't exist by design!
 ```
 
+### Dual HTTP Client Security
+
+The SDK uses two separate HTTP clients to prevent credential leakage:
+
+| Client | Purpose | Has API Key? | Talks To |
+|--------|---------|:----------:|----------|
+| **Alter client** | Token retrieval, audit logs | Yes | Alter backend only |
+| **Provider client** | Your API calls | No | Google, GitHub, Slack, etc. |
+
+This means your Alter API key **can never accidentally leak** to external provider APIs.
+
 ### No SDK-Side Caching
 
 The SDK has **zero client-side token caching** to ensure:
 
-- ✅ **Real-time policy enforcement** on every request
-- ✅ **Complete audit trail** - Backend logs all token access
-- ✅ **Instant revocation** - No SDK cache delays
-- ✅ **Fast performance** - Backend Redis cache (less than 10ms response)
-
-Every token request goes to the backend, which handles caching efficiently with Redis (5-15min TTL). This architecture ensures security without sacrificing performance.
+- **Real-time policy enforcement** on every request
+- **Complete audit trail** - backend logs all token access
+- **Instant revocation** - no SDK cache delays
+- **Fast performance** - backend Redis cache (under 10ms response)
 
 ### Automatic Audit Logging
 
-All API calls are automatically logged for compliance:
+All API calls are automatically logged as fire-and-forget background tasks:
 
 ```python
-# These calls are automatically logged to the backend
-google = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-calendar = await google.build("calendar", "v3")
-events = calendar.events().list(calendarId="primary").execute()
-# ↑ Each call creates an audit log entry
-
-# Generic API calls are also logged
-response = await vault.call_api(
-    provider=Provider.STRIPE,
-    method="GET",
-    endpoint="https://api.stripe.com/v1/customers",
-    user={"org_id": "acme"}
+response = await vault.request(
+    Provider.GOOGLE, HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},
+    reason="Fetching upcoming events for daily digest",
 )
-# ↑ Creates audit log with endpoint, method, user context
+# ↑ Audit log sent in background with: provider, method, URL,
+#   response status, latency, user context, and reason
 ```
 
 ### Policy Enforcement
 
-Policies are enforced on **every token retrieval** using Cerbos:
+Policies are enforced on **every token retrieval** using Cerbos. Only providers configured in your app can have policies.
 
 | Policy Type | Description | Example |
 |-------------|-------------|---------|
-| **Scope Restrictions** | Limit OAuth scopes | Only allow `calendar.readonly` |
-| **Time-Based Access** | Restrict by time | Business hours only (9am-5pm) |
-| **Rate Limiting** | Limit retrievals | Max 1000/day per user |
-| **User Context** | Attribute-based | Only verified users |
-| **IP Restrictions** | Network limits | Office IP allowlist |
+| **Scope Restrictions** | Limit which OAuth scopes can be retrieved | Only allow `calendar.readonly` |
+| **Time-Based Access** | Restrict by time of day or day of week | Business hours only (9am-5pm), weekdays only |
+| **IP Allowlist** | Restrict to specific IP addresses | Office network `203.0.113.0/24` |
+| **Required Attributes** | Require connection metadata | Must have `user_id` and `org_id` |
 
-Policies are configured in the Alter Vault dashboard per app.
+Policies are configured per-provider in the Developer Portal under **App Details → Policies**.
+
+## Configuration
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",              # Required: API key from dashboard
+    base_url="https://api.alter.com",     # Optional: Custom API endpoint
+    enable_audit_logging=True,            # Optional: Enable audit logs (default: True)
+    timeout=30.0,                         # Optional: HTTP timeout in seconds
+)
+```
 
 ## Core Concepts
 
-### 1. Initialize the Client
+### vault.request() - Single Entry Point
+
+All provider API calls go through one method:
 
 ```python
-from alter_sdk import AlterVault
-
-vault = AlterVault(
-    api_key="alter_key_...",  # Required: Your API key
-    app_id="your-app-id",      # Required: Your application ID
-    base_url="https://api.alter.com",  # Optional: API endpoint
-    enable_audit_logging=True,  # Optional: Enable audit logs (default: True)
-    timeout=30.0  # Optional: Request timeout in seconds
+response = await vault.request(
+    provider,         # Provider enum or string (e.g., Provider.GOOGLE, "google")
+    method,           # HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
+    url,              # Full URL of the provider API endpoint
+    user={...},       # User attributes to match the OAuth connection
+    json={...},       # Optional: JSON request body
+    query_params={},  # Optional: URL query parameters
+    path_params={},   # Optional: URL path template substitutions
+    extra_headers={}, # Optional: Additional headers (Authorization is auto-injected)
+    reason="...",     # Optional: Reason for audit trail
 )
 ```
 
-### 2. Provider Clients
+### Type-Safe Enums
 
-Use `get_client()` for providers with dedicated wrappers:
+Use enums for autocomplete and type safety:
 
 ```python
-# Google client with automatic token injection
-google = await vault.get_client(
-    provider=Provider.GOOGLE,
-    user={"user_id": "alice", "org_id": "acme"}
-)
+from alter_sdk import Provider, HttpMethod
 
-# GitHub client with automatic token injection
-github = await vault.get_client(
-    provider=Provider.GITHUB,
-    user={"user_id": "bob", "username": "bob"}
-)
+# Provider enums
+Provider.GOOGLE       # "google"
+Provider.GITHUB       # "github"
+Provider.SLACK        # "slack"
+Provider.MICROSOFT    # "microsoft"
+Provider.SALESFORCE   # "salesforce"
+
+# HTTP method enums
+HttpMethod.GET        # "GET"
+HttpMethod.POST       # "POST"
+HttpMethod.PUT        # "PUT"
+HttpMethod.PATCH      # "PATCH"
+HttpMethod.DELETE     # "DELETE"
+HttpMethod.HEAD       # "HEAD"
+HttpMethod.OPTIONS    # "OPTIONS"
 ```
 
-### 3. Generic API Calls
-
-For any provider without a dedicated wrapper:
+Strings also work for forward compatibility:
 
 ```python
-# Call any OAuth API - token injected automatically
-response = await vault.call_api(
-    provider=Provider.SLACK,
-    user={"user_id": "charlie"},
-    method="GET",
-    url="https://slack.com/api/users.profile.get"
-)
+# These are equivalent
+await vault.request(Provider.GOOGLE, HttpMethod.GET, url, user=user)
+await vault.request("google", "GET", url, user=user)
+```
 
-profile = response.json()
+### URL Path Templating
+
+Use `{placeholder}` syntax for dynamic URL segments (values are automatically URL-encoded):
+
+```python
+response = await vault.request(
+    Provider.SALESFORCE,
+    HttpMethod.GET,
+    "https://api.example.com/v1/accounts/{account_id}/contacts/{contact_id}",
+    user={"user_id": "alice"},
+    path_params={"account_id": "acc-123", "contact_id": "ct-456"},
+)
+# → GET https://api.example.com/v1/accounts/acc-123/contacts/ct-456
 ```
 
 ## Complete Examples
@@ -157,357 +186,408 @@ profile = response.json()
 ### Google Calendar Events
 
 ```python
-from alter_sdk import AlterVault, Provider
-from datetime import datetime, timedelta
+from alter_sdk import AlterVault, Provider, HttpMethod
 
-async def create_calendar_event():
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="your-app-id"
-    )
+async def list_calendar_events(user_id: str):
+    async with AlterVault(api_key="alter_key_...") as vault:
+        response = await vault.request(
+            Provider.GOOGLE,
+            HttpMethod.GET,
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            user={"user_id": user_id},
+            query_params={
+                "maxResults": "10",
+                "singleEvents": "true",
+                "orderBy": "startTime",
+            },
+        )
+        events = response.json()
 
-    google = await vault.get_client(
-        provider=Provider.GOOGLE,
-        user={"user_id": "alice"}
-    )
+        for event in events.get("items", []):
+            start = event["start"].get("dateTime", event["start"].get("date"))
+            print(f"{start}: {event.get('summary', 'No title')}")
 
-    calendar = await google.build("calendar", "v3")
-
-    # Create an event
-    event = {
-        'summary': 'Team Meeting',
-        'location': 'Conference Room A',
-        'description': 'Quarterly planning meeting',
-        'start': {
-            'dateTime': (datetime.now() + timedelta(days=1)).isoformat(),
-            'timeZone': 'America/New_York',
-        },
-        'end': {
-            'dateTime': (datetime.now() + timedelta(days=1, hours=1)).isoformat(),
-            'timeZone': 'America/New_York',
-        },
-        'attendees': [
-            {'email': 'alice@example.com'},
-            {'email': 'bob@example.com'},
-        ],
-    }
-
-    created_event = calendar.events().insert(
-        calendarId='primary',
-        body=event
-    ).execute()
-
-    print(f"Event created: {created_event['htmlLink']}")
-
-    await vault.close()
+        return events
 ```
 
-### GitHub Repository Management
+### GitHub Repositories
 
 ```python
-from alter_sdk import AlterVault, Provider
+async def list_repos(user_id: str):
+    async with AlterVault(api_key="alter_key_...") as vault:
+        response = await vault.request(
+            Provider.GITHUB,
+            HttpMethod.GET,
+            "https://api.github.com/user/repos",
+            user={"user_id": user_id},
+            query_params={"sort": "updated", "per_page": "10"},
+        )
+        repos = response.json()
 
-async def create_github_repo():
-    vault = AlterVault(
-        api_key="alter_key_...",
-        app_id="your-app-id"
-    )
-
-    github = await vault.get_client(
-        provider=Provider.GITHUB,
-        user={"user_id": "bob"}
-    )
-
-    # Create a new repository
-    user = github.get_user()
-    repo = user.create_repo(
-        name="my-new-project",
-        description="Created via Alter SDK",
-        private=True,
-        has_issues=True,
-        has_wiki=False
-    )
-
-    print(f"Repository created: {repo.html_url}")
-
-    # Add a README
-    repo.create_file(
-        "README.md",
-        "Initial commit",
-        "# My New Project\n\nCreated with Alter SDK!"
-    )
-
-    await vault.close()
+        for repo in repos:
+            print(f"{repo['name']} - {repo.get('description', 'No description')}")
 ```
 
 ### Slack Message Posting
 
 ```python
-from alter_sdk import AlterVault, Provider
+async def post_slack_message(user_id: str, channel: str, text: str):
+    async with AlterVault(api_key="alter_key_...") as vault:
+        response = await vault.request(
+            Provider.SLACK,
+            HttpMethod.POST,
+            "https://slack.com/api/chat.postMessage",
+            user={"user_id": user_id},
+            json={"channel": channel, "text": text},
+            reason="Posting message to Slack",
+        )
+        data = response.json()
 
-async def post_slack_message():
+        if data.get("ok"):
+            print(f"Message posted: {data['ts']}")
+        else:
+            print(f"Slack error: {data.get('error')}")
+```
+
+### POST with JSON Body
+
+```python
+async def create_item(user_id: str):
+    async with AlterVault(api_key="alter_key_...") as vault:
+        response = await vault.request(
+            Provider.SALESFORCE,
+            HttpMethod.POST,
+            "https://api.example.com/v1/items",
+            user={"user_id": user_id},
+            json={"name": "New Item", "price": 99.99},
+            reason="Creating new inventory item",
+        )
+        return response.json()
+```
+
+### Using Extra Headers
+
+Some APIs require version headers or custom metadata:
+
+```python
+async def query_notion(user_id: str):
+    async with AlterVault(api_key="alter_key_...") as vault:
+        response = await vault.request(
+            "notion",  # String works for any provider
+            HttpMethod.POST,
+            "https://api.notion.com/v1/databases/{db_id}/query",
+            user={"user_id": user_id},
+            path_params={"db_id": "abc123"},
+            extra_headers={"Notion-Version": "2022-06-28"},
+            json={"page_size": 10},
+        )
+        return response.json()
+```
+
+## Actor Tracking (AI Agents & MCP Servers)
+
+If your application uses AI agents or MCP servers, actor tracking gives you full observability into **which agent** is making API calls and **why**.
+
+### Why Actor Tracking?
+
+When AI agents make OAuth-authenticated API calls on behalf of users, you need to know:
+- **Which agent** accessed a user's data?
+- **What was the context** (conversation thread, tool invocation)?
+- **When and how often** did each agent make requests?
+
+Actor tracking answers these questions automatically.
+
+### Registering an Actor
+
+Pass actor identity at SDK initialization:
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",
+    # Actor identity (required for tracking)
+    actor_type="ai_agent",                # "ai_agent" or "mcp_server"
+    actor_identifier="email-assistant-v2", # Unique ID for this agent
+    # Actor metadata (optional)
+    actor_name="Email Assistant",          # Human-readable name
+    actor_version="2.0.0",                # Version string
+    framework="langgraph",                # AI framework being used
+)
+```
+
+For MCP servers:
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type="mcp_server",
+    actor_identifier="calendar-mcp",
+    actor_name="Calendar MCP Server",
+    actor_version="1.0.0",
+    client_type="cursor",                 # MCP client type
+)
+```
+
+### How Registration Works
+
+1. **First request**: SDK sends `actor_type` + `actor_identifier` as HTTP headers
+2. **Backend registers**: Actor is upserted in the database and assigned a UUID
+3. **Backend responds**: UUID returned in `X-Alter-Actor-ID` response header
+4. **SDK caches**: UUID is cached automatically for the session
+5. **Subsequent requests**: Cached UUID is sent (skips database lookup)
+
+This is fully automatic - you just configure the actor at initialization and the SDK handles the rest.
+
+### Per-Request Tracking
+
+Add execution-level context on each request:
+
+```python
+response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user={"user_id": "alice"},
+    # Per-request tracking (all optional)
+    run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID
+    thread_id="thread-abc-123",                       # Conversation thread
+    tool_call_id="call_xyz_789",                      # Tool invocation ID
+)
+```
+
+These fields are sent as headers to the backend and included in audit logs, giving you a complete trace from conversation → tool call → API request.
+
+### Complete Agent Example
+
+```python
+import asyncio
+from alter_sdk import AlterVault, Provider, HttpMethod
+
+async def run_email_agent():
     vault = AlterVault(
         api_key="alter_key_...",
-        app_id="your-app-id"
+        actor_type="ai_agent",
+        actor_identifier="email-assistant-v2",
+        actor_name="Email Assistant",
+        actor_version="2.0.0",
+        framework="langgraph",
     )
 
-    # Use generic API call for Slack
-    response = await vault.call_api(
-        provider=Provider.SLACK,
-        user={"user_id": "charlie", "team_id": "T123456"},
-        method="POST",
-        url="https://slack.com/api/chat.postMessage",
-        json={
-            "channel": "#general",
-            "text": "Hello from Alter SDK!",
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "This message was sent via *Alter Vault* OAuth tokens"
-                    }
-                }
-            ]
-        }
+    # Each tool call in the agent can be tracked
+    response = await vault.request(
+        Provider.GOOGLE,
+        HttpMethod.GET,
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        user={"user_id": "alice"},
+        query_params={"maxResults": "5"},
+        run_id="run-001",
+        thread_id="thread-daily-digest",
+        tool_call_id="call_read_emails",
+        reason="Reading emails for daily digest",
     )
 
-    if response.status_code == 200:
-        data = response.json()
-        if data["ok"]:
-            print(f"Message posted: {data['ts']}")
+    messages = response.json()
+    print(f"Found {len(messages.get('messages', []))} emails")
 
     await vault.close()
+
+asyncio.run(run_email_agent())
 ```
 
-## Critical: Error Handling & Policy Exceptions
+### Actor Tracking Parameters Reference
+
+**Initialization (set once per SDK instance):**
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `actor_type` | `str` | `"ai_agent"` or `"mcp_server"` | `"ai_agent"` |
+| `actor_identifier` | `str` | Unique identifier for the actor | `"email-assistant-v2"` |
+| `actor_name` | `str` | Human-readable display name | `"Email Assistant"` |
+| `actor_version` | `str` | Version of the actor | `"2.0.0"` |
+| `framework` | `str` | AI framework name | `"langgraph"`, `"crewai"` |
+| `client_type` | `str` | MCP client type | `"cursor"`, `"claude-desktop"` |
+
+**Per-request (set on each `vault.request()` call):**
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `run_id` | `str` | Execution run ID (UUID) | `"550e8400-..."` |
+| `thread_id` | `str` | Conversation thread ID | `"thread-abc-123"` |
+| `tool_call_id` | `str` | Tool invocation ID | `"call_xyz_789"` |
+
+## Error Handling
 
 <Warning>
-  **ALWAYS handle policy exceptions explicitly.** Policy enforcement happens on EVERY token retrieval and can deny access based on configured rules.
+  **Always handle errors explicitly.** Policy enforcement happens on EVERY token retrieval and can deny access based on configured rules.
 </Warning>
 
-### Policy Exceptions (Required Handling)
+### Exception Hierarchy
 
-#### PolicyViolationError (HTTP 403)
-
-Raised when token access is denied by configured policy rules (scopes, time, IP, attributes).
-
-```python
-from alter_sdk import AlterVault, Provider
-from alter_sdk.exceptions import PolicyViolationError
-
-try:
-    google = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-except PolicyViolationError as e:
-    # Policy denied access - check the reason
-    if "scope" in e.message.lower():
-        print("❌ Scope not allowed. Contact admin to update policy.")
-    elif "business hours" in e.message.lower():
-        print("❌ Access restricted to business hours (9am-5pm)")
-    elif "ip" in e.message.lower():
-        print("❌ IP address not in allowlist. Use VPN or office network.")
-    elif "attribute" in e.message.lower():
-        print("❌ Connection missing required attributes")
-
-    # e.details contains: resource_id, action, violation_type
-    print(f"Details: {e.details}")
 ```
-
-**Common causes:**
-- OAuth scope not in policy's `allowed_scopes` list
-- Request outside business hours (`business_hours_only` policy)
-- Request on weekend (`weekdays_only` policy)
-- Client IP not in `ip_allowlist`
-- Connection missing required attributes
-
-#### PolicyServiceUnavailableError (HTTP 503)
-
-Raised when Cerbos policy service is unavailable. **System fails closed** - denies all access for security.
-
-```python
-from alter_sdk.exceptions import PolicyServiceUnavailableError
-import asyncio
-
-try:
-    google = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-except PolicyServiceUnavailableError as e:
-    print(f"⚠️ Policy service unavailable. Retrying after {e.retry_after} seconds...")
-    await asyncio.sleep(e.retry_after)
-    # Implement retry logic
+AlterSDKError (base)
+├── TokenRetrievalError (backend errors)
+│   ├── PolicyViolationError (403 - policy denied access)
+│   ├── ConnectionNotFoundError (404 - no OAuth connection)
+│   └── TokenExpiredError (400/502 - refresh failed)
+├── ProviderAPIError (provider returned 4xx/5xx)
+└── NetworkError (connection/timeout failures)
 ```
 
 ### Complete Error Handling Example
 
 ```python
-from alter_sdk import AlterVault, Provider
+from alter_sdk import AlterVault, Provider, HttpMethod
 from alter_sdk.exceptions import (
     PolicyViolationError,
-    PolicyServiceUnavailableError,
     ConnectionNotFoundError,
     TokenExpiredError,
-    NetworkError
+    TokenRetrievalError,
+    NetworkError,
+    ProviderAPIError,
 )
 
-async def safe_api_call():
-    vault = AlterVault(api_key="...", app_id="...")
+async def safe_api_call(user_id: str):
+    async with AlterVault(api_key="alter_key_...") as vault:
+        try:
+            response = await vault.request(
+                Provider.GOOGLE,
+                HttpMethod.GET,
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                user={"user_id": user_id},
+            )
+            return response.json()
 
-    try:
-        google = await vault.get_client(
-            provider=Provider.GOOGLE,
-            user={"user_id": "alice", "org_id": "acme"}
-        )
+        except PolicyViolationError as e:
+            # Policy denied access (403) - check the reason
+            print(f"Access denied by policy: {e.message}")
+            print(f"Details: {e.details}")
+            # Resolution: Check policy configuration in dashboard
 
-        calendar = await google.build("calendar", "v3")
-        events = calendar.events().list(calendarId="primary").execute()
+        except ConnectionNotFoundError:
+            # No OAuth connection for this user/provider (404)
+            print("User hasn't connected Google yet")
+            # Resolution: Redirect user to Alter Connect OAuth flow
 
-    except PolicyViolationError as e:
-        # Policy denied access - handle based on reason
-        print(f"Access denied by policy: {e.message}")
-        print(f"Details: {e.details}")
-        # Resolution: Check policy configuration in Alter Vault Dashboard
+        except TokenExpiredError as e:
+            # Token refresh failed (400/502)
+            print(f"Token expired for connection: {e.connection_id}")
+            # Resolution: User needs to re-authenticate
 
-    except PolicyServiceUnavailableError as e:
-        # Policy service down - retry with backoff
-        print(f"Policy service unavailable, retry after {e.retry_after}s")
-        # Resolution: Retry with exponential backoff
+        except TokenRetrievalError as e:
+            # Other backend errors (401 invalid API key, 500/503 backend down)
+            print(f"Backend error: {e.message}")
 
-    except ConnectionNotFoundError:
-        print("User hasn't connected Google yet")
-        # Resolution: Redirect to Alter Connect UI
+        except NetworkError as e:
+            # Connection or timeout failure
+            print(f"Network issue: {e.message}")
+            # Resolution: Check network, retry with backoff
 
-    except TokenExpiredError as e:
-        print(f"Token expired for connection: {e.connection_id}")
-        # Resolution: User needs to re-authenticate
-
-    except NetworkError as e:
-        print(f"Backend unreachable: {e.message}")
-        # Resolution: Check network, retry with backoff
-
-    finally:
-        await vault.close()
+        except ProviderAPIError as e:
+            # Provider API returned an error (4xx/5xx from Google, Slack, etc.)
+            print(f"Provider error {e.status_code}: {e.response_body}")
+            # Resolution: Check the provider's API docs
 ```
 
-### Best Practices for Exception Handling
+### Common Error Scenarios
 
-```python
-# ✅ GOOD: Explicit policy exception handling
-try:
-    client = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-except PolicyViolationError as e:
-    # Handle policy violation
-    logger.warning(f"Policy violation for user alice: {e.message}")
-    return {"error": "Access denied by policy", "details": e.details}
-except PolicyServiceUnavailableError as e:
-    # Handle service unavailable
-    logger.error(f"Policy service down, retry after {e.retry_after}s")
-    raise
-
-# ❌ BAD: Catching all exceptions hides policy issues
-try:
-    client = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-except Exception as e:  # Don't do this! You'll miss important policy decisions
-    pass
-```
-
-### Retry Logic with Tenacity
-
-```python
-from tenacity import retry, stop_after_attempt, wait_exponential
-
-@retry(
-    stop=stop_after_attempt(3),
-    wait=wait_exponential(multiplier=1, min=4, max=60)
-)
-async def get_google_client_with_retry(vault, user):
-    try:
-        return await vault.get_client(Provider.GOOGLE, user=user)
-    except PolicyServiceUnavailableError:
-        # Retry on 503 (service unavailable)
-        raise
-    except PolicyViolationError:
-        # Don't retry on 403 (policy violation)
-        raise
-```
+| Exception | HTTP Status | Cause | Resolution |
+|-----------|:-----------:|-------|------------|
+| `PolicyViolationError` | 403 | Policy denied access | Check policy rules in dashboard |
+| `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
+| `TokenExpiredError` | 400/502 | Refresh token revoked/expired | User must re-authenticate |
+| `TokenRetrievalError` | 401 | Invalid API key | Check your `api_key` |
+| `TokenRetrievalError` | 400 | Provider not configured | Add provider in dashboard |
+| `TokenRetrievalError` | 500/503 | Backend unavailable | Retry with backoff |
+| `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
+| `NetworkError` | - | Connection refused/timeout | Check network, retry |
 
 ## Best Practices
 
 <AccordionGroup>
-  <Accordion title="CRITICAL: Always Handle Policy Exceptions" icon="shield-exclamation">
+  <Accordion title="Always Use Context Managers" icon="code">
     ```python
-    # ✅ GOOD - Explicit policy exception handling
+    # ✅ GOOD - Automatic cleanup
+    async with AlterVault(api_key="alter_key_...") as vault:
+        response = await vault.request(...)
+    # Clients automatically closed
+
+    # ❌ BAD - Manual cleanup required
+    vault = AlterVault(api_key="alter_key_...")
+    response = await vault.request(...)
+    # Forgot to call vault.close()!
+    ```
+  </Accordion>
+
+  <Accordion title="Handle Errors Explicitly" icon="shield-exclamation">
+    ```python
+    # ✅ GOOD - Explicit error handling
     try:
-        client = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
+        response = await vault.request(...)
     except PolicyViolationError as e:
         logger.warning(f"Policy violation: {e.message}")
         return {"error": "Access denied by policy"}
-    except PolicyServiceUnavailableError as e:
-        logger.error(f"Policy service down, retry after {e.retry_after}s")
-        raise
+    except ConnectionNotFoundError:
+        return {"error": "Please connect your account first"}
 
-    # ❌ BAD - Generic exception handling hides policy issues
+    # ❌ BAD - Swallows all errors
     try:
-        client = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
+        response = await vault.request(...)
     except Exception:
-        pass  # Don't do this! You'll miss critical policy decisions
+        pass
     ```
-
-    Policy exceptions are raised on EVERY token retrieval and must be handled explicitly.
-  </Accordion>
-
-  <Accordion title="Always Use Context Managers" icon="code">
-    ```python
-    async with AlterVault(api_key="...", app_id="...") as vault:
-        google = await vault.get_client(Provider.GOOGLE, user={...})
-        # Use google client
-    # Automatically closed
-    ```
-  </Accordion>
-
-  <Accordion title="Handle Connection Errors" icon="shield-exclamation">
-    Users may not have connected the provider yet. Always handle `ConnectionNotFoundError`.
-  </Accordion>
-
-  <Accordion title="Use Provider Enums" icon="list">
-    Use `Provider.GOOGLE` instead of string `"google"` for type safety.
   </Accordion>
 
   <Accordion title="Pass Consistent User Attributes" icon="users">
     The `user` dict must match the attributes used when the connection was created.
-  </Accordion>
 
-  <Accordion title="Log Policy Violations for Debugging" icon="bug">
     ```python
-    try:
-        client = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-    except PolicyViolationError as e:
-        logger.warning(
-            "Policy violation",
-            extra={
-                "user": "alice",
-                "provider": "google",
-                "error": e.message,
-                "details": e.details
-            }
-        )
-        raise
+    # Single user
+    user={"user_id": "alice"}
+
+    # Multi-tenant SaaS
+    user={"org_id": "acme", "user_id": "alice"}
+
+    # Team shared connection
+    user={"team_id": "engineering"}
     ```
   </Accordion>
 
-  <Accordion title="Provide Clear User Feedback" icon="comment">
+  <Accordion title="Use Enums for Type Safety" icon="list">
     ```python
-    try:
-        client = await vault.get_client(Provider.GOOGLE, user={"user_id": "alice"})
-    except PolicyViolationError as e:
-        if "scope" in e.message.lower():
-            return {"error": "Your integration doesn't have permission to access this data. Contact your administrator."}
-        elif "business hours" in e.message.lower():
-            return {"error": "This feature is only available during business hours (9am-5pm)."}
-        elif "ip" in e.message.lower():
-            return {"error": "This feature requires VPN connection."}
+    from alter_sdk import Provider, HttpMethod
+
+    # ✅ GOOD - Type-safe with autocomplete
+    await vault.request(Provider.GOOGLE, HttpMethod.GET, url, user=user)
+
+    # Also works - forward compatible for new providers
+    await vault.request("notion", "GET", url, user=user)
+    ```
+  </Accordion>
+
+  <Accordion title="Include Reasons for Audit" icon="clipboard-list">
+    ```python
+    # ✅ GOOD - Reason shows up in audit logs
+    response = await vault.request(
+        Provider.GOOGLE, HttpMethod.GET, url,
+        user={"user_id": "alice"},
+        reason="Fetching calendar events for weekly digest",
+    )
     ```
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
-Check out the [Quickstart Guide](/quickstart) for more comprehensive examples and integration patterns.
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Full integration walkthrough with frontend + backend
+  </Card>
+  <Card title="Architecture" icon="building" href="/reference/architecture">
+    Understand the security architecture
+  </Card>
+  <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
+    Compliance and observability features
+  </Card>
+  <Card title="OpenClaw Plugin" icon="robot" href="/integrations/openclaw">
+    AI agent OAuth integration
+  </Card>
+</CardGroup>

@@ -5,7 +5,7 @@ description: 'Give your OpenClaw AI agent secure access to Gmail, GitHub, Slack,
 
 ## Overview
 
-The **Alter Vault OpenClaw plugin** lets your [OpenClaw](https://openclaw.dev) AI agent make authenticated API calls to external services — Gmail, GitHub, Slack, Microsoft, and more — without ever exposing OAuth tokens to the LLM.
+The **Alter Vault OpenClaw plugin** lets your [OpenClaw](https://openclaw.dev) AI agent make authenticated API calls to external services (Gmail, GitHub, Slack, Microsoft, and more) without ever exposing OAuth tokens to the LLM.
 
 Alter Vault handles all token management, refresh, and security. The agent simply says _"list my recent emails"_ and the plugin takes care of the rest.
 
@@ -28,7 +28,7 @@ sequenceDiagram
 ```
 
 <Note>
-  **Zero Token Exposure** — The access token is retrieved internally and never returned to the LLM. The agent only sees the API response body.
+  **Zero Token Exposure**: The access token is retrieved internally and never returned to the LLM. The agent only sees the API response body.
 </Note>
 
 ## What You Get
@@ -114,12 +114,12 @@ Before setting up the plugin, you need:
     ```
     You: "What services do I have connected?"
     Agent: You have the following connections:
-           - Google (alice@gmail.com) — active
-           - GitHub (alice) — active
+           - Google (alice@gmail.com) - active
+           - GitHub (alice) - active
 
     You: "List my 5 most recent emails"
     Agent: Here are your recent emails:
-           1. "Q1 Planning" from bob@company.com — Jan 15
+           1. "Q1 Planning" from bob@company.com - Jan 15
            2. ...
     ```
   </Step>
@@ -170,17 +170,17 @@ List connected services. The agent uses this to discover what's available before
 ```
 Agent calls: alter_connections()
 Response:
-  - google: alice@gmail.com (active) — scopes: email, calendar, gmail
-  - github: alice (active) — scopes: repo, user
+  - google: alice@gmail.com (active) - scopes: email, calendar, gmail
+  - github: alice (active) - scopes: repo, user
 ```
 
 ### alter_api
 
-Make an authenticated API call. This is the primary tool — the agent uses it to interact with external services.
+Make an authenticated API call. This is the primary tool the agent uses to interact with external services.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `provider` | string | Provider ID: `"google"`, `"github"`, `"slack"`, `"microsoft"` |
+| `provider` | string | Provider ID: `"google"`, `"github"`, `"slack"`, `"microsoft"`, `"sentry"` |
 | `method` | string | HTTP method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
 | `url` | string | Full API URL (e.g. `https://www.googleapis.com/gmail/v1/users/me/messages`) |
 | `headers` | string (optional) | Additional headers as JSON |
@@ -229,7 +229,7 @@ Agent: Here's a link to connect your Slack account:
 ## Common API Recipes
 
 <AccordionGroup>
-  <Accordion title="Gmail — List recent messages" icon="envelope">
+  <Accordion title="Gmail - List recent messages" icon="envelope">
     ```
     alter_api(
       provider: "google",
@@ -240,7 +240,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="Gmail — Send an email" icon="paper-plane">
+  <Accordion title="Gmail - Send an email" icon="paper-plane">
     ```
     alter_api(
       provider: "google",
@@ -251,7 +251,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="Google Calendar — List events" icon="calendar">
+  <Accordion title="Google Calendar - List events" icon="calendar">
     ```
     alter_api(
       provider: "google",
@@ -262,7 +262,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="GitHub — List repositories" icon="code-branch">
+  <Accordion title="GitHub - List repositories" icon="code-branch">
     ```
     alter_api(
       provider: "github",
@@ -273,7 +273,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="GitHub — Create an issue" icon="circle-exclamation">
+  <Accordion title="GitHub - Create an issue" icon="circle-exclamation">
     ```
     alter_api(
       provider: "github",
@@ -284,7 +284,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="Slack — Send a message" icon="hashtag">
+  <Accordion title="Slack - Send a message" icon="hashtag">
     ```
     alter_api(
       provider: "slack",
@@ -295,7 +295,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="Slack — List channels" icon="list">
+  <Accordion title="Slack - List channels" icon="list">
     ```
     alter_api(
       provider: "slack",
@@ -306,7 +306,7 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="Microsoft — List emails" icon="microsoft">
+  <Accordion title="Microsoft - List emails" icon="microsoft">
     ```
     alter_api(
       provider: "microsoft",
@@ -327,7 +327,7 @@ The plugin uses the same **dual-client security pattern** as the [Alter Python S
 | **Token exposure to LLM** | Tokens are retrieved internally and never returned to the agent. Only the API response body is visible. |
 | **API key leakage** | Two separate HTTP clients: one for Alter backend (with `x-api-key`), one for external APIs (no `x-api-key`). The API key is never sent to third-party services. |
 | **Header injection** | The `Authorization: Bearer` header is always set last, so LLM-provided headers cannot override it. |
-| **Policy enforcement** | Every token retrieval is checked against your Cerbos policies (scopes, time-based access, rate limits). |
+| **Policy enforcement** | Every token retrieval is checked against your Cerbos policies (scopes, time-based access, IP allowlist, required attributes). |
 | **Audit logging** | All API calls are logged with the `reason` field for compliance. |
 | **Tenant isolation** | Connections are scoped to your app ID. One app cannot access another app's connections. |
 
@@ -354,7 +354,7 @@ The plugin surfaces clear error messages to the agent:
   </Accordion>
 
   <Accordion title="Agent gets 'Policy violation'" icon="shield">
-    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alter.com) — common causes are scope restrictions, time-based access rules, or rate limits.
+    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alter.com) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, IP allowlist, or missing required connection attributes.
   </Accordion>
 
   <Accordion title="Plugin not loading in OpenClaw" icon="plug">
