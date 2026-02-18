@@ -75,11 +75,23 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
   The SDK **does not cache tokens locally** by design. This ensures:
   - Real-time policy enforcement on every request
   - Instant revocation when users disconnect
-  - Complete audit trail for compliance
-  - Maximum security with no local token storage
+  - Complete audit trail for compliance (including per-request tracking IDs)
+  - Maximum security with no local token storage (all internal methods name-mangled and guarded)
 
   Backend Redis caching keeps response times under 10ms.
 </Warning>
+
+<Note>
+  The SDK enforces a **closed instance guard** — after `close()` is called (or the context manager exits), any further `request()` calls raise `AlterSDKError`. `close()` is idempotent and safe to call multiple times.
+</Note>
+
+<Note>
+  The SDK provides a `TimeoutError` (subclass of `NetworkError`) for timeout-specific handling. Catch `TimeoutError` before `NetworkError` to implement retry strategies for timed-out requests.
+</Note>
+
+<Note>
+  All input validation errors (invalid `api_key`, invalid `actor_type`, SSRF URL scheme checks, missing `path_params`) raise `AlterSDKError` — the base exception class for the SDK.
+</Note>
 
 ## Next Steps
 

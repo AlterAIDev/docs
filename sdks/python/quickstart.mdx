@@ -41,7 +41,7 @@ asyncio.run(main())
 
 ### Zero Token Exposure Design
 
-Tokens are **never exposed** to your code - this is a fundamental security principle:
+Tokens are **never exposed** to your code — all internal methods are name-mangled and guarded by frame checks:
 
 ```python
 # ✅ CORRECT - Token injected automatically behind the scenes
@@ -147,6 +147,7 @@ Provider.GITHUB       # "github"
 Provider.SLACK        # "slack"
 Provider.MICROSOFT    # "microsoft"
 Provider.SALESFORCE   # "salesforce"
+Provider.SENTRY       # "sentry"
 
 # HTTP method enums
 HttpMethod.GET        # "GET"
@@ -423,13 +424,14 @@ asyncio.run(run_email_agent())
 ### Exception Hierarchy
 
 ```
-AlterSDKError (base)
+AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, SSRF URL check, missing path_params)
 ├── TokenRetrievalError (backend errors)
 │   ├── PolicyViolationError (403 - policy denied access)
 │   ├── ConnectionNotFoundError (404 - no OAuth connection)
 │   └── TokenExpiredError (400/502 - refresh failed)
 ├── ProviderAPIError (provider returned 4xx/5xx)
 └── NetworkError (connection/timeout failures)
+    └── TimeoutError (request timed out - safe to retry)
 ```
 
 ### Complete Error Handling Example
@@ -441,6 +443,7 @@ from alter_sdk.exceptions import (
     ConnectionNotFoundError,
     TokenExpiredError,
     TokenRetrievalError,
+    TimeoutError,
     NetworkError,
     ProviderAPIError,
 )
@@ -476,8 +479,13 @@ async def safe_api_call(user_id: str):
             # Other backend errors (401 invalid API key, 500/503 backend down)
             print(f"Backend error: {e.message}")
 
+        except TimeoutError as e:
+            # Request timed out (subclass of NetworkError)
+            print(f"Request timed out: {e.message}")
+            # Resolution: Safe to retry with backoff
+
         except NetworkError as e:
-            # Connection or timeout failure
+            # Connection failure (not timeout)
             print(f"Network issue: {e.message}")
             # Resolution: Check network, retry with backoff
 
@@ -498,7 +506,8 @@ async def safe_api_call(user_id: str):
 | `TokenRetrievalError` | 400 | Provider not configured | Add provider in dashboard |
 | `TokenRetrievalError` | 500/503 | Backend unavailable | Retry with backoff |
 | `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
-| `NetworkError` | - | Connection refused/timeout | Check network, retry |
+| `TimeoutError` | - | Request timed out | Retry with backoff |
+| `NetworkError` | - | Connection refused | Check network, retry |
 
 ## Best Practices
 
@@ -515,6 +524,8 @@ async def safe_api_call(user_id: str):
     response = await vault.request(...)
     # Forgot to call vault.close()!
     ```
+
+    After `close()` is called, any further `request()` calls raise `AlterSDKError`. `close()` is idempotent — calling it multiple times is safe.
   </Accordion>
 
   <Accordion title="Handle Errors Explicitly" icon="shield-exclamation">

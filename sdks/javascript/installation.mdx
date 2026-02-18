@@ -3,11 +3,11 @@ title: 'Installation'
 description: 'Install Alter Connect SDK for JavaScript/TypeScript'
 ---
 
-Alter Connect is a lightweight JavaScript SDK for embedding OAuth integrations into your application. Inspired by Plaid Link, the SDK provides a seamless, popup-based experience for end users to connect their third-party accounts.
+Alter Connect is a lightweight JavaScript SDK for embedding OAuth integrations into your application. Inspired by Plaid Link, the SDK opens a backend-served Connect UI in a popup -- the backend handles auth, provider selection, and OAuth, then sends results back via postMessage.
 
 ## What It Provides
 
-- **Frontend OAuth UI** - Modal/popup provider selection and authorization flow
+- **Popup-based OAuth flow** - Opens backend-served Connect UI in a popup window
 - **Session-based security** - Uses temporary tokens from your backend (Plaid-style)
 - **Zero token exposure** - OAuth tokens never reach the frontend
 - **TypeScript support** - Full type definitions included
@@ -45,7 +45,7 @@ Alter Connect is a lightweight JavaScript SDK for embedding OAuth integrations i
 
 <CardGroup cols={2}>
   <Card title="Bundle Size" icon="weight-hanging">
-    ~45KB minified, ~15KB gzipped
+    ~11KB minified, ~3.5KB gzipped
   </Card>
 
   <Card title="Zero Dependencies" icon="cube">
@@ -132,12 +132,12 @@ Key security features:
 // ESM
 import AlterConnect from '@alter-ai/connect';
 const ac = AlterConnect.create();
-console.log(ac.getVersion()); // "0.1.1"
+console.log(ac.getVersion()); // "0.2.0"
 
 // CommonJS
 const AlterConnect = require('@alter-ai/connect');
 const ac = AlterConnect.create();
-console.log(ac.getVersion()); // "0.1.1"
+console.log(ac.getVersion()); // "0.2.0"
 ```
 
 ### CDN Global
@@ -146,7 +146,7 @@ console.log(ac.getVersion()); // "0.1.1"
 <script src="https://cdn.jsdelivr.net/npm/@alter-ai/connect@latest/dist/alter-connect.umd.js"></script>
 <script>
   const ac = window.AlterConnect.create();
-  console.log(ac.getVersion()); // "0.1.1"
+  console.log(ac.getVersion()); // "0.2.0"
 </script>
 ```
 

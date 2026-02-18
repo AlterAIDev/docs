@@ -64,34 +64,21 @@ The `allowed_origin` parameter controls postMessage security for desktop popup f
 - ❌ `https://myapp.com/path` (no path)
 - ❌ `*` (wildcard not supported)
 
-## Customization
-
-Alter Connect supports basic visual customization:
+## Configuration
 
 ```javascript
 const alterConnect = AlterConnect.create({
-  customization: {
-    colors: {
-      primary: '#6366f1',     // Button colors
-      text: '#111827',        // Text color
-      background: '#ffffff'   // Background color
-    },
-    fontFamily: '"Inter", sans-serif'
-  },
-  debug: true  // Enable console logging
+  debug: true  // Enable console logging (default: false)
 });
 ```
 
-### Available Options
-
 | Option | Type | Description |
 |--------|------|-------------|
-| `colors.primary` | string | Primary button color |
-| `colors.text` | string | Text color |
-| `colors.background` | string | Background color |
-| `fontFamily` | string | Font family |
 | `debug` | boolean | Enable console logs |
-| `locale` | string | Language (en, es, fr, de) |
+
+<Note>
+Visual customization (colors, fonts, logo) is configured via the Developer Portal branding settings. The backend-served Connect UI applies your branding automatically.
+</Note>
 
 ## Open Options
 
@@ -204,9 +191,7 @@ import AlterConnect, {
 } from '@alter-ai/connect';
 
 const config: AlterConnectConfig = {
-  customization: {
-    colors: { primary: '#6366f1' }
-  }
+  debug: true
 };
 
 const alterConnect = AlterConnect.create(config);
@@ -232,19 +217,26 @@ Clean up and remove event listeners.
 
 ## Events
 
-Listen to widget events:
+Listen to SDK events:
 
 ```javascript
-alterConnect.on('provider_selected', (provider) => {
-  console.log('User selected:', provider);
+// Analytics events via onEvent callback
+await alterConnect.open({
+  token: sessionToken,
+  onSuccess: (connection) => { /* ... */ },
+  onEvent: (eventName, metadata) => {
+    console.log('Event:', eventName, metadata);
+    // Fires: 'connect_opened' when popup opens
+  }
 });
 
-alterConnect.on('connection_started', () => {
-  console.log('OAuth flow started');
-});
-
-alterConnect.on('connection_complete', (connection) => {
+// Or use the on() method for global listeners
+alterConnect.on('success', (connection) => {
   console.log('Connection successful:', connection);
+});
+
+alterConnect.on('error', (error) => {
+  console.log('Connection error:', error);
 });
 ```
 

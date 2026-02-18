@@ -1,0 +1,323 @@
+---
+title: 'Quickstart'
+description: 'Start using the Alter SDK for TypeScript in minutes'
+---
+
+Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider — without ever touching a token.
+
+## Basic Setup
+
+```typescript
+import { AlterVault, Provider, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({ apiKey: "alter_key_..." });
+
+// Make an API request — token is injected automatically
+const response = await vault.request(
+  Provider.GOOGLE,
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  {
+    user: { user_id: "alice" },
+    queryParams: { maxResults: "10" },
+  }
+);
+
+const events = await response.json();
+for (const event of events.items ?? []) {
+  console.log(`Event: ${event.summary}`);
+}
+
+await vault.close();
+```
+
+<Note>
+  **Key Principle: Zero Token Exposure** — You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All token caching happens on the backend via Redis (under 10ms).
+</Note>
+
+## Architecture & Security
+
+### Zero Token Exposure Design
+
+Tokens are **never exposed** to your code — stored in module-private WeakMaps with hardened fetch capture:
+
+```typescript
+// CORRECT — Token injected automatically behind the scenes
+const response = await vault.request(
+  Provider.GOOGLE, HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { user: { user_id: "alice" } },
+);
+
+// IMPOSSIBLE — No method to access tokens directly
+const token = vault.getToken(); // This method doesn't exist by design!
+```
+
+### Dual HTTP Client Security
+
+The SDK uses two separate HTTP clients to prevent credential leakage:
+
+| Client | Purpose | Has API Key? | Talks To |
+|--------|---------|:----------:|----------|
+| **Alter client** | Token retrieval, audit logs | Yes | Alter backend only |
+| **Provider client** | Your API calls | No | Google, GitHub, Slack, etc. |
+
+This means your Alter API key **can never accidentally leak** to external provider APIs.
+
+### SSRF Prevention
+
+URL schemes are validated case-insensitively -- only `https://` and `http://` are allowed. This prevents `file://`, `ftp://`, and mixed-case bypass attempts.
+
+## Configuration
+
+```typescript
+const vault = new AlterVault({
+  apiKey: "alter_key_...",              // Required: API key from dashboard
+  baseUrl: "https://api.alter.com",    // Optional: Custom API endpoint
+  enableAuditLogging: true,            // Optional: Enable audit logs (default: true)
+  timeout: 30000,                      // Optional: HTTP timeout in milliseconds
+});
+```
+
+## Core Concepts
+
+### vault.request() — Single Entry Point
+
+All provider API calls go through one method:
+
+```typescript
+const response = await vault.request(
+  provider,         // Provider enum or string (e.g., Provider.GOOGLE, "google")
+  method,           // HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
+  url,              // Full URL of the provider API endpoint
+  {
+    user: {...},       // User attributes to match the OAuth connection
+    json: {...},       // Optional: JSON request body
+    queryParams: {},   // Optional: URL query parameters
+    pathParams: {},    // Optional: URL path template substitutions
+    extraHeaders: {},  // Optional: Additional headers (Authorization is auto-injected)
+    reason: "...",     // Optional: Reason for audit trail
+  }
+);
+```
+
+### Type-Safe Enums
+
+Use enums for autocomplete and type safety:
+
+```typescript
+import { Provider, HttpMethod } from "@alter-ai/alter-sdk";
+
+// Provider enums
+Provider.GOOGLE       // "google"
+Provider.GITHUB       // "github"
+Provider.SLACK        // "slack"
+Provider.MICROSOFT    // "microsoft"
+Provider.SALESFORCE   // "salesforce"
+Provider.SENTRY       // "sentry"
+
+// HTTP method enums
+HttpMethod.GET        // "GET"
+HttpMethod.POST       // "POST"
+HttpMethod.PUT        // "PUT"
+HttpMethod.PATCH      // "PATCH"
+HttpMethod.DELETE     // "DELETE"
+HttpMethod.HEAD       // "HEAD"
+HttpMethod.OPTIONS    // "OPTIONS"
+```
+
+Strings also work for forward compatibility:
+
+```typescript
+// These are equivalent
+await vault.request(Provider.GOOGLE, HttpMethod.GET, url, { user });
+await vault.request("google", "GET", url, { user });
+```
+
+## Complete Examples
+
+### Google Calendar Events
+
+```typescript
+import { AlterVault, Provider, HttpMethod } from "@alter-ai/alter-sdk";
+
+async function listCalendarEvents(userId: string) {
+  const vault = new AlterVault({ apiKey: "alter_key_..." });
+
+  const response = await vault.request(
+    Provider.GOOGLE,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    {
+      user: { user_id: userId },
+      queryParams: {
+        maxResults: "10",
+        singleEvents: "true",
+        orderBy: "startTime",
+      },
+    }
+  );
+
+  const events = await response.json();
+  for (const event of events.items ?? []) {
+    const start = event.start?.dateTime ?? event.start?.date;
+    console.log(`${start}: ${event.summary ?? "No title"}`);
+  }
+
+  await vault.close();
+}
+```
+
+### GitHub Repositories
+
+```typescript
+async function listRepos(userId: string) {
+  const vault = new AlterVault({ apiKey: "alter_key_..." });
+
+  const response = await vault.request(
+    Provider.GITHUB,
+    HttpMethod.GET,
+    "https://api.github.com/user/repos",
+    {
+      user: { user_id: userId },
+      queryParams: { sort: "updated", per_page: "10" },
+    }
+  );
+
+  const repos = await response.json();
+  for (const repo of repos) {
+    console.log(`${repo.name} — ${repo.description ?? "No description"}`);
+  }
+
+  await vault.close();
+}
+```
+
+## Actor Tracking (AI Agents & MCP Servers)
+
+### Registering an Actor
+
+Pass actor identity at SDK initialization:
+
+```typescript
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: "ai_agent",
+  actorIdentifier: "email-assistant-v2",
+  actorName: "Email Assistant",
+  actorVersion: "2.0.0",
+  framework: "langgraph",
+});
+```
+
+### Per-Request Tracking
+
+Add execution-level context on each request:
+
+```typescript
+const response = await vault.request(
+  Provider.GOOGLE,
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  {
+    user: { user_id: "alice" },
+    runId: "550e8400-e29b-41d4-a716-446655440000",
+    threadId: "thread-abc-123",
+    toolCallId: "call_xyz_789",
+  }
+);
+```
+
+## Error Handling
+
+<Warning>
+  **Always handle errors explicitly.** Policy enforcement happens on EVERY token retrieval and can deny access based on configured rules.
+</Warning>
+
+### Exception Hierarchy
+
+```
+AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, SSRF URL check, missing pathParams)
++-- TokenRetrievalError (backend errors)
+|   +-- PolicyViolationError (403 - policy denied access)
+|   +-- ConnectionNotFoundError (404 - no OAuth connection)
+|   +-- TokenExpiredError (400/502 - refresh failed)
++-- ProviderAPIError (provider returned 4xx/5xx)
++-- NetworkError (connection failures)
+    +-- TimeoutError (request timed out)
+```
+
+### Complete Error Handling Example
+
+```typescript
+import { AlterVault, Provider, HttpMethod } from "@alter-ai/alter-sdk";
+import {
+  PolicyViolationError,
+  ConnectionNotFoundError,
+  TokenExpiredError,
+  TokenRetrievalError,
+  NetworkError,
+  TimeoutError,
+  ProviderAPIError,
+} from "@alter-ai/alter-sdk";
+
+async function safeApiCall(userId: string) {
+  const vault = new AlterVault({ apiKey: "alter_key_..." });
+
+  try {
+    const response = await vault.request(
+      Provider.GOOGLE,
+      HttpMethod.GET,
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      { user: { user_id: userId } },
+    );
+    return await response.json();
+
+  } catch (e) {
+    if (e instanceof PolicyViolationError) {
+      console.log(`Access denied by policy: ${e.message}`);
+    } else if (e instanceof ConnectionNotFoundError) {
+      console.log("User hasn't connected Google yet");
+    } else if (e instanceof TokenExpiredError) {
+      console.log(`Token expired for connection: ${e.connectionId}`);
+    } else if (e instanceof TimeoutError) {
+      console.log(`Request timed out — safe to retry: ${e.message}`);
+    } else if (e instanceof NetworkError) {
+      console.log(`Network issue: ${e.message}`);
+    } else if (e instanceof ProviderAPIError) {
+      console.log(`Provider error ${e.statusCode}: ${e.responseBody}`);
+    }
+  } finally {
+    await vault.close();
+  }
+}
+```
+
+### Common Error Scenarios
+
+| Exception | HTTP Status | Cause | Resolution |
+|-----------|:-----------:|-------|------------|
+| `PolicyViolationError` | 403 | Policy denied access | Check policy rules in dashboard |
+| `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
+| `TokenExpiredError` | 400/502 | Refresh token revoked/expired | User must re-authenticate |
+| `TokenRetrievalError` | 401 | Invalid API key | Check your `apiKey` |
+| `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
+| `TimeoutError` | - | Request timed out | Retry with backoff |
+| `NetworkError` | - | Connection refused | Check network |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Full integration walkthrough with frontend + backend
+  </Card>
+  <Card title="Architecture" icon="building" href="/reference/architecture">
+    Understand the security architecture
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdks/python/quickstart">
+    Python SDK equivalent
+  </Card>
+  <Card title="OpenClaw Plugin" icon="robot" href="/integrations/openclaw">
+    AI agent OAuth integration
+  </Card>
+</CardGroup>

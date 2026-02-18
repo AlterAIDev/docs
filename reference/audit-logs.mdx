@@ -131,6 +131,10 @@ response = await vault.request(
 
 In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. See the [Python SDK Actor Tracking guide](/sdks/python/quickstart#actor-tracking-ai-agents--mcp-servers) for setup details.
 
+## Trace Context
+
+Every audit log entry includes a `trace_id` field that correlates with your request's correlation ID. If you send a W3C `traceparent` header, the trace ID and span ID from your distributed tracing system (OpenTelemetry, Zipkin, AWS X-Ray) are automatically captured. This lets you link audit log entries directly to traces in your observability platform.
+
 ## Compliance
 
 Audit logs are designed for compliance out of the box:
@@ -143,12 +147,12 @@ Audit logs are designed for compliance out of the box:
 
 ## Data Retention
 
-| Environment | Retention Period |
-|-------------|-----------------|
-| Production | 90 days (configurable) |
+| Environment | Default Retention |
+|-------------|------------------|
+| Production | 7 years (HIPAA-compliant) |
 | Development | 30 days |
 
-Contact support for extended retention or custom archival policies.
+Each audit log entry includes a `retention_until` field and an optional `legal_hold` flag. Records under legal hold are never deleted regardless of retention policy. Contact support for custom archival policies.
 
 ## Next Steps
 

@@ -62,6 +62,13 @@
           ]
         },
         {
+          "group": "TypeScript SDK",
+          "pages": [
+            "sdks/typescript/installation",
+            "sdks/typescript/quickstart"
+          ]
+        },
+        {
           "group": "Alter Connect",
           "pages": [
             "sdks/javascript/installation",

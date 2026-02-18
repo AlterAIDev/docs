@@ -162,7 +162,7 @@ async function connectAccount() {
       console.error('Connection failed:', error);
     },
     onExit: () => {
-      console.log('User closed the modal');
+      console.log('User closed the popup');
     }
   });
 }
@@ -463,24 +463,24 @@ const response = await fetch('https://api.alter.com/oauth/connect/session', {
 
 ### Single Provider Flow
 
-When only one provider is available, the SDK **automatically skips** the selection screen:
+When only one provider is available, the backend Connect UI **automatically skips** the selection screen and goes straight to OAuth:
 
 ```javascript
 // Backend: Only Google configured or requested
 allowed_providers: ['google']
 
-// Result: Opens Google OAuth directly (no selection modal)
+// Result: Connect UI opens Google OAuth directly
 ```
 
 ### Multiple Provider Flow
 
-When multiple providers are available, users see a **provider selection grid**:
+When multiple providers are available, the Connect UI shows a **provider selection screen**:
 
 ```javascript
 // Backend: Multiple providers
 allowed_providers: ['google', 'slack', 'microsoft', 'github', 'sentry']
 
-// Result: Shows beautiful provider selection UI
+// Result: Connect UI shows provider selection, user picks one
 ```
 
 ## Common Patterns
