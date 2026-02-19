@@ -3,7 +3,7 @@ title: 'Quickstart'
 description: 'Start using the Alter SDK for TypeScript in minutes'
 ---
 
-Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider — without ever touching a token.
+Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider. Tokens are retrieved and injected automatically — you never touch them.
 
 ## Basic Setup
 
@@ -32,41 +32,8 @@ await vault.close();
 ```
 
 <Note>
-  **Key Principle: Zero Token Exposure** — You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All token caching happens on the backend via Redis (under 10ms).
+  **Key Principle: Zero Token Exposure** — You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically.
 </Note>
-
-## Architecture & Security
-
-### Zero Token Exposure Design
-
-Tokens are **never exposed** to your code — stored in module-private WeakMaps with hardened fetch capture:
-
-```typescript
-// CORRECT — Token injected automatically behind the scenes
-const response = await vault.request(
-  Provider.GOOGLE, HttpMethod.GET,
-  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-  { user: { user_id: "alice" } },
-);
-
-// IMPOSSIBLE — No method to access tokens directly
-const token = vault.getToken(); // This method doesn't exist by design!
-```
-
-### Dual HTTP Client Security
-
-The SDK uses two separate HTTP clients to prevent credential leakage:
-
-| Client | Purpose | Has API Key? | Talks To |
-|--------|---------|:----------:|----------|
-| **Alter client** | Token retrieval, audit logs | Yes | Alter backend only |
-| **Provider client** | Your API calls | No | Google, GitHub, Slack, etc. |
-
-This means your Alter API key **can never accidentally leak** to external provider APIs.
-
-### SSRF Prevention
-
-URL schemes are validated case-insensitively -- only `https://` and `http://` are allowed. This prevents `file://`, `ftp://`, and mixed-case bypass attempts.
 
 ## Configuration
 
@@ -74,10 +41,11 @@ URL schemes are validated case-insensitively -- only `https://` and `http://` ar
 const vault = new AlterVault({
   apiKey: "alter_key_...",              // Required: API key from dashboard
   baseUrl: "https://api.alter.com",    // Optional: Custom API endpoint
-  enableAuditLogging: true,            // Optional: Enable audit logs (default: true)
   timeout: 30000,                      // Optional: HTTP timeout in milliseconds
 });
 ```
+
+Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance.
 
 ## Core Concepts
 
@@ -228,6 +196,48 @@ const response = await vault.request(
 );
 ```
 
+### Multi-Agent Deployments
+
+Each agent must create its own `AlterVault` instance with a unique actor identity. Do not share a single instance across agents -- audit logs, policies, and actor registration are tied to each instance.
+
+```typescript
+// Each agent gets its own vault instance
+const emailAgent = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: "ai_agent",
+  actorIdentifier: "email-assistant-v2",
+  actorName: "Email Assistant",
+});
+
+const calendarAgent = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: "ai_agent",
+  actorIdentifier: "calendar-agent-v1",
+  actorName: "Calendar Agent",
+});
+
+// Audit logs and policies are tracked per agent
+const user = { user_id: "alice" };
+await emailAgent.request(
+  Provider.GOOGLE, HttpMethod.GET,
+  "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+  { user },
+);
+await calendarAgent.request(
+  Provider.GOOGLE, HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { user },
+);
+
+// Clean up each instance
+await emailAgent.close();
+await calendarAgent.close();
+```
+
+<Note>
+  All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
+</Note>
+
 ## Error Handling
 
 <Warning>
@@ -237,7 +247,7 @@ const response = await vault.request(
 ### Exception Hierarchy
 
 ```
-AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, SSRF URL check, missing pathParams)
+AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
 +-- TokenRetrievalError (backend errors)
 |   +-- PolicyViolationError (403 - policy denied access)
 |   +-- ConnectionNotFoundError (404 - no OAuth connection)

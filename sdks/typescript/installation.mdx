@@ -68,27 +68,26 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 ## Architecture Notes
 
 <Note>
-  The SDK uses **two separate HTTP clients** for security:
-  1. **Alter client** — Communicates with Alter Vault backend (includes your API key)
-  2. **Provider client** — Calls external APIs like Google, GitHub, Slack (no API key, prevents credential leakage)
+  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it.
 </Note>
 
 <Warning>
   The SDK **does not cache tokens locally** by design. This ensures:
   - Real-time policy enforcement on every request
   - Instant revocation when users disconnect
-  - Complete audit trail for compliance
-  - Maximum security with no local token storage (tokens stored in module-private WeakMap with hardened fetch capture)
-
-  Backend Redis caching keeps response times under 10ms.
+  - Complete audit trail for compliance (always enabled)
 </Warning>
 
 <Note>
-  The SDK includes **SSRF prevention** with case-insensitive URL scheme validation, blocking `file://`, `ftp://`, and mixed-case bypass attempts. Only `https://` and `http://` schemes are allowed. SSRF violations throw `AlterSDKError`.
+  The SDK enforces a **closed instance guard** — after `close()` is called, any further `request()` calls throw `AlterSDKError`. `close()` is idempotent and safe to call multiple times.
 </Note>
 
 <Note>
-  All input validation errors (invalid `apiKey`, invalid `actorType`, SSRF URL scheme checks, missing `pathParams`) throw `AlterSDKError` — the base error class for the SDK.
+  The SDK provides a `TimeoutError` (subclass of `NetworkError`) for timeout-specific handling. Catch `TimeoutError` before `NetworkError` to implement retry strategies for timed-out requests.
+</Note>
+
+<Note>
+  All input validation errors (invalid `apiKey`, invalid `actorType`, invalid URL scheme, missing `pathParams`) throw `AlterSDKError` — the base error class for the SDK.
 </Note>
 
 ## Next Steps

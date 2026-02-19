@@ -31,7 +31,6 @@ The Alter SDK for Python provides secure OAuth token management with automatic t
 ```python
 import alter_sdk
 print(alter_sdk.__version__)
-# Output: 0.2.0
 ```
 
 ## Key Features
@@ -66,19 +65,14 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 ## Architecture Notes
 
 <Note>
-  The SDK uses **two separate HTTP clients** for security:
-  1. **Alter client** - Communicates with Alter Vault backend (includes your API key)
-  2. **Provider client** - Calls external APIs like Google, GitHub, Slack (no API key, prevents credential leakage)
+  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it.
 </Note>
 
 <Warning>
   The SDK **does not cache tokens locally** by design. This ensures:
   - Real-time policy enforcement on every request
   - Instant revocation when users disconnect
-  - Complete audit trail for compliance (including per-request tracking IDs)
-  - Maximum security with no local token storage (all internal methods name-mangled and guarded)
-
-  Backend Redis caching keeps response times under 10ms.
+  - Complete audit trail for compliance (always enabled, including per-request tracking IDs)
 </Warning>
 
 <Note>
@@ -90,7 +84,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Note>
 
 <Note>
-  All input validation errors (invalid `api_key`, invalid `actor_type`, SSRF URL scheme checks, missing `path_params`) raise `AlterSDKError` — the base exception class for the SDK.
+  All input validation errors (invalid `api_key`, invalid `actor_type`, invalid URL scheme, missing `path_params`) raise `AlterSDKError` — the base exception class for the SDK.
 </Note>
 
 ## Next Steps

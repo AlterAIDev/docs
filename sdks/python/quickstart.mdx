@@ -3,7 +3,7 @@ title: 'Quickstart'
 description: 'Start using the Alter SDK for Python in minutes'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider - without ever touching a token.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider. Tokens are retrieved and injected automatically — you never touch them.
 
 ## Basic Setup
 
@@ -34,74 +34,8 @@ asyncio.run(main())
 ```
 
 <Note>
-  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All token caching happens on the backend via Redis (under 10ms).
+  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically.
 </Note>
-
-## Architecture & Security
-
-### Zero Token Exposure Design
-
-Tokens are **never exposed** to your code — all internal methods are name-mangled and guarded by frame checks:
-
-```python
-# ✅ CORRECT - Token injected automatically behind the scenes
-response = await vault.request(
-    Provider.GOOGLE, HttpMethod.GET,
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    user={"user_id": "alice"},
-)
-
-# ❌ IMPOSSIBLE - No method to access tokens directly
-token = vault.get_token()  # This method doesn't exist by design!
-```
-
-### Dual HTTP Client Security
-
-The SDK uses two separate HTTP clients to prevent credential leakage:
-
-| Client | Purpose | Has API Key? | Talks To |
-|--------|---------|:----------:|----------|
-| **Alter client** | Token retrieval, audit logs | Yes | Alter backend only |
-| **Provider client** | Your API calls | No | Google, GitHub, Slack, etc. |
-
-This means your Alter API key **can never accidentally leak** to external provider APIs.
-
-### No SDK-Side Caching
-
-The SDK has **zero client-side token caching** to ensure:
-
-- **Real-time policy enforcement** on every request
-- **Complete audit trail** - backend logs all token access
-- **Instant revocation** - no SDK cache delays
-- **Fast performance** - backend Redis cache (under 10ms response)
-
-### Automatic Audit Logging
-
-All API calls are automatically logged as fire-and-forget background tasks:
-
-```python
-response = await vault.request(
-    Provider.GOOGLE, HttpMethod.GET,
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    user={"user_id": "alice"},
-    reason="Fetching upcoming events for daily digest",
-)
-# ↑ Audit log sent in background with: provider, method, URL,
-#   response status, latency, user context, and reason
-```
-
-### Policy Enforcement
-
-Policies are enforced on **every token retrieval** using Cerbos. Only providers configured in your app can have policies.
-
-| Policy Type | Description | Example |
-|-------------|-------------|---------|
-| **Scope Restrictions** | Limit which OAuth scopes can be retrieved | Only allow `calendar.readonly` |
-| **Time-Based Access** | Restrict by time of day or day of week | Business hours only (9am-5pm), weekdays only |
-| **IP Allowlist** | Restrict to specific IP addresses | Office network `203.0.113.0/24` |
-| **Required Attributes** | Require connection metadata | Must have `user_id` and `org_id` |
-
-Policies are configured per-provider in the Developer Portal under **App Details → Policies**.
 
 ## Configuration
 
@@ -109,10 +43,11 @@ Policies are configured per-provider in the Developer Portal under **App Details
 vault = AlterVault(
     api_key="alter_key_...",              # Required: API key from dashboard
     base_url="https://api.alter.com",     # Optional: Custom API endpoint
-    enable_audit_logging=True,            # Optional: Enable audit logs (default: True)
     timeout=30.0,                         # Optional: HTTP timeout in seconds
 )
 ```
+
+Audit logging is always enabled — every token retrieval and API call is automatically logged for compliance and security.
 
 ## Core Concepts
 
@@ -394,6 +329,48 @@ async def run_email_agent():
 asyncio.run(run_email_agent())
 ```
 
+### Multi-Agent Deployments
+
+Each agent must create its own `AlterVault` instance with a unique actor identity. Do not share a single instance across agents -- audit logs, policies, and actor registration are tied to each instance.
+
+```python
+# Each agent gets its own vault instance
+email_agent = AlterVault(
+    api_key="alter_key_...",
+    actor_type="ai_agent",
+    actor_identifier="email-assistant-v2",
+    actor_name="Email Assistant",
+)
+
+calendar_agent = AlterVault(
+    api_key="alter_key_...",
+    actor_type="ai_agent",
+    actor_identifier="calendar-agent-v1",
+    actor_name="Calendar Agent",
+)
+
+# Audit logs and policies are tracked per agent
+user = {"user_id": "alice"}
+await email_agent.request(
+    Provider.GOOGLE, HttpMethod.GET,
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+    user=user,
+)
+await calendar_agent.request(
+    Provider.GOOGLE, HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    user=user,
+)
+
+# Clean up each instance
+await email_agent.close()
+await calendar_agent.close()
+```
+
+<Note>
+  All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
+</Note>
+
 ### Actor Tracking Parameters Reference
 
 **Initialization (set once per SDK instance):**
@@ -424,7 +401,7 @@ asyncio.run(run_email_agent())
 ### Exception Hierarchy
 
 ```
-AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, SSRF URL check, missing path_params)
+AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)
 ├── TokenRetrievalError (backend errors)
 │   ├── PolicyViolationError (403 - policy denied access)
 │   ├── ConnectionNotFoundError (404 - no OAuth connection)
