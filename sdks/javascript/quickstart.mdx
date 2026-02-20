@@ -56,7 +56,7 @@ app.post('/api/alter/session', async (req, res) => {
         user_id: req.user.id,
         organization_id: req.user.org_id
       },
-      allowed_providers: ['google', 'slack', 'microsoft']
+      allowed_providers: ['google', 'slack', 'github']
     })
   });
 
@@ -88,7 +88,7 @@ async def create_alter_session(current_user = Depends(get_current_user)):
                     "user_id": current_user.id,
                     "organization_id": current_user.org_id
                 },
-                "allowed_providers": ["google", "slack", "microsoft"]
+                "allowed_providers": ["google", "slack", "github"]
             }
         )
 
@@ -116,7 +116,7 @@ class AlterController < ApplicationController
           user_id: current_user.id,
           organization_id: current_user.organization_id
         },
-        allowed_providers: ['google', 'slack', 'microsoft']
+        allowed_providers: ['google', 'slack', 'github']
       }.to_json
     )
 
@@ -397,7 +397,7 @@ Use `allowed_providers` to **dynamically filter** which providers users can acce
 ```javascript Premium Users Only
 // Show only premium providers to paying users
 const allowed = req.user.isPremium
-  ? ['google', 'microsoft', 'salesforce']  // Premium providers
+  ? ['google', 'github', 'sentry']  // Premium providers
   : ['google'];  // Free tier
 
 const response = await fetch('https://api.alter.com/oauth/connect/session', {
@@ -414,8 +414,8 @@ const response = await fetch('https://api.alter.com/oauth/connect/session', {
 ```javascript Regional Restrictions
 // Show providers based on user region
 const providers = {
-  'US': ['google', 'microsoft', 'slack'],
-  'EU': ['google', 'microsoft'],  // GDPR-compliant only
+  'US': ['google', 'github', 'slack'],
+  'EU': ['google', 'github'],  // GDPR-compliant only
   'APAC': ['google', 'slack', 'github']
 };
 
@@ -438,8 +438,8 @@ if (featureFlags.slackIntegration) {
   enabledProviders.push('slack');
 }
 
-if (featureFlags.microsoftIntegration) {
-  enabledProviders.push('microsoft');
+if (featureFlags.sentryIntegration) {
+  enabledProviders.push('sentry');
 }
 
 const response = await fetch('https://api.alter.com/oauth/connect/session', {
@@ -478,7 +478,7 @@ When multiple providers are available, the Connect UI shows a **provider selecti
 
 ```javascript
 // Backend: Multiple providers
-allowed_providers: ['google', 'slack', 'microsoft', 'github', 'sentry']
+allowed_providers: ['google', 'slack', 'github', 'sentry']
 
 // Result: Connect UI shows provider selection, user picks one
 ```

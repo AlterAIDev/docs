@@ -80,8 +80,6 @@ from alter_sdk import Provider, HttpMethod
 Provider.GOOGLE       # "google"
 Provider.GITHUB       # "github"
 Provider.SLACK        # "slack"
-Provider.MICROSOFT    # "microsoft"
-Provider.SALESFORCE   # "salesforce"
 Provider.SENTRY       # "sentry"
 
 # HTTP method enums
@@ -108,7 +106,7 @@ Use `{placeholder}` syntax for dynamic URL segments (values are automatically UR
 
 ```python
 response = await vault.request(
-    Provider.SALESFORCE,
+    Provider.SENTRY,
     HttpMethod.GET,
     "https://api.example.com/v1/accounts/{account_id}/contacts/{contact_id}",
     user={"user_id": "alice"},
@@ -191,7 +189,7 @@ async def post_slack_message(user_id: str, channel: str, text: str):
 async def create_item(user_id: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         response = await vault.request(
-            Provider.SALESFORCE,
+            Provider.SENTRY,
             HttpMethod.POST,
             "https://api.example.com/v1/items",
             user={"user_id": user_id},

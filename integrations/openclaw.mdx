@@ -5,7 +5,7 @@ description: 'Give your OpenClaw AI agent secure access to Gmail, GitHub, Slack,
 
 ## Overview
 
-The **Alter Vault OpenClaw plugin** lets your [OpenClaw](https://openclaw.dev) AI agent make authenticated API calls to external services (Gmail, GitHub, Slack, Microsoft, and more) without ever exposing OAuth tokens to the LLM.
+The **Alter Vault OpenClaw plugin** lets your [OpenClaw](https://openclaw.dev) AI agent make authenticated API calls to external services (Gmail, GitHub, Slack, Sentry, and more) without ever exposing OAuth tokens to the LLM.
 
 Alter Vault handles all token management, refresh, and security. The agent simply says _"list my recent emails"_ and the plugin takes care of the rest.
 
@@ -180,7 +180,7 @@ Make an authenticated API call. This is the primary tool the agent uses to inter
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `provider` | string | Provider ID: `"google"`, `"github"`, `"slack"`, `"microsoft"`, `"sentry"` |
+| `provider` | string | Provider ID: `"google"`, `"github"`, `"slack"`, `"sentry"` |
 | `method` | string | HTTP method: `GET`, `POST`, `PUT`, `PATCH`, `DELETE` |
 | `url` | string | Full API URL (e.g. `https://www.googleapis.com/gmail/v1/users/me/messages`) |
 | `headers` | string (optional) | Additional headers as JSON |
@@ -306,13 +306,13 @@ Agent: Here's a link to connect your Slack account:
     ```
   </Accordion>
 
-  <Accordion title="Microsoft - List emails" icon="microsoft">
+  <Accordion title="Sentry - List issues" icon="bug">
     ```
     alter_api(
-      provider: "microsoft",
+      provider: "sentry",
       method: "GET",
-      url: "https://graph.microsoft.com/v1.0/me/messages",
-      query_params: '{"$top": "10", "$orderby": "receivedDateTime desc"}'
+      url: "https://sentry.io/api/0/projects/{org}/{project}/issues/",
+      query_params: '{"query": "is:unresolved", "sort": "date"}'
     )
     ```
   </Accordion>

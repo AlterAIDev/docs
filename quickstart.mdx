@@ -31,7 +31,7 @@ graph LR
 
 Before you begin, you'll need:
 - An Alter Vault account ([sign up free](https://portal.alter.com))
-- An OAuth app with your provider (Google, Microsoft, etc.)
+- An OAuth app with your provider (Google, GitHub, etc.)
 - Python 3.11+ or Node.js 16+
 
 ## Step 1: Create Your Application
@@ -124,7 +124,7 @@ def create_oauth_session():
                 "user_id": str(user.id),
                 "org_id": user.organization_id  # For multi-tenant apps
             },
-            "allowed_providers": ["google", "slack", "microsoft"]
+            "allowed_providers": ["google", "slack", "github"]
             # Note: allowed_origin is optional. If omitted, uses app.website_url
             # from Developer Portal. Wildcard '*' is NOT supported.
         }
@@ -156,7 +156,7 @@ app.post('/api/oauth/session', async (req, res) => {
                 user_id: user.id.toString(),
                 org_id: user.organizationId  // For multi-tenant apps
             },
-            allowed_providers: ['google', 'slack', 'microsoft']
+            allowed_providers: ['google', 'slack', 'github']
             // Note: allowed_origin is optional. If omitted, uses app.website_url
             // from Developer Portal. Wildcard '*' is NOT supported.
         },
@@ -327,7 +327,7 @@ async with AlterVault(api_key="alter_key_...") as vault:
 
     # URL path templating with automatic URL encoding
     response = await vault.request(
-        Provider.SALESFORCE,
+        Provider.SENTRY,
         HttpMethod.GET,
         "https://api.example.com/v1/accounts/{account_id}/contacts",
         user={"user_id": "alice"},
