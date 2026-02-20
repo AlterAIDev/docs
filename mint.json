@@ -79,6 +79,15 @@
       ]
     },
     {
+      "group": "Providers",
+      "pages": [
+        "providers/google",
+        "providers/github",
+        "providers/slack",
+        "providers/sentry"
+      ]
+    },
+    {
       "group": "Integrations",
       "pages": [
         "integrations/openclaw"

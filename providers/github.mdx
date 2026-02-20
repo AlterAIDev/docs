@@ -1,0 +1,155 @@
+---
+title: 'GitHub'
+description: 'Set up GitHub OAuth for repositories, issues, and code access'
+---
+
+## Overview
+
+Connect your users to GitHub for repository management, issue tracking, pull requests, and code access.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `github` |
+| **PKCE** | Supported |
+| **Token refresh** | Not needed (tokens don't expire) |
+| **Access token lifetime** | Never expires (revoked after 1 year of inactivity) |
+| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+
+<Note>
+  This guide covers **GitHub OAuth Apps**, not GitHub Apps. OAuth App tokens don't expire, so there's no refresh token flow.
+</Note>
+
+## Step 1: Create a GitHub OAuth App
+
+<Steps>
+  <Step title="Go to GitHub Developer Settings">
+    Navigate to [github.com/settings/developers](https://github.com/settings/developers) and click **OAuth Apps** > **New OAuth App**.
+
+    For organization-owned apps, go to **Organization Settings** > **Developer settings** > **OAuth Apps**.
+  </Step>
+
+  <Step title="Fill in app details">
+    - **Application name**: Your app name (e.g., "My App")
+    - **Homepage URL**: Your app's URL (e.g., `https://myapp.com`)
+    - **Authorization callback URL**: `https://api.alter.com/oauth/callback`
+    - Click **Register application**
+  </Step>
+
+  <Step title="Get your credentials">
+    After creating the app:
+    - **Client ID**: Displayed on the app page
+    - **Client Secret**: Click **Generate a new client secret** and copy it immediately
+
+    The Client Secret is only shown once. Store it securely.
+  </Step>
+</Steps>
+
+<Warning>
+  Copy your Client Secret immediately after generating it. GitHub only shows it once.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+  </Step>
+
+  <Step title="Add GitHub provider">
+    Go to **OAuth Providers** > **Add Provider** > **GitHub**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your GitHub Client ID
+    - **Client Secret**: Paste your GitHub Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs. See the [Available Scopes](#available-scopes) section below.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Step 3: Test It
+
+```python
+from alter_sdk import AlterVault, Provider, HttpMethod
+
+async with AlterVault(api_key="alter_key_...") as vault:
+    response = await vault.request(
+        Provider.GITHUB,
+        HttpMethod.GET,
+        "https://api.github.com/user/repos",
+        user={"user_id": "alice"},
+        query_params={"sort": "updated", "per_page": "5"},
+    )
+    repos = response.json()
+    for repo in repos:
+        print(f"{repo['name']} - {repo.get('description', 'No description')}")
+```
+
+## Available Scopes
+
+### Repository
+
+| Scope | Description |
+|-------|-------------|
+| `repo` | Full access to public and private repositories |
+| `public_repo` | Access public repositories only |
+| `repo:status` | Access commit statuses |
+| `repo_deployment` | Access deployment statuses |
+| `repo:invite` | Accept/decline repository invitations |
+| `delete_repo` | Delete repositories |
+
+### User
+
+| Scope | Description |
+|-------|-------------|
+| `user` | Full read/write access to profile (includes `user:email` and `user:follow`) |
+| `read:user` | Read-only access to profile data |
+| `user:email` | Read email addresses |
+| `user:follow` | Follow/unfollow users |
+
+### Organization
+
+| Scope | Description |
+|-------|-------------|
+| `admin:org` | Full organization management |
+| `write:org` | Read/write access to org membership and projects |
+| `read:org` | Read-only access to org and team membership |
+
+### Other
+
+| Scope | Description |
+|-------|-------------|
+| `gist` | Write access to gists |
+| `notifications` | Access notifications |
+| `workflow` | Add and update GitHub Actions workflows |
+| `write:packages` | Upload/publish packages |
+| `read:packages` | Download packages |
+| `codespace` | Create and manage Codespaces |
+
+<Tip>
+  GitHub automatically removes redundant scopes. For example, `repo` already includes `public_repo` and `repo:status`.
+</Tip>
+
+## Common API Endpoints
+
+| Use Case | Method | URL |
+|----------|--------|-----|
+| List user's repos | GET | `https://api.github.com/user/repos` |
+| Get a repository | GET | `https://api.github.com/repos/{owner}/{repo}` |
+| List issues | GET | `https://api.github.com/repos/{owner}/{repo}/issues` |
+| Create an issue | POST | `https://api.github.com/repos/{owner}/{repo}/issues` |
+| List pull requests | GET | `https://api.github.com/repos/{owner}/{repo}/pulls` |
+| Get authenticated user | GET | `https://api.github.com/user` |
+
+## Notes
+
+- GitHub OAuth App tokens **never expire** but are revoked after 1 year of inactivity. There's no refresh token flow.
+- GitHub requires the `Accept: application/json` header for JSON responses from the token endpoint. Alter Vault handles this automatically.
+- If the user's email is not public, Alter Vault automatically fetches it via the `/user/emails` endpoint (requires `user:email` scope).
+- GitHub's API requires the `X-GitHub-Api-Version` header. When making calls via Alter Vault, you can add it via `extra_headers` if needed, though most endpoints work without it.

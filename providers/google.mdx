@@ -1,0 +1,168 @@
+---
+title: 'Google'
+description: 'Set up Google OAuth for Gmail, Calendar, Drive, and more'
+---
+
+## Overview
+
+Connect your users to Google Workspace services including Gmail, Google Calendar, Google Drive, and Google Sheets.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `google` |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic (refresh token reused) |
+| **Access token lifetime** | ~1 hour |
+| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+
+## Step 1: Create a Google Cloud Project
+
+<Steps>
+  <Step title="Go to Google Cloud Console">
+    Navigate to [console.cloud.google.com](https://console.cloud.google.com) and sign in with your Google account.
+  </Step>
+
+  <Step title="Create or select a project">
+    Click the project dropdown at the top and select **New Project**. Give it a name (e.g., "My App - Alter Integration") and click **Create**.
+  </Step>
+
+  <Step title="Enable APIs">
+    Go to **APIs & Services** > **Library** and enable the APIs you need:
+    - **Gmail API** - for email access
+    - **Google Calendar API** - for calendar access
+    - **Google Drive API** - for file access
+    - **Google Sheets API** - for spreadsheet access
+  </Step>
+</Steps>
+
+## Step 2: Create OAuth Credentials
+
+<Steps>
+  <Step title="Open Credentials page">
+    Go to **APIs & Services** > **Credentials** and click **Create Credentials** > **OAuth client ID**.
+  </Step>
+
+  <Step title="Configure consent screen (first time only)">
+    If prompted, configure the OAuth consent screen:
+    - **User Type**: External (unless you only need Google Workspace users)
+    - **App name**: Your application name
+    - **User support email**: Your email
+    - **Authorized domains**: Your domain
+    - **Developer contact**: Your email
+
+    Click through the remaining steps and **Save**.
+  </Step>
+
+  <Step title="Create OAuth client ID">
+    - **Application type**: Web application
+    - **Name**: e.g., "Alter Vault Integration"
+    - **Authorized redirect URIs**: Add `https://api.alter.com/oauth/callback`
+    - Click **Create**
+  </Step>
+
+  <Step title="Copy credentials">
+    Copy the **Client ID** and **Client Secret** from the dialog. You'll need these in the next step.
+
+    The Client ID looks like: `123456789-abcdefg.apps.googleusercontent.com`
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 3: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+  </Step>
+
+  <Step title="Add Google provider">
+    Go to **OAuth Providers** > **Add Provider** > **Google**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Google Client ID
+    - **Client Secret**: Paste your Google Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs. See the [Available Scopes](#available-scopes) section below.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active and ready to use.
+  </Step>
+</Steps>
+
+## Step 4: Test It
+
+```python
+from alter_sdk import AlterVault, Provider, HttpMethod
+
+async with AlterVault(api_key="alter_key_...") as vault:
+    response = await vault.request(
+        Provider.GOOGLE,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        user={"user_id": "alice"},
+        query_params={"maxResults": "5"},
+    )
+    events = response.json()
+    print(f"Found {len(events.get('items', []))} events")
+```
+
+## Available Scopes
+
+### Identity (included by default)
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | Authenticate with OpenID Connect |
+| `profile` | View basic profile info |
+| `email` | View email address |
+
+### Gmail
+
+| Scope | Description |
+|-------|-------------|
+| `https://www.googleapis.com/auth/gmail.readonly` | Read email messages and settings |
+| `https://www.googleapis.com/auth/gmail.send` | Send email on user's behalf |
+| `https://www.googleapis.com/auth/gmail.compose` | Manage drafts and send emails |
+| `https://www.googleapis.com/auth/gmail.modify` | Read, compose, send, and delete email |
+
+### Google Calendar
+
+| Scope | Description |
+|-------|-------------|
+| `https://www.googleapis.com/auth/calendar.readonly` | View calendars |
+| `https://www.googleapis.com/auth/calendar.events` | View and edit calendar events |
+
+### Google Drive
+
+| Scope | Description |
+|-------|-------------|
+| `https://www.googleapis.com/auth/drive.readonly` | View Drive files |
+| `https://www.googleapis.com/auth/drive.file` | Manage files opened with this app |
+| `https://www.googleapis.com/auth/drive` | Full Drive access (read, edit, create, delete) |
+
+<Tip>
+  Request the minimum scopes your app needs. You can always add more later. Users are more likely to authorize apps that request fewer permissions.
+</Tip>
+
+## Common API Endpoints
+
+| Use Case | Method | URL |
+|----------|--------|-----|
+| List calendar events | GET | `https://www.googleapis.com/calendar/v3/calendars/primary/events` |
+| List Gmail messages | GET | `https://www.googleapis.com/gmail/v1/users/me/messages` |
+| Send email | POST | `https://www.googleapis.com/gmail/v1/users/me/messages/send` |
+| List Drive files | GET | `https://www.googleapis.com/drive/v3/files` |
+
+## Notes
+
+- Google requires `access_type=offline` and `prompt=consent` to issue refresh tokens. Alter Vault handles this automatically.
+- If requesting `profile` or `email` scopes, the `openid` scope is automatically included.
+- Refresh tokens never expire unless the user revokes access or the token is inactive for 6 months.
+- Google enforces a limit of ~50 refresh tokens per user per app. Alter Vault's connection deduplication prevents hitting this limit.

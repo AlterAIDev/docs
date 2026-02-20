@@ -1,0 +1,151 @@
+---
+title: 'Sentry'
+description: 'Set up Sentry OAuth for error monitoring and project management'
+---
+
+## Overview
+
+Connect your users to Sentry for error monitoring, performance tracking, and project management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `sentry` |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic (refresh token reused) |
+| **Access token lifetime** | 30 days |
+| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+
+## Step 1: Create a Sentry Integration
+
+<Steps>
+  <Step title="Go to Sentry Developer Settings">
+    Navigate to [sentry.io](https://sentry.io), open your organization, and go to **Settings** > **Developer Settings**.
+  </Step>
+
+  <Step title="Create a new integration">
+    Click **Create New Integration** and select **Public Integration**.
+
+    Fill in:
+    - **Name**: Your app name (e.g., "My App")
+    - **Author**: Your name or organization
+    - **Redirect URL**: `https://api.alter.com/oauth/callback`
+    - **Verify Install**: Check this for production apps
+  </Step>
+
+  <Step title="Configure permissions">
+    Under **Permissions**, select the access levels your app needs for each resource. See [Available Scopes](#available-scopes) below.
+  </Step>
+
+  <Step title="Get your credentials">
+    After saving:
+    - **Client ID**: Displayed on the integration page
+    - **Client Secret**: Displayed on the integration page
+
+    Copy both values.
+  </Step>
+</Steps>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+  </Step>
+
+  <Step title="Add Sentry provider">
+    Go to **OAuth Providers** > **Add Provider** > **Sentry**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Sentry Client ID
+    - **Client Secret**: Paste your Sentry Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Step 3: Test It
+
+```python
+from alter_sdk import AlterVault, HttpMethod
+
+async with AlterVault(api_key="alter_key_...") as vault:
+    response = await vault.request(
+        "sentry",
+        HttpMethod.GET,
+        "https://sentry.io/api/0/organizations/",
+        user={"user_id": "alice"},
+    )
+    orgs = response.json()
+    for org in orgs:
+        print(f"{org['name']} ({org['slug']})")
+```
+
+## Available Scopes
+
+Sentry scopes follow a hierarchy: `admin` > `write` > `read`. Requesting a higher level automatically includes lower levels.
+
+### Organization
+
+| Scope | Description |
+|-------|-------------|
+| `org:read` | Read organization data |
+| `org:write` | Modify organization information |
+| `org:admin` | Full organization control including deletion |
+
+### Project
+
+| Scope | Description |
+|-------|-------------|
+| `project:read` | View project details |
+| `project:write` | Create or modify projects |
+| `project:admin` | Full project management including deletion |
+| `project:releases` | Manage project and organization releases |
+
+### Team
+
+| Scope | Description |
+|-------|-------------|
+| `team:read` | View team information |
+| `team:write` | Create or modify teams |
+| `team:admin` | Full team management including deletion |
+
+### Member
+
+| Scope | Description |
+|-------|-------------|
+| `member:read` | View member details |
+| `member:write` | Add or modify members |
+| `member:admin` | Full member management including deletion |
+
+### Event
+
+| Scope | Description |
+|-------|-------------|
+| `event:read` | View issues and events |
+| `event:write` | Modify issues |
+| `event:admin` | Delete issues |
+
+## Common API Endpoints
+
+| Use Case | Method | URL |
+|----------|--------|-----|
+| List organizations | GET | `https://sentry.io/api/0/organizations/` |
+| List projects | GET | `https://sentry.io/api/0/organizations/{org_slug}/projects/` |
+| List issues | GET | `https://sentry.io/api/0/projects/{org_slug}/{project_slug}/issues/` |
+| Get issue details | GET | `https://sentry.io/api/0/issues/{issue_id}/` |
+| List releases | GET | `https://sentry.io/api/0/organizations/{org_slug}/releases/` |
+| Resolve an issue | PUT | `https://sentry.io/api/0/issues/{issue_id}/` |
+
+## Notes
+
+- Access tokens expire after 30 days. Alter Vault automatically refreshes them using the refresh token.
+- Sentry's refresh token is reused (same token persists across refreshes), similar to Google's pattern.
+- Sentry scope permissions in the integration settings must match the scopes you request. If you request a scope that your integration doesn't have permission for, the authorization will fail.
+- The default scopes (`org:read`, `project:read`, `team:read`, `event:read`) provide read-only access, which is sufficient for most monitoring use cases.

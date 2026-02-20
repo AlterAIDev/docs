@@ -1,0 +1,169 @@
+---
+title: 'Slack'
+description: 'Set up Slack OAuth for messaging, channels, and workspace access'
+---
+
+## Overview
+
+Connect your users to Slack workspaces for messaging, channel management, file sharing, and notifications.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `slack` |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic (rolling - new token each refresh) |
+| **Access token lifetime** | 12 hours |
+| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+
+<Note>
+  Slack uses **rolling refresh tokens** - each refresh returns a new refresh token and the old one is revoked. Alter Vault handles this automatically.
+</Note>
+
+## Step 1: Create a Slack App
+
+<Steps>
+  <Step title="Go to Slack API">
+    Navigate to [api.slack.com/apps](https://api.slack.com/apps) and click **Create New App**.
+  </Step>
+
+  <Step title="Choose creation method">
+    Select **From scratch**. Enter:
+    - **App Name**: Your app name (e.g., "My App Integration")
+    - **Pick a workspace**: Select a development workspace for testing
+    - Click **Create App**
+  </Step>
+
+  <Step title="Get your credentials">
+    Go to **Settings** > **Basic Information**:
+    - Scroll to **App Credentials**
+    - Copy the **Client ID** and **Client Secret**
+  </Step>
+
+  <Step title="Configure OAuth redirect">
+    Go to **OAuth & Permissions** in the sidebar:
+    - Under **Redirect URLs**, click **Add New Redirect URL**
+    - Enter: `https://api.alter.com/oauth/callback`
+    - Click **Save URLs**
+  </Step>
+
+  <Step title="Enable token rotation">
+    Go to **Settings** > **Basic Information**:
+    - Scroll to **Token Rotation**
+    - Click **Opt in to token rotation**
+
+    This enables refresh tokens, which Alter Vault uses to automatically keep access tokens fresh.
+  </Step>
+
+  <Step title="Add bot scopes">
+    Go to **OAuth & Permissions**:
+    - Scroll to **Scopes** > **Bot Token Scopes**
+    - Add the scopes your app needs (see [Available Scopes](#available-scopes) below)
+  </Step>
+</Steps>
+
+<Warning>
+  Token rotation must be enabled for Alter Vault to automatically refresh Slack tokens. Without it, users will need to re-authorize every 12 hours.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+  </Step>
+
+  <Step title="Add Slack provider">
+    Go to **OAuth Providers** > **Add Provider** > **Slack**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Slack Client ID
+    - **Client Secret**: Paste your Slack Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the bot token scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Step 3: Test It
+
+```python
+from alter_sdk import AlterVault, Provider, HttpMethod
+
+async with AlterVault(api_key="alter_key_...") as vault:
+    response = await vault.request(
+        Provider.SLACK,
+        HttpMethod.POST,
+        "https://slack.com/api/chat.postMessage",
+        user={"user_id": "alice"},
+        json={"channel": "#general", "text": "Hello from Alter Vault!"},
+    )
+    data = response.json()
+    if data.get("ok"):
+        print("Message sent!")
+    else:
+        print(f"Error: {data.get('error')}")
+```
+
+## Available Scopes
+
+### Reading
+
+| Scope | Description |
+|-------|-------------|
+| `channels:read` | View public channel info |
+| `channels:history` | View messages in public channels |
+| `groups:read` | View private channel info |
+| `im:read` | View direct message info |
+| `mpim:read` | View group DM info |
+| `users:read` | View people in workspace |
+| `users:read.email` | View email addresses of workspace members |
+| `team:read` | View workspace name, domain, and icon |
+| `files:read` | View files shared in channels |
+| `reactions:read` | View emoji reactions |
+| `app_mentions:read` | View messages mentioning your app |
+
+### Writing
+
+| Scope | Description |
+|-------|-------------|
+| `chat:write` | Post messages in approved channels |
+| `chat:write.public` | Post to any public channel |
+| `chat:write.customize` | Post with custom username and avatar |
+| `channels:manage` | Manage and create public channels |
+| `channels:join` | Join public channels |
+| `groups:write` | Manage private channels |
+| `im:write` | Start direct messages |
+| `mpim:write` | Start group DMs |
+| `files:write` | Upload, edit, and delete files |
+| `reactions:write` | Add and remove emoji reactions |
+
+### Other
+
+| Scope | Description |
+|-------|-------------|
+| `commands` | Add slash commands |
+| `incoming-webhook` | Post via incoming webhooks |
+
+## Common API Endpoints
+
+| Use Case | Method | URL |
+|----------|--------|-----|
+| Send a message | POST | `https://slack.com/api/chat.postMessage` |
+| List channels | GET | `https://slack.com/api/conversations.list` |
+| Get channel history | GET | `https://slack.com/api/conversations.history` |
+| List users | GET | `https://slack.com/api/users.list` |
+| Upload a file | POST | `https://slack.com/api/files.upload` |
+| Add a reaction | POST | `https://slack.com/api/reactions.add` |
+
+## Notes
+
+- Slack uses **bot tokens** (`xoxb-...`) by default. These act on behalf of the app, not the user.
+- Access tokens expire every 12 hours. With token rotation enabled, Alter Vault automatically refreshes them using the rolling refresh token.
+- Slack scopes are **comma-separated** (unlike most providers which use spaces). Alter Vault handles this automatically.
+- The Slack API always returns HTTP 200, even on errors. Check the `ok` field in the response body to determine success or failure.
