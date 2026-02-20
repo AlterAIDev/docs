@@ -3,7 +3,7 @@ title: 'Quickstart'
 description: 'Start using the Alter SDK for TypeScript in minutes'
 ---
 
-Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider. Tokens are retrieved and injected automatically — you never touch them.
+Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. Tokens are retrieved and injected automatically — you never touch them.
 
 ## Basic Setup
 
@@ -45,7 +45,7 @@ const vault = new AlterVault({
 });
 ```
 
-Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance.
+Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
 ## Core Concepts
 
@@ -237,6 +237,39 @@ await calendarAgent.close();
 <Note>
   All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
 </Note>
+
+## Connection Management
+
+### List Connections
+
+Retrieve OAuth connections for your app:
+
+```typescript
+const result = await vault.listConnections();
+for (const conn of result.connections) {
+  console.log(`${conn.providerId}: ${conn.accountDisplayName} (${conn.status})`);
+}
+
+// Filter by provider with pagination
+const googleConns = await vault.listConnections({ providerId: "google", limit: 10 });
+```
+
+Returns `ConnectionListResult` with `connections` (`ConnectionInfo[]`), `total`, `limit`, `offset`, `hasMore`.
+
+### Create Connect Session
+
+Generate a URL for end-users to connect OAuth providers:
+
+```typescript
+const session = await vault.createConnectSession({
+  endUser: { id: "alice" },
+  allowedProviders: ["google", "github"],
+  returnUrl: "https://myapp.com/callback",
+});
+console.log(`Connect URL: ${session.connectUrl}`);
+```
+
+Returns `ConnectSession` with `sessionToken`, `connectUrl`, `expiresIn`, `expiresAt`.
 
 ## Error Handling
 

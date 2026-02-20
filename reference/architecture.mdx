@@ -51,7 +51,7 @@ Your application **never sees or stores OAuth tokens**. Here's what happens inst
 ### Access Control
 - **API key authentication** for your backend
 - **Session tokens** for frontend (never expose API keys)
-- **Policy enforcement** via Cerbos (scope restrictions, time-based access, IP allowlist, required attributes)
+- **Policy enforcement** via Cerbos (time-based access, IP allowlist; scopes enforced via provider configuration)
 - **Rate limiting** to prevent abuse
 - **Fail-closed design** — if the policy service is unavailable, all token access is denied
 

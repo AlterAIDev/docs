@@ -511,9 +511,8 @@ The SDK automatically refreshes tokens. If refresh fails:
 
 ### Policy Violation
 If you get `PolicyViolationError`:
-- Check the error message for the specific rule that failed (scopes, time, IP, or attributes)
-- Review the policy configuration in **App Details → Policies** in the Developer Portal
-- Verify the connection's scopes match the policy's `allowed_scopes`
+- Check the error message for the specific rule that failed (time-based access or IP allowlist)
+- Review the policy configuration in **App Details -> Policies** in the Developer Portal
 - If using IP allowlist, confirm your server's IP is included
 - If using time restrictions, check if you're within business hours / weekdays
 

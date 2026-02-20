@@ -70,7 +70,7 @@ Alter Vault logs five categories of events automatically:
 
 <AccordionGroup>
   <Accordion title="Token Access" icon="key">
-    Every time a token is retrieved via `vault.request()`. Includes provider, scopes, policy decision, actor, and reason.
+    Every time a token is retrieved via `vault.request()`. Includes provider, scopes, policy decision, actor, reason, and request intent (HTTP method and URL the caller plans to use).
   </Accordion>
 
   <Accordion title="Connection Lifecycle" icon="link">

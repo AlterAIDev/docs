@@ -3,7 +3,7 @@ title: 'Quickstart'
 description: 'Start using the Alter SDK for Python in minutes'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider. Tokens are retrieved and injected automatically — you never touch them.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. Tokens are retrieved and injected automatically — you never touch them.
 
 ## Basic Setup
 
@@ -47,7 +47,7 @@ vault = AlterVault(
 )
 ```
 
-Audit logging is always enabled — every token retrieval and API call is automatically logged for compliance and security.
+Audit logging is always enabled — every token retrieval and API call is automatically logged for compliance and security. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
 ## Core Concepts
 
@@ -391,6 +391,38 @@ await calendar_agent.close()
 | `run_id` | `str` | Execution run ID (UUID) | `"550e8400-..."` |
 | `thread_id` | `str` | Conversation thread ID | `"thread-abc-123"` |
 | `tool_call_id` | `str` | Tool invocation ID | `"call_xyz_789"` |
+
+## Connection Management
+
+### List Connections
+
+Retrieve OAuth connections for your app:
+
+```python
+result = await vault.list_connections()
+for conn in result.connections:
+    print(f"{conn.provider_id}: {conn.account_display_name} ({conn.status})")
+
+# Filter by provider with pagination
+result = await vault.list_connections(provider_id="google", limit=10)
+```
+
+Returns `ConnectionListResult` with `connections` (`list[ConnectionInfo]`), `total`, `limit`, `offset`, `has_more`.
+
+### Create Connect Session
+
+Generate a URL for end-users to connect OAuth providers:
+
+```python
+session = await vault.create_connect_session(
+    end_user={"id": "alice"},
+    allowed_providers=["google", "github"],
+    return_url="https://myapp.com/callback",
+)
+print(f"Connect URL: {session.connect_url}")
+```
+
+Returns `ConnectSession` with `session_token`, `connect_url`, `expires_in`, `expires_at`.
 
 ## Error Handling
 

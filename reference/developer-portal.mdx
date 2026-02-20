@@ -129,10 +129,8 @@ Control how and when OAuth tokens can be accessed. Policies are enforced in real
 
 | Rule | Description | Example |
 |------|-------------|---------|
-| **Scope Restrictions** | Limit which OAuth scopes can be retrieved | Only allow `calendar.readonly` |
 | **Time-Based Access** | Restrict to business hours or weekdays | Mon-Fri, 9am-5pm |
 | **IP Allowlist** | Only allow access from specific IPs | Office network `203.0.113.0/24` |
-| **Required Attributes** | Require connection metadata | Must have `user_id` and `org_id` |
 
 ### Creating Policies
 
@@ -148,10 +146,8 @@ Control how and when OAuth tokens can be accessed. Policies are enforced in real
   <Step title="Add Policy">
     Click **Add Policy** next to a provider and configure rules:
 
-    - **OAuth Scopes**: Check which scopes are allowed (if none checked, all scopes are permitted)
-    - **Time Restrictions**: Check "Business hours only" (9am-5pm) or "Weekdays only" (Mon-Fri)
+    - **Time Restrictions**: Check "Business hours only" (9am-5pm) or "Weekdays only" (Mon-Fri), and select a timezone
     - **IP Allowlist**: Add IPv4/IPv6 addresses or CIDR ranges
-    - **Required Attributes**: Add attribute keys that must exist on the connection
   </Step>
 
   <Step title="Save">
@@ -161,36 +157,29 @@ Control how and when OAuth tokens can be accessed. Policies are enforced in real
 
 ### Policy Examples
 
-**Scope restriction** — only allow read-only calendar access:
+**Business hours + IP allowlist** -- restrict to office network during work hours:
 ```json
 {
-  "allowed_scopes": ["openid", "profile", "https://www.googleapis.com/auth/calendar.readonly"]
-}
-```
-
-**Business hours + IP allowlist** — restrict to office network during work hours:
-```json
-{
-  "time_restrictions": { "business_hours_only": true, "weekdays_only": true },
+  "time_restrictions": { "business_hours_only": true, "weekdays_only": true, "timezone": "America/New_York" },
   "ip_allowlist": ["203.0.113.0/24"]
 }
 ```
 
-**Required attributes** — ensure every token access is attributed to a user and org:
+**Weekdays only** -- prevent token access on weekends:
 ```json
 {
-  "required_attributes": ["user_id", "org_id"]
+  "time_restrictions": { "weekdays_only": true }
 }
 ```
 
 ### Policy Evaluation
 
-All configured rules are evaluated with **AND logic** — every rule must pass for token access to be granted.
+All configured rules are evaluated with **AND logic** -- every rule must pass for token access to be granted.
 
-1. Scope restrictions (are the connection's scopes in the allowed list?)
-2. Time restrictions (is it within business hours / a weekday?)
-3. IP allowlist (is the client IP in the list?)
-4. Required attributes (does the connection have all required attributes?)
+1. Time restrictions (is it within business hours / a weekday?)
+2. IP allowlist (is the client IP in the allowed list?)
+
+Scope enforcement is handled separately via the OAuth provider configuration, not through policies.
 
 If **any** rule fails, access is denied with a specific reason. If **no policy** is configured for a provider, all token accesses are allowed (permissive default).
 
