@@ -9,18 +9,15 @@ Get started with the Alter SDK for Python to make authenticated API calls to any
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def main():
-    # Initialize the SDK
     vault = AlterVault(api_key="alter_key_...")
 
-    # Make an API request - token is injected automatically
     response = await vault.request(
-        Provider.GOOGLE,
+        "CONNECTION_ID",  # from Alter Connect (see below)
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        user={"user_id": "alice"},
         query_params={"maxResults": "10"},
     )
     events = response.json()
@@ -57,10 +54,9 @@ All provider API calls go through one method:
 
 ```python
 response = await vault.request(
-    provider,         # Provider enum or string (e.g., Provider.GOOGLE, "google")
+    connection_id,    # Connection ID (UUID string) from Alter Connect
     method,           # HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
     url,              # Full URL of the provider API endpoint
-    user={...},       # User attributes to match the OAuth connection
     json={...},       # Optional: JSON request body
     query_params={},  # Optional: URL query parameters
     path_params={},   # Optional: URL path template substitutions
@@ -74,13 +70,7 @@ response = await vault.request(
 Use enums for autocomplete and type safety:
 
 ```python
-from alter_sdk import Provider, HttpMethod
-
-# Provider enums
-Provider.GOOGLE       # "google"
-Provider.GITHUB       # "github"
-Provider.SLACK        # "slack"
-Provider.SENTRY       # "sentry"
+from alter_sdk import HttpMethod
 
 # HTTP method enums
 HttpMethod.GET        # "GET"
@@ -96,8 +86,8 @@ Strings also work for forward compatibility:
 
 ```python
 # These are equivalent
-await vault.request(Provider.GOOGLE, HttpMethod.GET, url, user=user)
-await vault.request("google", "GET", url, user=user)
+await vault.request(connection_id, HttpMethod.GET, url)
+await vault.request(connection_id, "GET", url)
 ```
 
 ### URL Path Templating
@@ -106,10 +96,9 @@ Use `{placeholder}` syntax for dynamic URL segments (values are automatically UR
 
 ```python
 response = await vault.request(
-    Provider.SENTRY,
+    connection_id,
     HttpMethod.GET,
     "https://api.example.com/v1/accounts/{account_id}/contacts/{contact_id}",
-    user={"user_id": "alice"},
     path_params={"account_id": "acc-123", "contact_id": "ct-456"},
 )
 # → GET https://api.example.com/v1/accounts/acc-123/contacts/ct-456
@@ -120,15 +109,14 @@ response = await vault.request(
 ### Google Calendar Events
 
 ```python
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
-async def list_calendar_events(user_id: str):
+async def list_calendar_events(connection_id: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         response = await vault.request(
-            Provider.GOOGLE,
+            connection_id,
             HttpMethod.GET,
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            user={"user_id": user_id},
             query_params={
                 "maxResults": "10",
                 "singleEvents": "true",
@@ -147,13 +135,12 @@ async def list_calendar_events(user_id: str):
 ### GitHub Repositories
 
 ```python
-async def list_repos(user_id: str):
+async def list_repos(connection_id: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         response = await vault.request(
-            Provider.GITHUB,
+            connection_id,
             HttpMethod.GET,
             "https://api.github.com/user/repos",
-            user={"user_id": user_id},
             query_params={"sort": "updated", "per_page": "10"},
         )
         repos = response.json()
@@ -165,13 +152,12 @@ async def list_repos(user_id: str):
 ### Slack Message Posting
 
 ```python
-async def post_slack_message(user_id: str, channel: str, text: str):
+async def post_slack_message(connection_id: str, channel: str, text: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         response = await vault.request(
-            Provider.SLACK,
+            connection_id,
             HttpMethod.POST,
             "https://slack.com/api/chat.postMessage",
-            user={"user_id": user_id},
             json={"channel": channel, "text": text},
             reason="Posting message to Slack",
         )
@@ -186,13 +172,12 @@ async def post_slack_message(user_id: str, channel: str, text: str):
 ### POST with JSON Body
 
 ```python
-async def create_item(user_id: str):
+async def create_item(connection_id: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         response = await vault.request(
-            Provider.SENTRY,
+            connection_id,
             HttpMethod.POST,
             "https://api.example.com/v1/items",
-            user={"user_id": user_id},
             json={"name": "New Item", "price": 99.99},
             reason="Creating new inventory item",
         )
@@ -204,13 +189,12 @@ async def create_item(user_id: str):
 Some APIs require version headers or custom metadata:
 
 ```python
-async def query_notion(user_id: str):
+async def query_notion(connection_id: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         response = await vault.request(
-            "notion",  # String works for any provider
+            connection_id,
             HttpMethod.POST,
             "https://api.notion.com/v1/databases/{db_id}/query",
-            user={"user_id": user_id},
             path_params={"db_id": "abc123"},
             extra_headers={"Notion-Version": "2022-06-28"},
             json={"page_size": 10},
@@ -277,10 +261,9 @@ Add execution-level context on each request:
 
 ```python
 response = await vault.request(
-    Provider.GOOGLE,
+    connection_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    user={"user_id": "alice"},
     # Per-request tracking (all optional)
     run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID
     thread_id="thread-abc-123",                       # Conversation thread
@@ -294,7 +277,7 @@ These fields are sent as headers to the backend and included in audit logs, givi
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def run_email_agent():
     vault = AlterVault(
@@ -308,10 +291,9 @@ async def run_email_agent():
 
     # Each tool call in the agent can be tracked
     response = await vault.request(
-        Provider.GOOGLE,
+        connection_id,
         HttpMethod.GET,
         "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-        user={"user_id": "alice"},
         query_params={"maxResults": "5"},
         run_id="run-001",
         thread_id="thread-daily-digest",
@@ -348,16 +330,13 @@ calendar_agent = AlterVault(
 )
 
 # Audit logs and policies are tracked per agent
-user = {"user_id": "alice"}
 await email_agent.request(
-    Provider.GOOGLE, HttpMethod.GET,
+    gmail_connection_id, HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-    user=user,
 )
 await calendar_agent.request(
-    Provider.GOOGLE, HttpMethod.GET,
+    calendar_connection_id, HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    user=user,
 )
 
 # Clean up each instance
@@ -444,7 +423,7 @@ AlterSDKError (base — also raised for input validation: invalid api_key, actor
 ### Complete Error Handling Example
 
 ```python
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 from alter_sdk.exceptions import (
     PolicyViolationError,
     ConnectionNotFoundError,
@@ -455,14 +434,13 @@ from alter_sdk.exceptions import (
     ProviderAPIError,
 )
 
-async def safe_api_call(user_id: str):
+async def safe_api_call(connection_id: str):
     async with AlterVault(api_key="alter_key_...") as vault:
         try:
             response = await vault.request(
-                Provider.GOOGLE,
+                connection_id,
                 HttpMethod.GET,
                 "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-                user={"user_id": user_id},
             )
             return response.json()
 
@@ -554,30 +532,25 @@ async def safe_api_call(user_id: str):
     ```
   </Accordion>
 
-  <Accordion title="Pass Consistent User Attributes" icon="users">
-    The `user` dict must match the attributes used when the connection was created.
+  <Accordion title="Store and Use Connection IDs" icon="users">
+    Store the `connection_id` from Alter Connect in your database, mapped to your users.
 
     ```python
-    # Single user
-    user={"user_id": "alice"}
-
-    # Multi-tenant SaaS
-    user={"org_id": "acme", "user_id": "alice"}
-
-    # Team shared connection
-    user={"team_id": "engineering"}
+    # Look up connection_id from your database
+    connection_id = get_connection_id_for_user(user_id, "google")
+    await vault.request(connection_id, HttpMethod.GET, url)
     ```
   </Accordion>
 
   <Accordion title="Use Enums for Type Safety" icon="list">
     ```python
-    from alter_sdk import Provider, HttpMethod
+    from alter_sdk import HttpMethod
 
     # ✅ GOOD - Type-safe with autocomplete
-    await vault.request(Provider.GOOGLE, HttpMethod.GET, url, user=user)
+    await vault.request(connection_id, HttpMethod.GET, url)
 
-    # Also works - forward compatible for new providers
-    await vault.request("notion", "GET", url, user=user)
+    # Also works - string methods
+    await vault.request(connection_id, "GET", url)
     ```
   </Accordion>
 
@@ -585,8 +558,7 @@ async def safe_api_call(user_id: str):
     ```python
     # ✅ GOOD - Reason shows up in audit logs
     response = await vault.request(
-        Provider.GOOGLE, HttpMethod.GET, url,
-        user={"user_id": "alice"},
+        connection_id, HttpMethod.GET, url,
         reason="Fetching calendar events for weekly digest",
     )
     ```

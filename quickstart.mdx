@@ -49,8 +49,8 @@ Before you begin, you'll need:
     Copy your API Key (starts with `alter_key_`) - you'll need this soon
   </Step>
 
-  <Step title="Set Up Attribution">
-    Configure how you'll identify users (single user, multi-tenant, or team-based)
+  <Step title="Configure OAuth Providers">
+    Add your OAuth provider credentials (Google, Slack, GitHub, etc.)
   </Step>
 </Steps>
 
@@ -120,10 +120,6 @@ def create_oauth_session():
                 "id": str(user.id),
                 "email": user.email
             },
-            "attributes": {
-                "user_id": str(user.id),
-                "org_id": user.organization_id  # For multi-tenant apps
-            },
             "allowed_providers": ["google", "slack", "github"]
             # Note: allowed_origin is optional. If omitted, uses app.website_url
             # from Developer Portal. Wildcard '*' is NOT supported.
@@ -151,10 +147,6 @@ app.post('/api/oauth/session', async (req, res) => {
             end_user: {
                 id: user.id.toString(),
                 email: user.email
-            },
-            attributes: {
-                user_id: user.id.toString(),
-                org_id: user.organizationId  // For multi-tenant apps
             },
             allowed_providers: ['google', 'slack', 'github']
             // Note: allowed_origin is optional. If omitted, uses app.website_url
@@ -265,18 +257,17 @@ Now use the SDK to make API calls with automatic token injection:
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
-async def fetch_calendar_events(user_id: str):
+async def fetch_calendar_events(connection_id: str):
     vault = AlterVault(api_key="alter_key_...")
 
     try:
         # Make API request - token is injected automatically!
         response = await vault.request(
-            Provider.GOOGLE,
+            connection_id,
             HttpMethod.GET,
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-            user={"user_id": user_id},
             query_params={
                 "maxResults": "10",
                 "singleEvents": "true",
@@ -295,7 +286,7 @@ async def fetch_calendar_events(user_id: str):
     finally:
         await vault.close()
 
-asyncio.run(fetch_calendar_events("user_123"))
+asyncio.run(fetch_calendar_events("550e8400-e29b-41d4-a716-446655440000"))
 ```
 
 ### Using Context Managers
@@ -303,10 +294,9 @@ asyncio.run(fetch_calendar_events("user_123"))
 ```python
 async with AlterVault(api_key="alter_key_...") as vault:
     response = await vault.request(
-        Provider.GOOGLE,
+        connection_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        user={"user_id": "alice"},
     )
     events = response.json()
 # Clients automatically closed
@@ -318,19 +308,17 @@ async with AlterVault(api_key="alter_key_...") as vault:
 async with AlterVault(api_key="alter_key_...") as vault:
     # POST with JSON body
     response = await vault.request(
-        Provider.SLACK,
+        slack_connection_id,
         HttpMethod.POST,
         "https://slack.com/api/chat.postMessage",
-        user={"user_id": "alice"},
         json={"channel": "#general", "text": "Hello from Alter!"},
     )
 
     # URL path templating with automatic URL encoding
     response = await vault.request(
-        Provider.SENTRY,
+        sentry_connection_id,
         HttpMethod.GET,
         "https://api.example.com/v1/accounts/{account_id}/contacts",
-        user={"user_id": "alice"},
         path_params={"account_id": "acc-123"},
         query_params={"limit": "50"},
     )
@@ -349,9 +337,8 @@ from alter_sdk.exceptions import (
 
 try:
     response = await vault.request(
-        Provider.GOOGLE, HttpMethod.GET,
+        connection_id, HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        user={"user_id": "alice"},
     )
 except PolicyViolationError as e:
     print(f"Access denied by policy: {e.message}")
@@ -382,10 +369,9 @@ vault = AlterVault(
 # Actor identity is sent automatically on every request
 # Per-request tracking adds execution context
 response = await vault.request(
-    Provider.GOOGLE,
+    connection_id,
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-    user={"user_id": "alice"},
     run_id="run-001",
     thread_id="thread-daily-digest",
     tool_call_id="call_read_emails",
@@ -401,8 +387,8 @@ Here's a full example showing a Flask API that fetches calendar events:
 
 ```python
 import asyncio
-from flask import Flask, jsonify
-from alter_sdk import AlterVault, Provider, HttpMethod
+from flask import Flask, jsonify, request
+from alter_sdk import AlterVault, HttpMethod
 from alter_sdk.exceptions import ConnectionNotFoundError
 
 app = Flask(__name__)
@@ -411,14 +397,15 @@ vault = AlterVault(api_key="alter_key_...")
 @app.route('/api/users/<user_id>/events')
 def get_user_events(user_id):
     """Fetch user's calendar events using Alter SDK."""
+    # Look up the connection_id from your database
+    connection_id = get_connection_id_for_user(user_id, "google")
 
     async def fetch_events():
         try:
             response = await vault.request(
-                Provider.GOOGLE,
+                connection_id,
                 HttpMethod.GET,
                 "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-                user={"user_id": user_id},
                 query_params={
                     "maxResults": "10",
                     "singleEvents": "true",
@@ -450,32 +437,22 @@ The Alter SDK **never exposes OAuth tokens** to your code:
 - Refreshed transparently when needed
 - You only work with API results, not credentials
 
-### Attribution
-How you identify which OAuth connection to use:
+### Connection ID Lookup
+Each OAuth connection has a unique `connection_id` (UUID) returned by Alter Connect when a user completes the OAuth flow. Store this ID in your database, mapped to your users.
 
 ```python
-# Single user
-user={"user_id": "alice"}
-
-# Multi-tenant SaaS
-user={"org_id": "acme", "user_id": "alice"}
-
-# Team shared connection
-user={"team_id": "engineering"}
+# Use the connection_id to make API calls
+await vault.request(connection_id, HttpMethod.GET, url)
 ```
 
 ### Provider Support
-The SDK works with **any** OAuth provider through a single method:
+The SDK works with **any** OAuth provider configured in your dashboard. The first parameter is always the `connection_id`:
 
 ```python
-# Use Provider enums for supported providers
-await vault.request(Provider.GOOGLE, HttpMethod.GET, url, user=user)
-await vault.request(Provider.GITHUB, HttpMethod.GET, url, user=user)
-await vault.request(Provider.SLACK, HttpMethod.POST, url, user=user)
-
-# Use strings for any provider
-await vault.request("notion", HttpMethod.GET, url, user=user)
-await vault.request("hubspot", HttpMethod.POST, url, user=user)
+# Use the connection_id from Alter Connect
+await vault.request(google_connection_id, HttpMethod.GET, url)
+await vault.request(github_connection_id, HttpMethod.GET, url)
+await vault.request(slack_connection_id, HttpMethod.POST, url)
 ```
 
 ## Best Practices
@@ -485,10 +462,10 @@ await vault.request("hubspot", HttpMethod.POST, url, user=user)
 - Use session tokens (short-lived) for frontend
 - Set IP restrictions in production
 
-### Attribution
-- Use consistent user identifiers
-- Include organizational context for multi-tenant apps
-- Don't change attribution after connections are made
+### Connection Management
+- Store the `connection_id` from Alter Connect in your database
+- Map connection IDs to your users for easy lookup
+- Use `listConnections()` to retrieve connection IDs programmatically
 
 ### Error Handling
 - Always handle `PolicyViolationError` and `ConnectionNotFoundError` explicitly
@@ -500,7 +477,7 @@ await vault.request("hubspot", HttpMethod.POST, url, user=user)
 ### Connection Not Found
 If you get `ConnectionNotFoundError`, ensure:
 - User has completed OAuth flow via Alter Connect
-- Attribution matches exactly (same keys and values)
+- The `connection_id` is correct and belongs to your app
 - Connection hasn't been revoked
 
 ### Token Expired

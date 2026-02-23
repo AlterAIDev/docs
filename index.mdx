@@ -92,17 +92,15 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 ```python Python
 import asyncio
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def use_google_calendar():
     vault = AlterVault(api_key="alter_key_...")
 
-    # Make API request - token injected automatically!
     response = await vault.request(
-        Provider.GOOGLE,
+        "CONNECTION_ID",  # from Alter Connect
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        user={"user_id": "alice"},
         query_params={"maxResults": "10"},
     )
     events = response.json()
@@ -146,8 +144,7 @@ response = requests.post(
     "https://api.alter.com/oauth/connect/session",
     headers={"x-api-key": "alter_key_..."},
     json={
-        "end_user": {"id": "user_123"},
-        "attributes": {"user_id": "user_123"}
+        "end_user": {"id": "user_123"}
     }
 )
 session_token = response.json()["session_token"]

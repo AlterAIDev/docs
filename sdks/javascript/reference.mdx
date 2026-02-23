@@ -33,9 +33,6 @@ const response = await fetch('https://api.alter.com/oauth/connect/session', {
       id: user.id,
       email: user.email
     },
-    attributes: {
-      user_id: user.id  // Must match when retrieving tokens
-    },
     allowed_providers: ['google', 'slack'],
     allowed_origin: 'https://yourapp.com'  // Optional, see below
   })
@@ -256,7 +253,7 @@ alterConnect.on('error', (error) => {
 
 ### Tokens Not Working
 
-- Confirm attribution matches between session and token request
+- Confirm the `connection_id` is correct and belongs to your app
 - Verify connection was completed successfully
 - Check token hasn't expired (auto-refresh should handle this)
 

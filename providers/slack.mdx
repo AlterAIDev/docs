@@ -92,15 +92,16 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 
 ## Step 3: Test It
 
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+
 ```python
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(api_key="alter_key_...") as vault:
     response = await vault.request(
-        Provider.SLACK,
+        connection_id,
         HttpMethod.POST,
         "https://slack.com/api/chat.postMessage",
-        user={"user_id": "alice"},
         json={"channel": "#general", "text": "Hello from Alter Vault!"},
     )
     data = response.json()

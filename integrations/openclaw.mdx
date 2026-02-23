@@ -78,9 +78,7 @@ Before setting up the plugin, you need:
             "config": {
               "apiKey": "alter_key_...",
               "appId": "your-app-uuid",
-              "attributes": {
-                "user_id": "user_123"
-              }
+              "connectionId": "550e8400-e29b-41d4-a716-446655440000"
             }
           }
         }
@@ -132,27 +130,16 @@ Before setting up the plugin, you need:
 | `apiKey` | Yes | Your Alter Vault API key (starts with `alter_key_`) |
 | `appId` | Yes | Your application ID from the Developer Portal |
 | `baseUrl` | No | Alter API base URL (default: `https://api.alter.com`) |
-| `endUserId` | No | Identifier for the end user. Falls back to `attributes.user_id` |
-| `attributes` | No | User attributes for matching OAuth connections (default: `{}`) |
+| `connectionId` | No | Default connection ID (UUID) for API calls |
+| `endUserId` | No | Identifier for the end user |
 | `timeout` | No | Request timeout in milliseconds (default: `30000`) |
 
-### Attribution (User Matching)
+### Connection ID
 
-The `attributes` field determines which OAuth connection to use. It must match the attributes used when the connection was created via Alter Connect.
-
-```json
-// Single user
-{ "user_id": "alice" }
-
-// Multi-tenant SaaS
-{ "user_id": "alice", "org_id": "acme-corp" }
-
-// Team shared connection
-{ "team_id": "engineering" }
-```
+The `connectionId` field specifies which OAuth connection to use. This is the UUID returned when a user completes the OAuth flow via Alter Connect.
 
 <Warning>
-  Attributes must be consistent. If you connected Google with `user_id: "alice"`, you must use the same attribute to retrieve tokens. Changing attributes after connections are made will result in `ConnectionNotFoundError`.
+  The `connectionId` must be a valid UUID belonging to your application. If the connection does not exist or has been revoked, API calls will result in `ConnectionNotFoundError`.
 </Warning>
 
 ## Tool Reference
@@ -327,7 +314,7 @@ The plugin is built on the [Alter TypeScript SDK](/sdks/typescript/quickstart) (
 | **Token exposure to LLM** | Tokens are retrieved internally and never returned to the agent. Only the API response body is visible. |
 | **API key leakage** | Two separate HTTP clients: one for Alter backend (with `x-api-key`), one for external APIs (no `x-api-key`). The API key is never sent to third-party services. |
 | **Header injection** | The `Authorization: Bearer` header is always set last, so LLM-provided headers cannot override it. |
-| **Policy enforcement** | Every token retrieval is checked against your Cerbos policies (scopes, time-based access, IP allowlist, required attributes). |
+| **Policy enforcement** | Every token retrieval is checked against your Cerbos policies (time-based access, IP allowlist). |
 | **Audit logging** | All API calls are logged with the `reason` field for compliance. |
 | **Tenant isolation** | Connections are scoped to your app ID. One app cannot access another app's connections. |
 
@@ -350,11 +337,11 @@ The plugin surfaces clear error messages to the agent:
   </Accordion>
 
   <Accordion title="Agent gets 'Connection not found' for a specific provider" icon="circle-question">
-    Check that the `attributes` in your plugin config match the attributes used when the connection was created. The most common issue is a mismatched `user_id`.
+    Check that the `connectionId` in your plugin config is correct and the connection has not been revoked. You can verify connection status using `alter_connections`.
   </Accordion>
 
   <Accordion title="Agent gets 'Policy violation'" icon="shield">
-    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alter.com) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, IP allowlist, or missing required connection attributes.
+    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alter.com) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, or IP allowlist.
   </Accordion>
 
   <Accordion title="Plugin not loading in OpenClaw" icon="plug">

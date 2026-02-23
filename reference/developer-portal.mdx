@@ -47,27 +47,6 @@ For each provider you want to support:
 | Slack | [api.slack.com/apps](https://api.slack.com/apps) |
 | GitHub | [github.com/settings/apps](https://github.com/settings/apps) |
 
-## Attribution
-
-Define how you identify users for OAuth connections:
-
-1. Go to **Application** → **Attribution**
-2. Add your user identifier fields:
-   ```json
-   // Single user
-   {"user_id": "string"}
-
-   // Multi-tenant
-   {"org_id": "string", "user_id": "string"}
-
-   // Team shared
-   {"team_id": "string"}
-   ```
-3. Mark required fields
-4. Save
-
-This must match what you pass in your SDK calls.
-
 ## Custom Schemas
 
 Add structured data to any OAuth connection for enhanced functionality.
@@ -111,8 +90,8 @@ Add structured data to any OAuth connection for enhanced functionality.
 # via the Alter Connect session endpoint, then available
 # in the Alter Vault dashboard for filtering and management.
 #
-# The SDK's vault.request() uses attribution (user dict) to
-# find the right connection. Custom schema data enriches
+# The SDK's vault.request() uses a connection_id to look up
+# the right connection. Custom schema data enriches
 # the connection metadata for your dashboard workflows.
 ```
 
@@ -208,7 +187,7 @@ View and manage all OAuth connections:
 ### Connections Dashboard
 
 - **Filter**: By provider, user, date, or custom schema fields
-- **Search**: Find specific users or attributes
+- **Search**: Find specific users or connections
 - **Bulk Actions**: Update or revoke multiple connections
 - **Export**: Download connection data as CSV
 
@@ -216,7 +195,7 @@ View and manage all OAuth connections:
 
 For each connection, view:
 - Provider and account info
-- Attribution data
+- Connection ID
 - Custom schema data
 - Token status and refresh history
 - Audit logs of all access
@@ -282,17 +261,16 @@ Set up notifications for:
 
 ### Backend Code
 ```python
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 # Initialize SDK with your API key from portal
 vault = AlterVault(api_key="alter_key_...")
 
 # Make API calls - token injected automatically
 response = await vault.request(
-    Provider.GOOGLE,
+    connection_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    user={"user_id": "alice"},  # Must match attribution config
 )
 events = response.json()
 ```

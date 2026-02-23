@@ -75,15 +75,16 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 
 ## Step 3: Test It
 
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+
 ```python
-from alter_sdk import AlterVault, Provider, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(api_key="alter_key_...") as vault:
     response = await vault.request(
-        Provider.GITHUB,
+        connection_id,
         HttpMethod.GET,
         "https://api.github.com/user/repos",
-        user={"user_id": "alice"},
         query_params={"sort": "updated", "per_page": "5"},
     )
     repos = response.json()

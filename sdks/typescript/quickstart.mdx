@@ -8,17 +8,15 @@ Get started with the Alter SDK for TypeScript to make authenticated API calls to
 ## Basic Setup
 
 ```typescript
-import { AlterVault, Provider, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({ apiKey: "alter_key_..." });
 
-// Make an API request — token is injected automatically
 const response = await vault.request(
-  Provider.GOOGLE,
+  "CONNECTION_ID",  // from Alter Connect (see below)
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
-    user: { user_id: "alice" },
     queryParams: { maxResults: "10" },
   }
 );
@@ -55,11 +53,10 @@ All provider API calls go through one method:
 
 ```typescript
 const response = await vault.request(
-  provider,         // Provider enum or string (e.g., Provider.GOOGLE, "google")
+  connectionId,      // Connection ID (UUID string) from Alter Connect
   method,           // HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
   url,              // Full URL of the provider API endpoint
   {
-    user: {...},       // User attributes to match the OAuth connection
     json: {...},       // Optional: JSON request body
     queryParams: {},   // Optional: URL query parameters
     pathParams: {},    // Optional: URL path template substitutions
@@ -74,13 +71,7 @@ const response = await vault.request(
 Use enums for autocomplete and type safety:
 
 ```typescript
-import { Provider, HttpMethod } from "@alter-ai/alter-sdk";
-
-// Provider enums
-Provider.GOOGLE       // "google"
-Provider.GITHUB       // "github"
-Provider.SLACK        // "slack"
-Provider.SENTRY       // "sentry"
+import { HttpMethod } from "@alter-ai/alter-sdk";
 
 // HTTP method enums
 HttpMethod.GET        // "GET"
@@ -96,8 +87,8 @@ Strings also work for forward compatibility:
 
 ```typescript
 // These are equivalent
-await vault.request(Provider.GOOGLE, HttpMethod.GET, url, { user });
-await vault.request("google", "GET", url, { user });
+await vault.request(connectionId, HttpMethod.GET, url);
+await vault.request(connectionId, "GET", url);
 ```
 
 ## Complete Examples
@@ -105,17 +96,16 @@ await vault.request("google", "GET", url, { user });
 ### Google Calendar Events
 
 ```typescript
-import { AlterVault, Provider, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
-async function listCalendarEvents(userId: string) {
+async function listCalendarEvents(connectionId: string) {
   const vault = new AlterVault({ apiKey: "alter_key_..." });
 
   const response = await vault.request(
-    Provider.GOOGLE,
+    connectionId,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     {
-      user: { user_id: userId },
       queryParams: {
         maxResults: "10",
         singleEvents: "true",
@@ -137,15 +127,14 @@ async function listCalendarEvents(userId: string) {
 ### GitHub Repositories
 
 ```typescript
-async function listRepos(userId: string) {
+async function listRepos(connectionId: string) {
   const vault = new AlterVault({ apiKey: "alter_key_..." });
 
   const response = await vault.request(
-    Provider.GITHUB,
+    connectionId,
     HttpMethod.GET,
     "https://api.github.com/user/repos",
     {
-      user: { user_id: userId },
       queryParams: { sort: "updated", per_page: "10" },
     }
   );
@@ -182,11 +171,10 @@ Add execution-level context on each request:
 
 ```typescript
 const response = await vault.request(
-  Provider.GOOGLE,
+  connectionId,
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
-    user: { user_id: "alice" },
     runId: "550e8400-e29b-41d4-a716-446655440000",
     threadId: "thread-abc-123",
     toolCallId: "call_xyz_789",
@@ -215,16 +203,13 @@ const calendarAgent = new AlterVault({
 });
 
 // Audit logs and policies are tracked per agent
-const user = { user_id: "alice" };
 await emailAgent.request(
-  Provider.GOOGLE, HttpMethod.GET,
+  gmailConnectionId, HttpMethod.GET,
   "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-  { user },
 );
 await calendarAgent.request(
-  Provider.GOOGLE, HttpMethod.GET,
+  calendarConnectionId, HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-  { user },
 );
 
 // Clean up each instance
@@ -291,7 +276,7 @@ AlterSDKError (base — also thrown for input validation: invalid apiKey, actorT
 ### Complete Error Handling Example
 
 ```typescript
-import { AlterVault, Provider, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 import {
   PolicyViolationError,
   ConnectionNotFoundError,
@@ -302,15 +287,14 @@ import {
   ProviderAPIError,
 } from "@alter-ai/alter-sdk";
 
-async function safeApiCall(userId: string) {
+async function safeApiCall(connectionId: string) {
   const vault = new AlterVault({ apiKey: "alter_key_..." });
 
   try {
     const response = await vault.request(
-      Provider.GOOGLE,
+      connectionId,
       HttpMethod.GET,
       "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-      { user: { user_id: userId } },
     );
     return await response.json();
 

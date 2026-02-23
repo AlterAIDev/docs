@@ -96,10 +96,9 @@ Add a `reason` parameter to your API calls for richer audit context:
 
 ```python
 response = await vault.request(
-    Provider.GOOGLE,
+    "CONNECTION_ID",  # connection_id (UUID)
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    user={"user_id": "alice"},
     reason="Syncing calendar for weekly digest email",
 )
 ```
@@ -119,10 +118,9 @@ vault = AlterVault(
 )
 
 response = await vault.request(
-    Provider.GOOGLE,
+    "CONNECTION_ID",  # connection_id (UUID)
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-    user={"user_id": "alice"},
     run_id="run-001",
     thread_id="thread-daily-digest",
     reason="Reading emails for daily digest",

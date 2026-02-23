@@ -72,15 +72,16 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 
 ## Step 3: Test It
 
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+
 ```python
 from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(api_key="alter_key_...") as vault:
     response = await vault.request(
-        "sentry",
+        connection_id,
         HttpMethod.GET,
         "https://sentry.io/api/0/organizations/",
-        user={"user_id": "alice"},
     )
     orgs = response.json()
     for org in orgs:
