@@ -306,6 +306,10 @@ When a user successfully connects, you receive a connection object:
   **Important**: Store the `connection_id` in your database. You'll use this to retrieve OAuth tokens for API calls.
 </Note>
 
+<Tip>
+  **Store `account_identifier` too** (e.g., `"alice@gmail.com"`). When a user connects multiple accounts to the same provider (personal + work Gmail), the `account_identifier` lets your app show a picker or set a default account per feature.
+</Tip>
+
 ## Provider Filtering
 
 ### Automatic Provider Display (Recommended)

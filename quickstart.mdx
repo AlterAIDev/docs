@@ -259,11 +259,14 @@ Now use the SDK to make API calls with automatic token injection:
 import asyncio
 from alter_sdk import AlterVault, HttpMethod
 
-async def fetch_calendar_events(connection_id: str):
+async def fetch_calendar_events(user_id: str):
     vault = AlterVault(api_key="alter_key_...")
 
+    # Your app stores connection_id when the user completes Alter Connect (Step 5)
+    connection_id = db.get_connection(user_id=user_id, provider="google")
+
     try:
-        # Make API request - token is injected automatically!
+        # Make API request — token is injected automatically
         response = await vault.request(
             connection_id,
             HttpMethod.GET,
@@ -286,7 +289,7 @@ async def fetch_calendar_events(connection_id: str):
     finally:
         await vault.close()
 
-asyncio.run(fetch_calendar_events("550e8400-e29b-41d4-a716-446655440000"))
+asyncio.run(fetch_calendar_events("alice"))
 ```
 
 ### Using Context Managers
@@ -294,7 +297,7 @@ asyncio.run(fetch_calendar_events("550e8400-e29b-41d4-a716-446655440000"))
 ```python
 async with AlterVault(api_key="alter_key_...") as vault:
     response = await vault.request(
-        connection_id,
+        "CONNECTION_ID",  # from Alter Connect
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     )
@@ -308,7 +311,7 @@ async with AlterVault(api_key="alter_key_...") as vault:
 async with AlterVault(api_key="alter_key_...") as vault:
     # POST with JSON body
     response = await vault.request(
-        slack_connection_id,
+        slack_connection_id,  # from Alter Connect
         HttpMethod.POST,
         "https://slack.com/api/chat.postMessage",
         json={"channel": "#general", "text": "Hello from Alter!"},
@@ -316,7 +319,7 @@ async with AlterVault(api_key="alter_key_...") as vault:
 
     # URL path templating with automatic URL encoding
     response = await vault.request(
-        sentry_connection_id,
+        sentry_connection_id,  # from Alter Connect
         HttpMethod.GET,
         "https://api.example.com/v1/accounts/{account_id}/contacts",
         path_params={"account_id": "acc-123"},
@@ -369,7 +372,7 @@ vault = AlterVault(
 # Actor identity is sent automatically on every request
 # Per-request tracking adds execution context
 response = await vault.request(
-    connection_id,
+    "CONNECTION_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
     run_id="run-001",
@@ -397,8 +400,8 @@ vault = AlterVault(api_key="alter_key_...")
 @app.route('/api/users/<user_id>/events')
 def get_user_events(user_id):
     """Fetch user's calendar events using Alter SDK."""
-    # Look up the connection_id from your database
-    connection_id = get_connection_id_for_user(user_id, "google")
+    # Your app stores connection_id when the user completes Alter Connect (Step 5)
+    connection_id = db.get_connection(user_id=user_id, provider="google")
 
     async def fetch_events():
         try:
@@ -445,14 +448,51 @@ Each OAuth connection has a unique `connection_id` (UUID) returned by Alter Conn
 await vault.request(connection_id, HttpMethod.GET, url)
 ```
 
+### Multiple Connections (Multi-Account)
+
+A user can connect **multiple accounts** to the same provider (e.g., personal Gmail + work Gmail). Each connection gets its own `connection_id`.
+
+**Store the account identifier** alongside the `connection_id` when the user completes Alter Connect:
+
+```javascript
+// In your Alter Connect onSuccess callback (Step 5)
+onSuccess: async (connection) => {
+    await saveToDatabase({
+        user_id: currentUser.id,
+        connection_id: connection.connection_id,
+        provider: connection.provider,
+        account: connection.account_identifier  // e.g., "alice@gmail.com"
+    });
+}
+```
+
+**Look up connections** when making API calls:
+
+```python
+# Simple case: one connection per user per provider
+connection_id = db.get_connection(user_id=user_id, provider="google")
+
+# Multi-account: user picks which account to use
+connections = db.get_connections(user_id=user_id, provider="google")
+# Returns: [("aaa-111", "alice@gmail.com"), ("bbb-222", "alice@work.com")]
+```
+
+**List connections via the SDK** to see what a user has connected:
+
+```python
+result = await vault.list_connections(provider_id="google")
+for conn in result.connections:
+    print(f"{conn.connection_id}: {conn.account_display_name}")
+```
+
 ### Provider Support
 The SDK works with **any** OAuth provider configured in your dashboard. The first parameter is always the `connection_id`:
 
 ```python
 # Use the connection_id from Alter Connect
-await vault.request(google_connection_id, HttpMethod.GET, url)
-await vault.request(github_connection_id, HttpMethod.GET, url)
-await vault.request(slack_connection_id, HttpMethod.POST, url)
+await vault.request(google_connection_id, HttpMethod.GET, url)   # from Alter Connect
+await vault.request(github_connection_id, HttpMethod.GET, url)   # from Alter Connect
+await vault.request(slack_connection_id, HttpMethod.POST, url)   # from Alter Connect
 ```
 
 ## Best Practices

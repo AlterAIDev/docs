@@ -268,7 +268,7 @@ vault = AlterVault(api_key="alter_key_...")
 
 # Make API calls - token injected automatically
 response = await vault.request(
-    connection_id,
+    "CONNECTION_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )

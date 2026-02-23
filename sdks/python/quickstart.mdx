@@ -261,7 +261,7 @@ Add execution-level context on each request:
 
 ```python
 response = await vault.request(
-    connection_id,
+    "CONNECTION_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     # Per-request tracking (all optional)
@@ -279,7 +279,7 @@ These fields are sent as headers to the backend and included in audit logs, givi
 import asyncio
 from alter_sdk import AlterVault, HttpMethod
 
-async def run_email_agent():
+async def run_email_agent(connection_id: str):
     vault = AlterVault(
         api_key="alter_key_...",
         actor_type="ai_agent",
@@ -306,7 +306,7 @@ async def run_email_agent():
 
     await vault.close()
 
-asyncio.run(run_email_agent())
+asyncio.run(run_email_agent("CONNECTION_ID"))  # from Alter Connect
 ```
 
 ### Multi-Agent Deployments
@@ -331,11 +331,13 @@ calendar_agent = AlterVault(
 
 # Audit logs and policies are tracked per agent
 await email_agent.request(
-    gmail_connection_id, HttpMethod.GET,
+    gmail_connection_id,  # from Alter Connect
+    HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
 )
 await calendar_agent.request(
-    calendar_connection_id, HttpMethod.GET,
+    calendar_connection_id,  # from Alter Connect
+    HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 
@@ -536,9 +538,14 @@ async def safe_api_call(connection_id: str):
     Store the `connection_id` from Alter Connect in your database, mapped to your users.
 
     ```python
-    # Look up connection_id from your database
-    connection_id = get_connection_id_for_user(user_id, "google")
+    # Your app stores connection_id when the user completes Alter Connect
+    connection_id = db.get_connection(user_id=user_id, provider="google")
     await vault.request(connection_id, HttpMethod.GET, url)
+
+    # Or use list_connections() to find connections programmatically
+    result = await vault.list_connections(provider_id="google")
+    for conn in result.connections:
+        print(f"{conn.connection_id}: {conn.account_display_name}")
     ```
   </Accordion>
 

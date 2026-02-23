@@ -68,7 +68,7 @@ Each OAuth connection has a unique `connection_id` (UUID) that is returned when 
 ```python
 # Use the connection_id to make authenticated API calls
 response = await vault.request(
-    connection_id,
+    "CONNECTION_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )

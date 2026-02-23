@@ -171,7 +171,7 @@ Add execution-level context on each request:
 
 ```typescript
 const response = await vault.request(
-  connectionId,
+  "CONNECTION_ID",  // from Alter Connect
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
@@ -204,11 +204,13 @@ const calendarAgent = new AlterVault({
 
 // Audit logs and policies are tracked per agent
 await emailAgent.request(
-  gmailConnectionId, HttpMethod.GET,
+  gmailConnectionId,  // from Alter Connect
+  HttpMethod.GET,
   "https://gmail.googleapis.com/gmail/v1/users/me/messages",
 );
 await calendarAgent.request(
-  calendarConnectionId, HttpMethod.GET,
+  calendarConnectionId,  // from Alter Connect
+  HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 );
 
