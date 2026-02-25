@@ -13,7 +13,7 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 | **PKCE** | Supported |
 | **Token refresh** | Automatic (refresh token reused) |
 | **Access token lifetime** | 30 days |
-| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+| **Redirect URI** | `https://api.alter.com/sdk/oauth/callback` |
 
 ## Step 1: Create a Sentry Integration
 
@@ -28,7 +28,7 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
     Fill in:
     - **Name**: Your app name (e.g., "My App")
     - **Author**: Your name or organization
-    - **Redirect URL**: `https://api.alter.com/oauth/callback`
+    - **Redirect URL**: `https://api.alter.com/sdk/oauth/callback`
     - **Verify Install**: Check this for production apps
   </Step>
 
@@ -49,7 +49,7 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
   </Step>
 
   <Step title="Add Sentry provider">
@@ -75,9 +75,13 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async with AlterVault(api_key="alter_key_...") as vault:
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
     response = await vault.request(
         connection_id,
         HttpMethod.GET,

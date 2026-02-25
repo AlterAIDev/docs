@@ -30,6 +30,13 @@ Alter Vault handles OAuth tokens and API credentials so you can focus on buildin
     Frontend SDK for OAuth connection UI
   </Card>
   <Card
+    title="Managed Secrets"
+    icon="key"
+    href="/reference/managed-secrets"
+  >
+    Store API keys & service tokens securely
+  </Card>
+  <Card
     title="OpenClaw Plugin"
     icon="robot"
     href="/integrations/openclaw"
@@ -61,20 +68,20 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 ## How It Works
 
 <Steps>
-  <Step title="Your User Connects">
-    User authorizes access through our secure OAuth flow (Alter Connect UI)
+  <Step title="Connect or Store Credentials">
+    **OAuth**: User authorizes via Alter Connect UI. **Managed Secrets**: Store your API keys in the Developer Portal.
   </Step>
 
-  <Step title="We Store Tokens">
-    Tokens are encrypted and stored in our secure vault - never in your database
+  <Step title="We Encrypt & Store">
+    All credentials are encrypted (AES-256-GCM) and stored in our secure vault — never in your database
   </Step>
 
   <Step title="You Make API Calls">
-    Call `vault.request()` and we inject the right token automatically
+    Call `vault.request()` with a `connection_id` and we inject the right credential automatically
   </Step>
 
   <Step title="We Handle the Rest">
-    Token refresh, policy enforcement, audit logging - all automatic
+    Token refresh, policy enforcement, audit logging — all automatic
   </Step>
 </Steps>
 
@@ -92,10 +99,14 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 ```python Python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
 async def use_google_calendar():
-    vault = AlterVault(api_key="alter_key_...")
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    )
 
     response = await vault.request(
         "CONNECTION_ID",  # from Alter Connect
@@ -141,7 +152,7 @@ import requests
 
 # Create session for frontend
 response = requests.post(
-    "https://api.alter.com/oauth/connect/session",
+    "https://api.alter.com/sdk/oauth/connect/session",
     headers={"x-api-key": "alter_key_..."},
     json={
         "end_user": {"id": "user_123"}
@@ -181,7 +192,7 @@ Connect to the services your users already use:
 
 <AccordionGroup>
   <Accordion title="Simple Integration">
-    Drop-in SDK for Python with a single method (`vault.request()`) for any provider. REST API for everything else. Get started in minutes.
+    Drop-in SDK for Python and TypeScript with a single method (`vault.request()`) for any provider — OAuth or managed secrets. REST API for everything else. Get started in minutes.
   </Accordion>
 
   <Accordion title="Your Auth System">
@@ -201,7 +212,7 @@ Connect to the services your users already use:
 
 <Steps>
   <Step title="Sign Up">
-    Create your free account at [portal.alter.com](https://portal.alter.com)
+    Create your free account at [portal.alterai.dev](https://portal.alterai.dev)
   </Step>
 
   <Step title="Create an App">

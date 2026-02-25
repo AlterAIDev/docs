@@ -3,7 +3,7 @@ title: 'Installation'
 description: 'Install the Alter SDK for Python'
 ---
 
-The Alter SDK for Python provides secure OAuth token management with automatic token injection, audit logging, connection management, and AI agent tracking.
+The Alter SDK for Python provides secure credential management with automatic token injection for OAuth, API keys, and custom credentials, plus audit logging, connection management, and AI agent tracking.
 
 ## Requirements
 
@@ -30,7 +30,7 @@ The Alter SDK for Python provides secure OAuth token management with automatic t
 
 ```python
 import alter_sdk
-print(alter_sdk.__version__)
+print(alter_sdk.__version__)  # v0.3.0+
 ```
 
 ## Key Features
@@ -84,7 +84,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Note>
 
 <Note>
-  All input validation errors (invalid `api_key`, invalid `actor_type`, invalid URL scheme, missing `path_params`) raise `AlterSDKError` — the base exception class for the SDK.
+  All input validation errors (invalid `api_key`, invalid/missing `actor_type`, missing `actor_identifier`, invalid URL scheme, missing `path_params`) raise `AlterSDKError` — the base exception class for the SDK. The `actor_type` (use `ActorType` enum) and `actor_identifier` parameters are **required** at initialization.
 </Note>
 
 ## Next Steps

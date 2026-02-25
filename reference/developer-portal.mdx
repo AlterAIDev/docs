@@ -1,15 +1,15 @@
 ---
 title: 'Developer Portal'
-description: 'Configure OAuth providers and manage your Alter Vault application'
+description: 'Configure OAuth providers, managed secrets, and manage your Alter Vault application'
 ---
 
 ## Getting Started
 
-The Developer Portal ([portal.alter.com](https://portal.alter.com)) is where you configure OAuth providers, set security policies, and manage your application.
+The Developer Portal ([portal.alterai.dev](https://portal.alterai.dev)) is where you configure OAuth providers, set security policies, and manage your application.
 
 <Steps>
   <Step title="Create Account">
-    Sign up at [portal.alter.com](https://portal.alter.com)
+    Sign up at [portal.alterai.dev](https://portal.alterai.dev)
   </Step>
 
   <Step title="Create Application">
@@ -35,7 +35,7 @@ For each provider you want to support:
 2. Enter credentials from the provider's console:
    - **Client ID**
    - **Client Secret**
-   - **Redirect URI**: Always use `https://api.alter.com/oauth/callback`
+   - **Redirect URI**: Always use `https://api.alter.com/sdk/oauth/callback`
 3. Select the scopes you need
 4. Save and activate
 
@@ -46,6 +46,68 @@ For each provider you want to support:
 | Google | [console.cloud.google.com](https://console.cloud.google.com) |
 | Slack | [api.slack.com/apps](https://api.slack.com/apps) |
 | GitHub | [github.com/settings/apps](https://github.com/settings/apps) |
+
+## Managed Secrets
+
+Managed Secrets let you store API keys, service tokens, and other credentials for your own APIs — no OAuth flow needed.
+
+### When to Use Managed Secrets
+
+- Your own internal APIs that require an API key or service token
+- Partner APIs that provide static credentials
+- SaaS platforms with API key authentication
+- Any service where you already have the credentials
+
+### Setting Up a Managed Secret Provider
+
+<Steps>
+  <Step title="Go to Managed Secrets">
+    Open your app and click **Managed Secrets** in the sidebar
+  </Step>
+
+  <Step title="Add a Provider">
+    Click **Add Provider** and configure:
+    - **Provider Name**: A descriptive name (e.g., "Loyalty API", "Billing Service")
+    - **Credential Type**: How the secret should be injected into requests
+
+    | Credential Type | Header Format |
+    |----------------|--------------|
+    | Bearer Token | `Authorization: Bearer <token>` |
+    | API Key | Custom header (e.g., `X-API-Key: <key>`) |
+    | Basic Auth | `Authorization: Basic <base64>` |
+  </Step>
+
+  <Step title="Store a Secret">
+    Click **Store Secret** on your provider, enter the credential value, and save. You'll receive a `connection_id` (UUID) to use with the SDK.
+  </Step>
+</Steps>
+
+<Note>
+  Secret values are write-only — once stored, you cannot view the raw value. You can only use it via `vault.request()` or replace it by storing a new value.
+</Note>
+
+### Using Managed Secrets
+
+Use the same `vault.request()` method as OAuth connections:
+
+```python
+# Same method — just use the managed secret's connection_id
+response = await vault.request(
+    "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal
+    HttpMethod.GET,
+    "https://api.internal.com/v1/loyalty/points",
+)
+```
+
+### Managing Secrets
+
+- **Rotate**: Store a new secret value on the same provider — the `connection_id` stays the same
+- **Revoke**: Delete a stored secret when it's no longer needed
+- **Delete Provider**: Remove the provider and all its stored secrets
+
+### Policies for Managed Secrets
+
+Managed secrets support the same policy rules as OAuth providers. Go to **Policies** to configure time-based access or IP allowlists for your managed secret providers.
 
 ## Custom Schemas
 
@@ -114,11 +176,11 @@ Control how and when OAuth tokens can be accessed. Policies are enforced in real
 
 <Steps>
   <Step title="Configure a Provider">
-    Go to **App Details** → **OAuth Providers** and add at least one provider (e.g., Google)
+    Open your app, then go to **OAuth Providers** in the sidebar and add at least one provider (e.g., Google)
   </Step>
 
-  <Step title="Open Policies Tab">
-    Go to **App Details** → **Policies**. Only your configured providers appear here.
+  <Step title="Open Policies">
+    Go to **Policies** in the app sidebar. Only your configured providers appear here.
   </Step>
 
   <Step title="Add Policy">
@@ -230,7 +292,7 @@ Create separate apps for different environments:
 
 ## Audit Logs
 
-View all activity across your application under **Audit Logs** in the sidebar.
+View all activity for an application by opening the app and navigating to **Audit Logs** in the app sidebar.
 
 - **Filter** by event type, provider, user, actor, or date range
 - **Search** for specific connections, users, or AI agents
@@ -261,10 +323,14 @@ Set up notifications for:
 
 ### Backend Code
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
 # Initialize SDK with your API key from portal
-vault = AlterVault(api_key="alter_key_...")
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.BACKEND_SERVICE,
+    actor_identifier="my-service",
+)
 
 # Make API calls - token injected automatically
 response = await vault.request(

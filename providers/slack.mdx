@@ -13,7 +13,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 | **PKCE** | Not supported |
 | **Token refresh** | Automatic (rolling - new token each refresh) |
 | **Access token lifetime** | 12 hours |
-| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+| **Redirect URI** | `https://api.alter.com/sdk/oauth/callback` |
 
 <Note>
   Slack uses **rolling refresh tokens** - each refresh returns a new refresh token and the old one is revoked. Alter Vault handles this automatically.
@@ -42,7 +42,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
   <Step title="Configure OAuth redirect">
     Go to **OAuth & Permissions** in the sidebar:
     - Under **Redirect URLs**, click **Add New Redirect URL**
-    - Enter: `https://api.alter.com/oauth/callback`
+    - Enter: `https://api.alter.com/sdk/oauth/callback`
     - Click **Save URLs**
   </Step>
 
@@ -69,7 +69,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
   </Step>
 
   <Step title="Add Slack provider">
@@ -95,9 +95,13 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async with AlterVault(api_key="alter_key_...") as vault:
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
     response = await vault.request(
         connection_id,
         HttpMethod.POST,

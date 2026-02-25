@@ -5,39 +5,44 @@ description: 'How Alter Vault works and keeps your data secure'
 
 ## How Alter Vault Works
 
-Alter Vault is a secure token management service that handles OAuth credentials so you don't have to. We store, refresh, and inject tokens automatically, while you focus on building your product.
+Alter Vault is a secure credential management service that handles OAuth tokens and API secrets so you don't have to. We store, refresh, and inject credentials automatically, while you focus on building your product.
 
-### The Flow
+### Two Paths, One API
+
+Alter Vault supports two types of credentials, both accessed through the same `vault.request()` method:
+
+- **OAuth Connections** — for third-party services where users authorize access (Google, Slack, GitHub)
+- **Managed Secrets** — for your own APIs where you already have the credentials (API keys, service tokens)
 
 ```mermaid
 graph LR
-    A[Your User] --> B[Clicks Connect]
-    B --> C[OAuth Flow]
-    C --> D[Tokens Stored in Vault]
-    D --> E[vault.request]
-    E --> F[Token Injected Automatically]
-    F --> G[API Response Returned]
+    A1[User Authorizes] --> B1[OAuth Flow]
+    B1 --> C[Credentials Encrypted in Vault]
+    A2[Developer Stores Secret] --> C
+    C --> D[vault.request]
+    D --> E[Credential Injected Automatically]
+    E --> F[API Response Returned]
 ```
 
-## Zero Token Exposure
+## Zero Credential Exposure
 
-Your application **never sees or stores OAuth tokens**. Here's what happens instead:
+Your application **never sees or stores credentials**. Here's what happens instead:
 
 <Steps>
-  <Step title="User Connects">
-    User authorizes through Alter Connect UI (your frontend)
+  <Step title="Connect or Store">
+    **OAuth**: User authorizes through Alter Connect UI. **Managed Secrets**: Developer stores credentials via the Developer Portal.
   </Step>
 
-  <Step title="We Store Tokens">
-    OAuth tokens are encrypted and stored in our secure vault
+  <Step title="We Encrypt & Store">
+    All credentials are encrypted (AES-256-GCM) and stored in our secure vault
   </Step>
 
   <Step title="You Call vault.request()">
-    Python SDK retrieves and injects tokens into API calls automatically
+    The SDK retrieves and injects credentials into API calls automatically
   </Step>
 
-  <Step title="Automatic Refresh">
-    Tokens refresh before expiring - your calls never fail
+  <Step title="Automatic Management">
+    OAuth tokens refresh before expiring. Managed secrets are injected with the correct header format.
   </Step>
 </Steps>
 
@@ -63,14 +68,21 @@ Your application **never sees or stores OAuth tokens**. Here's what happens inst
 
 ## Connection ID Lookup
 
-Each OAuth connection has a unique `connection_id` (UUID) that is returned when a user completes the OAuth flow via Alter Connect. You store this ID in your database and use it to make API calls:
+Every credential in Alter Vault — whether OAuth or managed secret — has a unique `connection_id` (UUID). For OAuth, it's returned when a user completes the flow via Alter Connect. For managed secrets, it's returned when you store the credential in the Developer Portal.
 
 ```python
-# Use the connection_id to make authenticated API calls
+# OAuth connection — connection_id from Alter Connect
 response = await vault.request(
-    "CONNECTION_ID",  # from Alter Connect
+    "OAUTH_CONNECTION_ID",
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+)
+
+# Managed secret — connection_id from Developer Portal
+response = await vault.request(
+    "MANAGED_SECRET_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.internal.com/v1/loyalty/points",
 )
 ```
 
@@ -142,23 +154,24 @@ See the [Audit Logs guide](/reference/audit-logs) for details on viewing and exp
   </Card>
 </CardGroup>
 
-## Token Management
+## Credential Management
 
-We handle the entire token lifecycle:
+We handle the entire credential lifecycle:
 
 ### What We Do Automatically
 
-- ✅ **Store tokens securely** - Encrypted at rest
-- ✅ **Refresh before expiry** - No failed API calls
-- ✅ **Handle provider changes** - We adapt to API updates
-- ✅ **Retry on failure** - Automatic error recovery
-- ✅ **Audit all access** - Complete compliance trail
+- ✅ **Store credentials securely** — Encrypted at rest (AES-256-GCM)
+- ✅ **Refresh OAuth tokens before expiry** — No failed API calls
+- ✅ **Inject the right header** — Bearer, API Key, Basic Auth — automatic
+- ✅ **Enforce policies** — Time-based and IP restrictions on every access
+- ✅ **Retry on failure** — Automatic error recovery
+- ✅ **Audit all access** — Complete compliance trail for both OAuth and managed secrets
 
 ### What You Never Do
 
-- ❌ Store tokens in your database
+- ❌ Store tokens or API keys in your database
 - ❌ Implement refresh logic
-- ❌ Handle token expiration
+- ❌ Construct auth headers manually
 - ❌ Manage encryption keys
 - ❌ Build retry mechanisms
 
@@ -202,9 +215,13 @@ await alterConnect.open({
 ### 2. Backend: Use the Connection
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
-vault = AlterVault(api_key="alter_key_...")
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.BACKEND_SERVICE,
+    actor_identifier="my-service",
+)
 
 # Make API calls with auto-injected tokens
 response = await vault.request(

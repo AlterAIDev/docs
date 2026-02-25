@@ -1,16 +1,20 @@
 ---
 title: 'Quickstart'
-description: 'Start using the Alter SDK for TypeScript in minutes'
+description: 'Start using the Alter TypeScript SDK in minutes (v0.3.0+)'
 ---
 
-Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. Tokens are retrieved and injected automatically — you never touch them.
+Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
 
 ## Basic Setup
 
 ```typescript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({ apiKey: "alter_key_..." });
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
 
 const response = await vault.request(
   "CONNECTION_ID",  // from Alter Connect (see below)
@@ -38,6 +42,8 @@ await vault.close();
 ```typescript
 const vault = new AlterVault({
   apiKey: "alter_key_...",              // Required: API key from dashboard
+  actorType: ActorType.AI_AGENT,       // Required: ActorType enum
+  actorIdentifier: "my-agent",         // Required: Unique identifier
   baseUrl: "https://api.alter.com",    // Optional: Custom API endpoint
   timeout: 30000,                      // Optional: HTTP timeout in milliseconds
 });
@@ -96,10 +102,14 @@ await vault.request(connectionId, "GET", url);
 ### Google Calendar Events
 
 ```typescript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
 
 async function listCalendarEvents(connectionId: string) {
-  const vault = new AlterVault({ apiKey: "alter_key_..." });
+  const vault = new AlterVault({
+    apiKey: "alter_key_...",
+    actorType: ActorType.AI_AGENT,
+    actorIdentifier: "my-agent",
+  });
 
   const response = await vault.request(
     connectionId,
@@ -128,7 +138,11 @@ async function listCalendarEvents(connectionId: string) {
 
 ```typescript
 async function listRepos(connectionId: string) {
-  const vault = new AlterVault({ apiKey: "alter_key_..." });
+  const vault = new AlterVault({
+    apiKey: "alter_key_...",
+    actorType: ActorType.AI_AGENT,
+    actorIdentifier: "my-agent",
+  });
 
   const response = await vault.request(
     connectionId,
@@ -148,21 +162,58 @@ async function listRepos(connectionId: string) {
 }
 ```
 
-## Actor Tracking (AI Agents & MCP Servers)
+## Using Managed Secrets
 
-### Registering an Actor
-
-Pass actor identity at SDK initialization:
+The same `vault.request()` method works for managed secrets (API keys, service tokens) stored via the Developer Portal. Just use the managed secret's `connectionId`:
 
 ```typescript
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: "ai_agent",
-  actorIdentifier: "email-assistant-v2",
-  actorName: "Email Assistant",
-  actorVersion: "2.0.0",
-  framework: "langgraph",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
 });
+
+// Call your internal API — secret injected automatically
+const response = await vault.request(
+  "MANAGED_SECRET_CONNECTION_ID",  // from Developer Portal
+  HttpMethod.GET,
+  "https://api.internal.com/v1/loyalty/points",
+  {
+    queryParams: { user_id: "alice" },
+    reason: "Checking loyalty points for rewards calculation",
+  }
+);
+const data = await response.json();
+await vault.close();
+```
+
+The SDK auto-detects the connection type and injects the credential as the correct header (`Authorization: Bearer`, `X-API-Key`, etc.). Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
+
+## Actor Tracking (AI Agents & MCP Servers)
+
+### Registering an Actor
+
+Pass actor identity at SDK initialization using the `ActorType` enum:
+
+```typescript
+import { AlterVault, ActorType } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,         // Required: ActorType enum
+  actorIdentifier: "email-assistant-v2", // Required: Unique identifier
+  actorName: "Email Assistant",          // Optional: Human-readable name
+  actorVersion: "2.0.0",                // Optional: Version string
+  framework: "langgraph",               // Optional: AI framework
+});
+```
+
+Available actor types:
+
+```typescript
+ActorType.AI_AGENT          // "ai_agent"
+ActorType.MCP_SERVER        // "mcp_server"
+ActorType.BACKEND_SERVICE   // "backend_service"
 ```
 
 ### Per-Request Tracking
@@ -175,12 +226,16 @@ const response = await vault.request(
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
-    runId: "550e8400-e29b-41d4-a716-446655440000",
+    runId: "550e8400-e29b-41d4-a716-446655440000",  // auto-generated UUID if omitted
     threadId: "thread-abc-123",
     toolCallId: "call_xyz_789",
   }
 );
 ```
+
+<Note>
+`runId` is auto-generated as a UUID v4 if not provided. All sub-actions within a single `request()` call share the same `runId` for audit log grouping.
+</Note>
 
 ### Multi-Agent Deployments
 
@@ -190,14 +245,14 @@ Each agent must create its own `AlterVault` instance with a unique actor identit
 // Each agent gets its own vault instance
 const emailAgent = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: "ai_agent",
+  actorType: ActorType.AI_AGENT,
   actorIdentifier: "email-assistant-v2",
   actorName: "Email Assistant",
 });
 
 const calendarAgent = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: "ai_agent",
+  actorType: ActorType.AI_AGENT,
   actorIdentifier: "calendar-agent-v1",
   actorName: "Calendar Agent",
 });
@@ -278,7 +333,7 @@ AlterSDKError (base — also thrown for input validation: invalid apiKey, actorT
 ### Complete Error Handling Example
 
 ```typescript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
 import {
   PolicyViolationError,
   ConnectionNotFoundError,
@@ -290,7 +345,11 @@ import {
 } from "@alter-ai/alter-sdk";
 
 async function safeApiCall(connectionId: string) {
-  const vault = new AlterVault({ apiKey: "alter_key_..." });
+  const vault = new AlterVault({
+    apiKey: "alter_key_...",
+    actorType: ActorType.AI_AGENT,
+    actorIdentifier: "my-agent",
+  });
 
   try {
     const response = await vault.request(

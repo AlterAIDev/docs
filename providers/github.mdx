@@ -13,7 +13,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 | **PKCE** | Supported |
 | **Token refresh** | Not needed (tokens don't expire) |
 | **Access token lifetime** | Never expires (revoked after 1 year of inactivity) |
-| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+| **Redirect URI** | `https://api.alter.com/sdk/oauth/callback` |
 
 <Note>
   This guide covers **GitHub OAuth Apps**, not GitHub Apps. OAuth App tokens don't expire, so there's no refresh token flow.
@@ -31,7 +31,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
   <Step title="Fill in app details">
     - **Application name**: Your app name (e.g., "My App")
     - **Homepage URL**: Your app's URL (e.g., `https://myapp.com`)
-    - **Authorization callback URL**: `https://api.alter.com/oauth/callback`
+    - **Authorization callback URL**: `https://api.alter.com/sdk/oauth/callback`
     - Click **Register application**
   </Step>
 
@@ -52,7 +52,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
   </Step>
 
   <Step title="Add GitHub provider">
@@ -78,9 +78,13 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async with AlterVault(api_key="alter_key_...") as vault:
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
     response = await vault.request(
         connection_id,
         HttpMethod.GET,

@@ -22,7 +22,7 @@ Always create sessions on your backend:
 
 ```javascript
 // YOUR backend - never expose API keys
-const response = await fetch('https://api.alter.com/oauth/connect/session', {
+const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.ALTER_API_KEY,

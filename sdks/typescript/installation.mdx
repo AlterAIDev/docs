@@ -3,7 +3,7 @@ title: 'Installation'
 description: 'Install the Alter SDK for TypeScript/Node.js'
 ---
 
-The Alter SDK for TypeScript provides secure OAuth token management with automatic token injection, connection management, audit logging, and AI agent tracking.
+The Alter SDK for TypeScript provides secure credential management with automatic token injection for OAuth, API keys, and custom credentials, plus connection management, audit logging, and AI agent tracking.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ The Alter SDK for TypeScript provides secure OAuth token management with automat
 
 ```typescript
 import { AlterVault } from "@alter-ai/alter-sdk";
-console.log("Alter SDK loaded successfully");
+console.log("Alter SDK loaded successfully");  // should print without errors
 ```
 
 ## Key Features
@@ -87,7 +87,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Note>
 
 <Note>
-  All input validation errors (invalid `apiKey`, invalid `actorType`, invalid URL scheme, missing `pathParams`) throw `AlterSDKError` — the base error class for the SDK.
+  All input validation errors (invalid `apiKey`, invalid/missing `actorType`, missing `actorIdentifier`, invalid URL scheme, missing `pathParams`) throw `AlterSDKError` — the base error class for the SDK. The `actorType` (use `ActorType` enum) and `actorIdentifier` parameters are **required** at initialization.
 </Note>
 
 ## Next Steps

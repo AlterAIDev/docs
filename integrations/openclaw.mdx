@@ -19,7 +19,7 @@ sequenceDiagram
 
     User->>OpenClaw Agent: "List my recent emails"
     OpenClaw Agent->>Alter Plugin: alter_api(provider: google, ...)
-    Alter Plugin->>Alter Vault API: POST /oauth/token (x-api-key)
+    Alter Plugin->>Alter Vault API: POST /sdk/oauth/token (x-api-key)
     Alter Vault API-->>Alter Plugin: access_token (internal only)
     Alter Plugin->>Gmail/GitHub/etc: GET /gmail/v1/... (Bearer token)
     Gmail/GitHub/etc-->>Alter Plugin: emails
@@ -51,7 +51,7 @@ The plugin registers three tools that the OpenClaw agent can use:
 
 Before setting up the plugin, you need:
 
-1. An Alter Vault account with an application configured ([portal.alter.com](https://portal.alter.com))
+1. An Alter Vault account with an application configured ([portal.alterai.dev](https://portal.alterai.dev))
 2. At least one OAuth provider set up (Google, GitHub, Slack, etc.)
 3. An OpenClaw installation ([openclaw.dev](https://openclaw.dev))
 
@@ -93,7 +93,7 @@ Before setting up the plugin, you need:
     openclaw config set plugins.entries.alter-vault.config.appId "your-app-uuid"
     ```
 
-    Get your API key and app ID from the [Developer Portal](https://portal.alter.com).
+    Get your API key and app ID from the [Developer Portal](https://portal.alterai.dev).
   </Step>
 
   <Step title="Connect a service">
@@ -341,7 +341,7 @@ The plugin surfaces clear error messages to the agent:
   </Accordion>
 
   <Accordion title="Agent gets 'Policy violation'" icon="shield">
-    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alter.com) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, or IP allowlist.
+    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alterai.dev) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, or IP allowlist.
   </Accordion>
 
   <Accordion title="Plugin not loading in OpenClaw" icon="plug">

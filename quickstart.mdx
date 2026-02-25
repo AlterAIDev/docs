@@ -30,15 +30,15 @@ graph LR
 ## Prerequisites
 
 Before you begin, you'll need:
-- An Alter Vault account ([sign up free](https://portal.alter.com))
+- An Alter Vault account ([sign up free](https://portal.alterai.dev))
 - An OAuth app with your provider (Google, GitHub, etc.)
-- Python 3.11+ or Node.js 16+
+- Python 3.11+ or Node.js 18+
 
 ## Step 1: Create Your Application
 
 <Steps>
   <Step title="Sign in to the Developer Portal">
-    Go to [portal.alter.com](https://portal.alter.com) and sign in
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and sign in
   </Step>
 
   <Step title="Create an Application">
@@ -67,7 +67,7 @@ Let's set up Google as an example (other providers work similarly):
     1. Go to "APIs & Services" → "Credentials"
     2. Click "Create Credentials" → "OAuth client ID"
     3. Choose "Web application"
-    4. Add this redirect URI: `https://api.alter.com/oauth/callback`
+    4. Add this redirect URI: `https://api.alter.com/sdk/oauth/callback`
   </Step>
 
   <Step title="Add to Alter Vault">
@@ -113,7 +113,7 @@ def create_oauth_session():
 
     # Create session for Alter Connect
     response = requests.post(
-        "https://api.alter.com/oauth/connect/session",
+        "https://api.alter.com/sdk/oauth/connect/session",
         headers={"x-api-key": ALTER_API_KEY},
         json={
             "end_user": {
@@ -142,7 +142,7 @@ app.post('/api/oauth/session', async (req, res) => {
 
     // Create session for Alter Connect
     const response = await axios.post(
-        'https://api.alter.com/oauth/connect/session',
+        'https://api.alter.com/sdk/oauth/connect/session',
         {
             end_user: {
                 id: user.id.toString(),
@@ -257,10 +257,14 @@ Now use the SDK to make API calls with automatic token injection:
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
 async def fetch_calendar_events(user_id: str):
-    vault = AlterVault(api_key="alter_key_...")
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    )
 
     # Your app stores connection_id when the user completes Alter Connect (Step 5)
     connection_id = db.get_connection(user_id=user_id, provider="google")
@@ -295,7 +299,11 @@ asyncio.run(fetch_calendar_events("alice"))
 ### Using Context Managers
 
 ```python
-async with AlterVault(api_key="alter_key_...") as vault:
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
     response = await vault.request(
         "CONNECTION_ID",  # from Alter Connect
         HttpMethod.GET,
@@ -308,7 +316,11 @@ async with AlterVault(api_key="alter_key_...") as vault:
 ### POST Requests and URL Templating
 
 ```python
-async with AlterVault(api_key="alter_key_...") as vault:
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
     # POST with JSON body
     response = await vault.request(
         slack_connection_id,  # from Alter Connect
@@ -362,7 +374,7 @@ If you're building AI agents, add actor tracking for full observability:
 ```python
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type="ai_agent",
+    actor_type=ActorType.AI_AGENT,
     actor_identifier="email-assistant-v2",
     actor_name="Email Assistant",
     actor_version="2.0.0",
@@ -391,11 +403,15 @@ Here's a full example showing a Flask API that fetches calendar events:
 ```python
 import asyncio
 from flask import Flask, jsonify, request
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 from alter_sdk.exceptions import ConnectionNotFoundError
 
 app = Flask(__name__)
-vault = AlterVault(api_key="alter_key_...")
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.BACKEND_SERVICE,
+    actor_identifier="my-flask-app",
+)
 
 @app.route('/api/users/<user_id>/events')
 def get_user_events(user_id):
@@ -430,6 +446,71 @@ def get_user_events(user_id):
 if __name__ == '__main__':
     app.run(debug=True)
 ```
+
+## Alternative: Using Managed Secrets
+
+If you're connecting to **your own APIs** (internal services, partner APIs, SaaS platforms with API keys), you don't need the OAuth flow. Use Managed Secrets instead.
+
+### Step 1: Store Your Secret
+
+1. Go to the Developer Portal → your app → **Managed Secrets**
+2. Click **Add Provider** (e.g., "Loyalty API")
+3. Choose credential type (Bearer Token, API Key, or Basic Auth)
+4. Click **Store Secret** and enter the credential value
+5. Copy the `connection_id` returned
+
+### Step 2: Use vault.request()
+
+Use the exact same `vault.request()` method — just pass the managed secret's `connection_id`:
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    # Call your internal API — secret injected automatically
+    response = await vault.request(
+        "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal
+        HttpMethod.GET,
+        "https://api.internal.com/v1/loyalty/points",
+        query_params={"user_id": "alice"},
+        reason="Checking loyalty points",
+    )
+    points = response.json()
+```
+
+```typescript TypeScript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+const response = await vault.request(
+  "MANAGED_SECRET_CONNECTION_ID",  // from Developer Portal
+  HttpMethod.GET,
+  "https://api.internal.com/v1/loyalty/points",
+  {
+    queryParams: { user_id: "alice" },
+    reason: "Checking loyalty points",
+  }
+);
+const points = await response.json();
+await vault.close();
+```
+
+</CodeGroup>
+
+<Note>
+  **Same security guarantees**: Managed secrets get the same zero-exposure encryption, policy enforcement, and audit logging as OAuth tokens. See the [Managed Secrets guide](/reference/managed-secrets) for details.
+</Note>
 
 ## Key Concepts
 
@@ -482,7 +563,7 @@ connections = db.get_connections(user_id=user_id, provider="google")
 ```python
 result = await vault.list_connections(provider_id="google")
 for conn in result.connections:
-    print(f"{conn.connection_id}: {conn.account_display_name}")
+    print(f"{conn.id}: {conn.account_display_name}")
 ```
 
 ### Provider Support

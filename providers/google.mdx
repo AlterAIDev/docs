@@ -13,7 +13,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 | **PKCE** | Supported |
 | **Token refresh** | Automatic (refresh token reused) |
 | **Access token lifetime** | ~1 hour |
-| **Redirect URI** | `https://api.alter.com/oauth/callback` |
+| **Redirect URI** | `https://api.alter.com/sdk/oauth/callback` |
 
 ## Step 1: Create a Google Cloud Project
 
@@ -56,7 +56,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
   <Step title="Create OAuth client ID">
     - **Application type**: Web application
     - **Name**: e.g., "Alter Vault Integration"
-    - **Authorized redirect URIs**: Add `https://api.alter.com/oauth/callback`
+    - **Authorized redirect URIs**: Add `https://api.alter.com/sdk/oauth/callback`
     - Click **Create**
   </Step>
 
@@ -75,7 +75,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alter.com](https://portal.alter.com) and navigate to your app.
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
   </Step>
 
   <Step title="Add Google provider">
@@ -101,9 +101,13 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async with AlterVault(api_key="alter_key_...") as vault:
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
     # Use the connection_id returned by Alter Connect
     response = await vault.request(
         connection_id,

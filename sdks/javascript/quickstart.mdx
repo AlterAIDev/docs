@@ -39,7 +39,7 @@ Create an endpoint in YOUR backend to generate session tokens:
 
 ```javascript Node.js/Express
 app.post('/api/alter/session', async (req, res) => {
-  const response = await fetch('https://api.alter.com/oauth/connect/session', {
+  const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
     method: 'POST',
     headers: {
       'x-api-key': process.env.ALTER_API_KEY,  // Never expose this!
@@ -69,7 +69,7 @@ import httpx
 async def create_alter_session(current_user = Depends(get_current_user)):
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "https://api.alter.com/oauth/connect/session",
+            "https://api.alter.com/sdk/oauth/connect/session",
             headers={
                 "x-api-key": os.environ["ALTER_API_KEY"],
                 "x-app-id": os.environ["ALTER_APP_ID"]
@@ -92,7 +92,7 @@ async def create_alter_session(current_user = Depends(get_current_user)):
 class AlterController < ApplicationController
   def create_session
     response = HTTParty.post(
-      'https://api.alter.com/oauth/connect/session',
+      'https://api.alter.com/sdk/oauth/connect/session',
       headers: {
         'x-api-key' => ENV['ALTER_API_KEY'],
         'x-app-id' => ENV['ALTER_APP_ID'],
@@ -320,7 +320,7 @@ When a user successfully connects, you receive a connection object:
 
 ```javascript Node.js/Express
 app.post('/api/alter/session', async (req, res) => {
-  const response = await fetch('https://api.alter.com/oauth/connect/session', {
+  const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
     method: 'POST',
     headers: {
       'x-api-key': process.env.ALTER_API_KEY,
@@ -347,7 +347,7 @@ app.post('/api/alter/session', async (req, res) => {
 async def create_alter_session(current_user = Depends(get_current_user)):
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "https://api.alter.com/oauth/connect/session",
+            "https://api.alter.com/sdk/oauth/connect/session",
             headers={
                 "x-api-key": os.environ["ALTER_API_KEY"],
                 "x-app-id": os.environ["ALTER_APP_ID"]
@@ -384,7 +384,7 @@ const allowed = req.user.isPremium
   ? ['google', 'github', 'sentry']  // Premium providers
   : ['google'];  // Free tier
 
-const response = await fetch('https://api.alter.com/oauth/connect/session', {
+const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
   method: 'POST',
   headers: { /* ... */ },
   body: JSON.stringify({
@@ -402,7 +402,7 @@ const providers = {
   'APAC': ['google', 'slack', 'github']
 };
 
-const response = await fetch('https://api.alter.com/oauth/connect/session', {
+const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
   method: 'POST',
   headers: { /* ... */ },
   body: JSON.stringify({
@@ -424,7 +424,7 @@ if (featureFlags.sentryIntegration) {
   enabledProviders.push('sentry');
 }
 
-const response = await fetch('https://api.alter.com/oauth/connect/session', {
+const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
   method: 'POST',
   headers: { /* ... */ },
   body: JSON.stringify({

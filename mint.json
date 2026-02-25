@@ -30,7 +30,7 @@
     {
       "name": "Developer Portal",
       "icon": "browser",
-      "url": "https://portal.alter.com"
+      "url": "https://portal.alterai.dev"
     },
     {
       "name": "API Status",
@@ -97,6 +97,7 @@
       "group": "Reference",
       "pages": [
         "reference/architecture",
+        "reference/managed-secrets",
         "reference/audit-logs",
         "reference/developer-portal"
       ]

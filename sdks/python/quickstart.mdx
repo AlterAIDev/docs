@@ -1,18 +1,22 @@
 ---
 title: 'Quickstart'
-description: 'Start using the Alter SDK for Python in minutes'
+description: 'Start using the Alter SDK for Python in minutes (v0.3.0+)'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. Tokens are retrieved and injected automatically — you never touch them.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
 
 ## Basic Setup
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
 async def main():
-    vault = AlterVault(api_key="alter_key_...")
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    )
 
     response = await vault.request(
         "CONNECTION_ID",  # from Alter Connect (see below)
@@ -39,6 +43,8 @@ asyncio.run(main())
 ```python
 vault = AlterVault(
     api_key="alter_key_...",              # Required: API key from dashboard
+    actor_type=ActorType.AI_AGENT,        # Required: ActorType enum
+    actor_identifier="my-agent",          # Required: Unique identifier
     base_url="https://api.alter.com",     # Optional: Custom API endpoint
     timeout=30.0,                         # Optional: HTTP timeout in seconds
 )
@@ -70,7 +76,7 @@ response = await vault.request(
 Use enums for autocomplete and type safety:
 
 ```python
-from alter_sdk import HttpMethod
+from alter_sdk import ActorType, HttpMethod
 
 # HTTP method enums
 HttpMethod.GET        # "GET"
@@ -109,10 +115,14 @@ response = await vault.request(
 ### Google Calendar Events
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
 async def list_calendar_events(connection_id: str):
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         response = await vault.request(
             connection_id,
             HttpMethod.GET,
@@ -136,7 +146,11 @@ async def list_calendar_events(connection_id: str):
 
 ```python
 async def list_repos(connection_id: str):
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         response = await vault.request(
             connection_id,
             HttpMethod.GET,
@@ -153,7 +167,11 @@ async def list_repos(connection_id: str):
 
 ```python
 async def post_slack_message(connection_id: str, channel: str, text: str):
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         response = await vault.request(
             connection_id,
             HttpMethod.POST,
@@ -173,7 +191,11 @@ async def post_slack_message(connection_id: str, channel: str, text: str):
 
 ```python
 async def create_item(connection_id: str):
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         response = await vault.request(
             connection_id,
             HttpMethod.POST,
@@ -190,7 +212,11 @@ Some APIs require version headers or custom metadata:
 
 ```python
 async def query_notion(connection_id: str):
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         response = await vault.request(
             connection_id,
             HttpMethod.POST,
@@ -202,9 +228,32 @@ async def query_notion(connection_id: str):
         return response.json()
 ```
 
+## Using Managed Secrets
+
+The same `vault.request()` method works for managed secrets (API keys, service tokens) stored via the Developer Portal. Just use the managed secret's `connection_id`:
+
+```python
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    # Call your internal API — secret injected automatically
+    response = await vault.request(
+        "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal
+        HttpMethod.GET,
+        "https://api.internal.com/v1/loyalty/points",
+        query_params={"user_id": "alice"},
+        reason="Checking loyalty points for rewards calculation",
+    )
+    data = response.json()
+```
+
+The SDK auto-detects the connection type and injects the credential as the correct header (`Authorization: Bearer`, `X-API-Key`, etc.). Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
+
 ## Actor Tracking (AI Agents & MCP Servers)
 
-If your application uses AI agents or MCP servers, actor tracking gives you full observability into **which agent** is making API calls and **why**.
+Every SDK instance requires actor identity — `actor_type` and `actor_identifier` are mandatory. This gives you full observability into **which agent** is making API calls and **why**.
 
 ### Why Actor Tracking?
 
@@ -217,13 +266,15 @@ Actor tracking answers these questions automatically.
 
 ### Registering an Actor
 
-Pass actor identity at SDK initialization:
+Pass actor identity at SDK initialization (required):
 
 ```python
+from alter_sdk import AlterVault, ActorType
+
 vault = AlterVault(
     api_key="alter_key_...",
-    # Actor identity (required for tracking)
-    actor_type="ai_agent",                # "ai_agent" or "mcp_server"
+    # Actor identity (required)
+    actor_type=ActorType.AI_AGENT,         # ActorType enum
     actor_identifier="email-assistant-v2", # Unique ID for this agent
     # Actor metadata (optional)
     actor_name="Email Assistant",          # Human-readable name
@@ -237,7 +288,7 @@ For MCP servers:
 ```python
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type="mcp_server",
+    actor_type=ActorType.MCP_SERVER,
     actor_identifier="calendar-mcp",
     actor_name="Calendar MCP Server",
     actor_version="1.0.0",
@@ -265,7 +316,7 @@ response = await vault.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     # Per-request tracking (all optional)
-    run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID
+    run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID (auto-generated UUID if omitted)
     thread_id="thread-abc-123",                       # Conversation thread
     tool_call_id="call_xyz_789",                      # Tool invocation ID
 )
@@ -273,16 +324,20 @@ response = await vault.request(
 
 These fields are sent as headers to the backend and included in audit logs, giving you a complete trace from conversation → tool call → API request.
 
+<Note>
+`run_id` is auto-generated as a UUID v4 if not provided. All sub-actions within a single `request()` call share the same `run_id` for audit log grouping.
+</Note>
+
 ### Complete Agent Example
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 
 async def run_email_agent(connection_id: str):
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type="ai_agent",
+        actor_type=ActorType.AI_AGENT,
         actor_identifier="email-assistant-v2",
         actor_name="Email Assistant",
         actor_version="2.0.0",
@@ -317,14 +372,14 @@ Each agent must create its own `AlterVault` instance with a unique actor identit
 # Each agent gets its own vault instance
 email_agent = AlterVault(
     api_key="alter_key_...",
-    actor_type="ai_agent",
+    actor_type=ActorType.AI_AGENT,
     actor_identifier="email-assistant-v2",
     actor_name="Email Assistant",
 )
 
 calendar_agent = AlterVault(
     api_key="alter_key_...",
-    actor_type="ai_agent",
+    actor_type=ActorType.AI_AGENT,
     actor_identifier="calendar-agent-v1",
     actor_name="Calendar Agent",
 )
@@ -356,8 +411,8 @@ await calendar_agent.close()
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `actor_type` | `str` | `"ai_agent"` or `"mcp_server"` | `"ai_agent"` |
-| `actor_identifier` | `str` | Unique identifier for the actor | `"email-assistant-v2"` |
+| `actor_type` | `ActorType` | `ActorType.AI_AGENT`, `.MCP_SERVER`, or `.BACKEND_SERVICE` (required) | `ActorType.AI_AGENT` |
+| `actor_identifier` | `str` | Unique identifier for the actor (required) | `"email-assistant-v2"` |
 | `actor_name` | `str` | Human-readable display name | `"Email Assistant"` |
 | `actor_version` | `str` | Version of the actor | `"2.0.0"` |
 | `framework` | `str` | AI framework name | `"langgraph"`, `"crewai"` |
@@ -367,7 +422,7 @@ await calendar_agent.close()
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `run_id` | `str` | Execution run ID (UUID) | `"550e8400-..."` |
+| `run_id` | `str` | Execution run ID (UUID, auto-generated if omitted) | `"550e8400-..."` |
 | `thread_id` | `str` | Conversation thread ID | `"thread-abc-123"` |
 | `tool_call_id` | `str` | Tool invocation ID | `"call_xyz_789"` |
 
@@ -425,7 +480,7 @@ AlterSDKError (base — also raised for input validation: invalid api_key, actor
 ### Complete Error Handling Example
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import AlterVault, ActorType, HttpMethod
 from alter_sdk.exceptions import (
     PolicyViolationError,
     ConnectionNotFoundError,
@@ -437,7 +492,11 @@ from alter_sdk.exceptions import (
 )
 
 async def safe_api_call(connection_id: str):
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         try:
             response = await vault.request(
                 connection_id,
@@ -502,12 +561,20 @@ async def safe_api_call(connection_id: str):
   <Accordion title="Always Use Context Managers" icon="code">
     ```python
     # ✅ GOOD - Automatic cleanup
-    async with AlterVault(api_key="alter_key_...") as vault:
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
         response = await vault.request(...)
     # Clients automatically closed
 
     # ❌ BAD - Manual cleanup required
-    vault = AlterVault(api_key="alter_key_...")
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    )
     response = await vault.request(...)
     # Forgot to call vault.close()!
     ```
@@ -545,7 +612,7 @@ async def safe_api_call(connection_id: str):
     # Or use list_connections() to find connections programmatically
     result = await vault.list_connections(provider_id="google")
     for conn in result.connections:
-        print(f"{conn.connection_id}: {conn.account_display_name}")
+        print(f"{conn.id}: {conn.account_display_name}")
     ```
   </Accordion>
 
