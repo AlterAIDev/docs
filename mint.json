@@ -23,7 +23,7 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:support@alterai.dev"
+      "url": "mailto:founders@alterai.dev"
     }
   ],
   "anchors": [
@@ -31,6 +31,11 @@
       "name": "Developer Portal",
       "icon": "browser",
       "url": "https://portal.alterai.dev"
+    },
+    {
+      "name": "Wallet",
+      "icon": "wallet",
+      "url": "https://wallet.alterai.dev"
     },
     {
       "name": "API Status",

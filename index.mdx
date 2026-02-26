@@ -134,8 +134,8 @@ const alterConnect = AlterConnect.create({
 
 // Open OAuth flow
 async function connectProvider() {
-    // Get session from YOUR backend
-    const { session_token } = await fetch('/api/oauth/session')
+    // Call YOUR backend to create a session (see "Backend" tab)
+    const { session_token } = await fetch('/api/connect/session')
         .then(r => r.json());
 
     await alterConnect.open({
@@ -261,7 +261,7 @@ Connect to the services your users already use:
   <Card
     title="Email Support"
     icon="envelope"
-    href="mailto:support@alterai.dev"
+    href="mailto:founders@alterai.dev"
   >
     Contact our support team
   </Card>

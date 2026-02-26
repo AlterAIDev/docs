@@ -343,8 +343,8 @@ events = response.json()
 
 ### Frontend Code
 ```javascript
-// Create session on YOUR backend (using API key)
-const { session_token } = await fetch('/api/oauth/session');
+// Call YOUR backend to create a session (using API key)
+const { session_token } = await fetch('/api/connect/session');
 
 // Open OAuth flow (no API key needed)
 await alterConnect.open({
@@ -359,5 +359,5 @@ await alterConnect.open({
 
 - **Documentation**: [docs.alterai.dev](https://docs.alterai.dev)
 - **API Reference**: Available in the [Developer Portal](https://portal.alterai.dev)
-- **Email**: [support@alterai.dev](mailto:support@alterai.dev)
+- **Email**: [founders@alterai.dev](mailto:founders@alterai.dev)
 - **Status**: [status.alterai.dev](https://status.alterai.dev)

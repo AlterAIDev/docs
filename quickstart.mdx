@@ -112,7 +112,7 @@ vault = AlterVault(
     actor_identifier="my-flask-app",
 )
 
-@app.route('/api/oauth/session', methods=['POST'])
+@app.route('/api/connect/session', methods=['POST'])
 def create_oauth_session():
     user = request.user  # Your auth
 
@@ -141,7 +141,7 @@ const vault = new AlterVault({
   actorIdentifier: 'my-express-app',
 });
 
-app.post('/api/oauth/session', async (req, res) => {
+app.post('/api/connect/session', async (req, res) => {
     const user = req.user; // Your auth
 
     const session = await vault.createConnectSession({
@@ -174,8 +174,8 @@ function IntegrationsPage() {
     });
 
     const handleConnect = async (provider) => {
-        // Get session from YOUR backend
-        const { session_token } = await fetch('/api/oauth/session', {
+        // Call YOUR backend to create a session (see Step 4)
+        const { session_token } = await fetch('/api/connect/session', {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${authToken}` }
         }).then(r => r.json());
@@ -218,8 +218,8 @@ function IntegrationsPage() {
 const alterConnect = AlterConnect.create();
 
 async function connectProvider(provider) {
-    // Get session from YOUR backend
-    const response = await fetch('/api/oauth/session', {
+    // Call YOUR backend to create a session (see Step 4)
+    const response = await fetch('/api/connect/session', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authToken}` }
     });
@@ -662,6 +662,6 @@ If you get `TokenRetrievalError` with "not configured":
 
 ## Need Help?
 
-- Email: [support@alterai.dev](mailto:support@alterai.dev)
+- Email: [founders@alterai.dev](mailto:founders@alterai.dev)
 - Documentation: [docs.alterai.dev](https://docs.alterai.dev)
-- Community: [Join our Community](mailto:support@alterai.dev)
+- Community: [Join our Community](mailto:founders@alterai.dev)
