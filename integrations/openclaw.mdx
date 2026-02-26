@@ -19,7 +19,7 @@ sequenceDiagram
 
     User->>OpenClaw Agent: "List my recent emails"
     OpenClaw Agent->>Alter Plugin: alter_api(provider: google, ...)
-    Alter Plugin->>Alter Vault API: POST /sdk/oauth/token (x-api-key)
+    Alter Plugin->>Alter Vault API: POST /sdk/token (x-api-key + HMAC)
     Alter Vault API-->>Alter Plugin: access_token (internal only)
     Alter Plugin->>Gmail/GitHub/etc: GET /gmail/v1/... (Bearer token)
     Gmail/GitHub/etc-->>Alter Plugin: emails
@@ -129,10 +129,13 @@ Before setting up the plugin, you need:
 |-----------|----------|-------------|
 | `apiKey` | Yes | Your Alter Vault API key (starts with `alter_key_`) |
 | `appId` | Yes | Your application ID from the Developer Portal |
-| `baseUrl` | No | Alter API base URL (default: `https://api.alter.com`) |
 | `connectionId` | No | Default connection ID (UUID) for API calls |
 | `endUserId` | No | Identifier for the end user |
 | `timeout` | No | Request timeout in milliseconds (default: `30000`) |
+
+<Note>
+  The SDK base URL defaults to `https://backend.alterai.dev`. To override (e.g., for staging), set the `ALTER_BASE_URL` environment variable before starting OpenClaw.
+</Note>
 
 ### Connection ID
 

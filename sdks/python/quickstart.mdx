@@ -1,6 +1,7 @@
 ---
 title: 'Quickstart'
-description: 'Start using the Alter SDK for Python in minutes (v0.3.0+)'
+description: 'Start using the Alter SDK for Python in minutes'
+icon: 'python'
 ---
 
 Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
@@ -45,7 +46,6 @@ vault = AlterVault(
     api_key="alter_key_...",              # Required: API key from dashboard
     actor_type=ActorType.AI_AGENT,        # Required: ActorType enum
     actor_identifier="my-agent",          # Required: Unique identifier
-    base_url="https://api.alter.com",     # Optional: Custom API endpoint
     timeout=30.0,                         # Optional: HTTP timeout in seconds
 )
 ```

@@ -35,12 +35,12 @@
     {
       "name": "API Status",
       "icon": "signal",
-      "url": "https://status.alter.com"
+      "url": "https://docs.alterai.dev/docs.json"
     },
     {
       "name": "Blog",
       "icon": "newspaper",
-      "url": "https://alter.com/blog"
+      "url": "https://alterai.dev/blog"
     }
   ],
   "navigation": [

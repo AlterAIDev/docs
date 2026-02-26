@@ -1,6 +1,7 @@
 ---
 title: 'Quickstart'
-description: 'Start using the Alter TypeScript SDK in minutes (v0.3.0+)'
+description: 'Start using the Alter TypeScript SDK in minutes'
+icon: 'js'
 ---
 
 Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
@@ -44,7 +45,6 @@ const vault = new AlterVault({
   apiKey: "alter_key_...",              // Required: API key from dashboard
   actorType: ActorType.AI_AGENT,       // Required: ActorType enum
   actorIdentifier: "my-agent",         // Required: Unique identifier
-  baseUrl: "https://api.alter.com",    // Optional: Custom API endpoint
   timeout: 30000,                      // Optional: HTTP timeout in milliseconds
 });
 ```
