@@ -147,18 +147,20 @@ async function connectProvider() {
 }
 ```
 
-```python Direct API
-import requests
+```python Backend (Session Creation)
+from alter_sdk import AlterVault, ActorType
+
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.BACKEND_SERVICE,
+    actor_identifier="my-app",
+)
 
 # Create session for frontend
-response = requests.post(
-    "https://api.alter.com/sdk/oauth/connect/session",
-    headers={"x-api-key": "alter_key_..."},
-    json={
-        "end_user": {"id": "user_123"}
-    }
+session = await vault.create_connect_session(
+    end_user={"id": "user_123"},
 )
-session_token = response.json()["session_token"]
+session_token = session.session_token
 ```
 
 </CodeGroup>
@@ -259,7 +261,7 @@ Connect to the services your users already use:
   <Card
     title="Email Support"
     icon="envelope"
-    href="mailto:support@alter.com"
+    href="mailto:support@alterai.dev"
   >
     Contact our support team
   </Card>

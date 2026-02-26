@@ -22,21 +22,15 @@ Always create sessions on your backend:
 
 ```javascript
 // YOUR backend - never expose API keys
-const response = await fetch('https://api.alter.com/sdk/oauth/connect/session', {
-  method: 'POST',
-  headers: {
-    'x-api-key': process.env.ALTER_API_KEY,
-    'Content-Type': 'application/json'
+const session = await vault.createConnectSession({
+  endUser: {
+    id: user.id,
+    email: user.email,
   },
-  body: JSON.stringify({
-    end_user: {
-      id: user.id,
-      email: user.email
-    },
-    allowed_providers: ['google', 'slack'],
-    allowed_origin: 'https://yourapp.com'  // Optional, see below
-  })
+  allowedProviders: ['google', 'slack'],
+  allowedOrigin: 'https://yourapp.com',  // Optional, see below
 });
+// Pass session.sessionToken to your frontend
 ```
 
 ### Understanding `allowed_origin`
@@ -91,7 +85,6 @@ await alterConnect.open({
   onError: (error) => {},        // Error callback
   onExit: () => {},              // Called when user closes without connecting
   onEvent: (name, meta) => {},   // Analytics events
-  baseURL: 'https://...'        // Override API URL (testing)
 });
 ```
 
@@ -166,14 +159,7 @@ await alterConnect.open({
 
 ## Content Security Policy
 
-If using CSP, add these directives:
-
-```html
-<meta http-equiv="Content-Security-Policy"
-      content="frame-src https://api.alter.com;
-               connect-src https://api.alter.com;
-               script-src 'self' https://cdn.jsdelivr.net;">
-```
+If your application uses a Content Security Policy, you'll need to allow the Alter Connect domain. Check the **Developer Portal** for the exact domain to add to your `frame-src` and `connect-src` directives.
 
 ## TypeScript
 

@@ -101,7 +101,7 @@ Before setting up the plugin, you need:
 
     ```
     You: "Connect my Google account"
-    Agent: Here's a link to connect your Google account: https://connect.alter.com/session/...
+    Agent: Here's a link to connect your Google account: https://connect.alterai.dev/session/...
            Please open this in your browser to authorize access.
     ```
 
@@ -134,7 +134,7 @@ Before setting up the plugin, you need:
 | `timeout` | No | Request timeout in milliseconds (default: `30000`) |
 
 <Note>
-  The SDK base URL defaults to `https://backend.alterai.dev`. To override (e.g., for staging), set the `ALTER_BASE_URL` environment variable before starting OpenClaw.
+  The SDK connects to the Alter API automatically. No URL configuration is needed.
 </Note>
 
 ### Connection ID
@@ -209,10 +209,10 @@ Generate an OAuth authorization link for the user to connect a new service.
 User: "I need to connect my Slack"
 
 Agent calls: alter_connect(providers: "slack")
-Response: { connect_url: "https://connect.alter.com/session/abc123", expires_in: 1800 }
+Response: { connect_url: "https://connect.alterai.dev/session/abc123", expires_in: 1800 }
 
 Agent: Here's a link to connect your Slack account:
-       https://connect.alter.com/session/abc123
+       https://connect.alterai.dev/session/abc123
        This link expires in 30 minutes.
 ```
 

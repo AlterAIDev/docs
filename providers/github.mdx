@@ -13,7 +13,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 | **PKCE** | Supported |
 | **Token refresh** | Not needed (tokens don't expire) |
 | **Access token lifetime** | Never expires (revoked after 1 year of inactivity) |
-| **Redirect URI** | `https://api.alter.com/sdk/oauth/callback` |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
 
 <Note>
   This guide covers **GitHub OAuth Apps**, not GitHub Apps. OAuth App tokens don't expire, so there's no refresh token flow.
@@ -31,7 +31,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
   <Step title="Fill in app details">
     - **Application name**: Your app name (e.g., "My App")
     - **Homepage URL**: Your app's URL (e.g., `https://myapp.com`)
-    - **Authorization callback URL**: `https://api.alter.com/sdk/oauth/callback`
+    - **Authorization callback URL**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
     - Click **Register application**
   </Step>
 

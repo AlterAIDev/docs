@@ -4,7 +4,7 @@
   "logo": {
     "dark": "/logo/alter-logo-dark.svg",
     "light": "/logo/alter-logo-light.svg",
-    "href": "https://alter.com"
+    "href": "https://alterai.dev"
   },
   "favicon": "/favicon.png",
   "colors": {
@@ -23,7 +23,7 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:support@alter.com"
+      "url": "mailto:support@alterai.dev"
     }
   ],
   "anchors": [
@@ -34,8 +34,8 @@
     },
     {
       "name": "API Status",
-      "icon": "signal",
-      "url": "https://docs.alterai.dev/docs.json"
+      "icon": "heart-pulse",
+      "url": "https://status.alterai.dev"
     },
     {
       "name": "Blog",
@@ -113,6 +113,7 @@
     "raiseIssue": true
   },
   "modeToggle": {
-    "default": "dark"
+    "default": "dark",
+    "isHidden": true
   }
 }

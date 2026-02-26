@@ -13,7 +13,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 | **PKCE** | Not supported |
 | **Token refresh** | Automatic (rolling - new token each refresh) |
 | **Access token lifetime** | 12 hours |
-| **Redirect URI** | `https://api.alter.com/sdk/oauth/callback` |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
 
 <Note>
   Slack uses **rolling refresh tokens** - each refresh returns a new refresh token and the old one is revoked. Alter Vault handles this automatically.
@@ -42,7 +42,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
   <Step title="Configure OAuth redirect">
     Go to **OAuth & Permissions** in the sidebar:
     - Under **Redirect URLs**, click **Add New Redirect URL**
-    - Enter: `https://api.alter.com/sdk/oauth/callback`
+    - Copy the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
     - Click **Save URLs**
   </Step>
 

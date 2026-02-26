@@ -25,7 +25,7 @@ graph LR
 
 1. **Python SDK (`alter-sdk`)** - Backend SDK that makes authenticated API calls via `vault.request()`
 2. **Connect SDK (`@alter-ai/connect`)** - Frontend JavaScript SDK for OAuth flow UI
-3. **Alter API** - Backend API at `https://api.alter.com`
+3. **Alter API** - Handles OAuth and token management (no URL configuration needed — SDKs connect automatically)
 
 ## Prerequisites
 
@@ -67,7 +67,7 @@ Let's set up Google as an example (other providers work similarly):
     1. Go to "APIs & Services" → "Credentials"
     2. Click "Create Credentials" → "OAuth client ID"
     3. Choose "Web application"
-    4. Add this redirect URI: `https://api.alter.com/sdk/oauth/callback`
+    4. Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
   </Step>
 
   <Step title="Add to Alter Vault">
@@ -95,69 +95,63 @@ npm install @alter-ai/connect
 
 ## Step 4: Create Session Endpoint
 
-Your backend needs to create session tokens for the OAuth flow:
+Your backend needs to create session tokens for the OAuth flow. Use the SDK's `create_connect_session()` method:
 
 <CodeGroup>
 
-```python Flask
-import requests
+```python Flask (Python SDK)
+import asyncio
 from flask import Flask, request, jsonify
+from alter_sdk import AlterVault, ActorType
 
 app = Flask(__name__)
 
-ALTER_API_KEY = "alter_key_..."
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.BACKEND_SERVICE,
+    actor_identifier="my-flask-app",
+)
 
 @app.route('/api/oauth/session', methods=['POST'])
 def create_oauth_session():
     user = request.user  # Your auth
 
-    # Create session for Alter Connect
-    response = requests.post(
-        "https://api.alter.com/sdk/oauth/connect/session",
-        headers={"x-api-key": ALTER_API_KEY},
-        json={
-            "end_user": {
-                "id": str(user.id),
-                "email": user.email
-            },
-            "allowed_providers": ["google", "slack", "github"]
-            # Note: allowed_origin is optional. If omitted, uses app.website_url
+    async def _create():
+        session = await vault.create_connect_session(
+            end_user={"id": str(user.id), "email": user.email},
+            allowed_providers=["google", "slack", "github"],
+            # allowed_origin is optional. If omitted, uses website_url
             # from Developer Portal. Wildcard '*' is NOT supported.
-        }
-    )
+        )
+        return session
 
-    return jsonify(response.json())
+    session = asyncio.run(_create())
+    return jsonify({"session_token": session.session_token})
 ```
 
-```javascript Express
+```javascript Express (TypeScript SDK)
 const express = require('express');
-const axios = require('axios');
+const { AlterVault, ActorType } = require('@alter-ai/alter-sdk');
 
 const app = express();
 
-const ALTER_API_KEY = 'alter_key_...';
+const vault = new AlterVault({
+  apiKey: 'alter_key_...',
+  actorType: ActorType.BACKEND_SERVICE,
+  actorIdentifier: 'my-express-app',
+});
 
 app.post('/api/oauth/session', async (req, res) => {
     const user = req.user; // Your auth
 
-    // Create session for Alter Connect
-    const response = await axios.post(
-        'https://api.alter.com/sdk/oauth/connect/session',
-        {
-            end_user: {
-                id: user.id.toString(),
-                email: user.email
-            },
-            allowed_providers: ['google', 'slack', 'github']
-            // Note: allowed_origin is optional. If omitted, uses app.website_url
-            // from Developer Portal. Wildcard '*' is NOT supported.
-        },
-        {
-            headers: { 'x-api-key': ALTER_API_KEY }
-        }
-    );
+    const session = await vault.createConnectSession({
+        endUser: { id: user.id.toString(), email: user.email },
+        allowedProviders: ['google', 'slack', 'github'],
+        // allowedOrigin is optional. If omitted, uses website_url
+        // from Developer Portal. Wildcard '*' is NOT supported.
+    });
 
-    res.json(response.data);
+    res.json({ session_token: session.sessionToken });
 });
 ```
 
@@ -668,6 +662,6 @@ If you get `TokenRetrievalError` with "not configured":
 
 ## Need Help?
 
-- Email: [support@alter.com](mailto:support@alter.com)
-- Documentation: [docs.alter.com](https://docs.alter.com)
-- Community: [Join our Community](mailto:support@alter.com)
+- Email: [support@alterai.dev](mailto:support@alterai.dev)
+- Documentation: [docs.alterai.dev](https://docs.alterai.dev)
+- Community: [Join our Community](mailto:support@alterai.dev)
