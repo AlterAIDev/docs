@@ -30,7 +30,7 @@ The Alter SDK for Python provides secure credential management with automatic to
 
 ```python
 import alter_sdk
-print(alter_sdk.__version__)  # v0.3.0+
+print(alter_sdk.__version__)  # v0.3.1+
 ```
 
 ## Key Features
@@ -65,7 +65,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 ## Architecture Notes
 
 <Note>
-  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it.
+  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it. All backend requests are signed with HMAC-SHA256 using a derived signing key for request integrity, authenticity, and replay protection.
 </Note>
 
 <Warning>

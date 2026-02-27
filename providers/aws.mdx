@@ -1,0 +1,290 @@
+---
+title: 'AWS'
+description: 'Use AWS SigV4 credentials for S3, Bedrock, DynamoDB, Lambda, and more'
+icon: 'aws'
+---
+
+## Overview
+
+Store your AWS credentials in Alter Vault and make authenticated requests to any AWS service. Alter Vault handles SigV4 signature computation automatically -- your code never touches AWS secret keys.
+
+| Property | Value |
+|----------|-------|
+| **Credential Type** | `aws_sig_v4` |
+| **Integration Type** | Managed Secret (no OAuth flow) |
+| **Signing** | AWS Signature Version 4 (automatic) |
+| **Supported Services** | S3, Bedrock, DynamoDB, Lambda, SES, SQS, and any AWS service |
+
+<Note>
+  AWS credentials are stored as **Managed Secrets**, not OAuth connections. You store them once in the Developer Portal, then use `vault.request()` to make signed requests to any AWS service.
+</Note>
+
+## Setup
+
+<Steps>
+  <Step title="Create your app">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and create an app (or open an existing one).
+  </Step>
+
+  <Step title="Add AWS provider">
+    Go to **Managed Secrets** > **Add Provider** and select **AWS SigV4**.
+  </Step>
+
+  <Step title="Store AWS credentials">
+    Enter your AWS credentials:
+    - **Access Key ID** — your IAM access key (e.g., `AKIAIOSFODNN7EXAMPLE`)
+    - **Secret Access Key** — your IAM secret key
+    - **Region** — the AWS region (e.g., `us-east-1`)
+    - **Service** (optional) — lock credentials to a specific service (e.g., `s3`, `bedrock-runtime`)
+
+    Click **Store Secret** and copy the returned `connection_id`.
+  </Step>
+</Steps>
+
+<Warning>
+  Use IAM credentials scoped to the minimum permissions your app needs. Never store root account credentials. Consider using IAM roles with temporary credentials for production workloads.
+</Warning>
+
+## Usage
+
+Use `vault.request()` with the `connection_id` from the Developer Portal. The SDK computes the SigV4 signature automatically -- you just provide the AWS service URL and request body.
+
+### S3: Get an Object
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    response = await vault.request(
+        "AWS_CONNECTION_ID",  # from Developer Portal
+        HttpMethod.GET,
+        "https://my-bucket.s3.us-east-1.amazonaws.com/reports/q4-summary.pdf",
+        reason="Retrieving Q4 report for analysis",
+    )
+    content = response.content
+```
+
+```typescript TypeScript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+const response = await vault.request(
+  "AWS_CONNECTION_ID",  // from Developer Portal
+  HttpMethod.GET,
+  "https://my-bucket.s3.us-east-1.amazonaws.com/reports/q4-summary.pdf",
+  {
+    reason: "Retrieving Q4 report for analysis",
+  }
+);
+const content = await response.arrayBuffer();
+
+await vault.close();
+```
+
+</CodeGroup>
+
+### Bedrock: Invoke a Model
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    response = await vault.request(
+        "AWS_CONNECTION_ID",
+        HttpMethod.POST,
+        "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-sonnet-20240229-v1:0/invoke",
+        json={
+            "anthropic_version": "bedrock-2023-05-31",
+            "max_tokens": 1024,
+            "messages": [
+                {"role": "user", "content": "Summarize this quarter's revenue trends."}
+            ],
+        },
+        extra_headers={"Content-Type": "application/json"},
+        reason="Invoking Claude on Bedrock for revenue analysis",
+    )
+    result = response.json()
+    print(result["content"][0]["text"])
+```
+
+```typescript TypeScript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+const response = await vault.request(
+  "AWS_CONNECTION_ID",
+  HttpMethod.POST,
+  "https://bedrock-runtime.us-east-1.amazonaws.com/model/anthropic.claude-3-sonnet-20240229-v1:0/invoke",
+  {
+    json: {
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 1024,
+      messages: [
+        { role: "user", content: "Summarize this quarter's revenue trends." },
+      ],
+    },
+    extraHeaders: { "Content-Type": "application/json" },
+    reason: "Invoking Claude on Bedrock for revenue analysis",
+  }
+);
+const result = await response.json();
+console.log(result.content[0].text);
+
+await vault.close();
+```
+
+</CodeGroup>
+
+### DynamoDB: Query Items
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    response = await vault.request(
+        "AWS_CONNECTION_ID",
+        HttpMethod.POST,
+        "https://dynamodb.us-east-1.amazonaws.com",
+        json={
+            "TableName": "UserSessions",
+            "KeyConditionExpression": "user_id = :uid",
+            "ExpressionAttributeValues": {
+                ":uid": {"S": "user_123"}
+            },
+        },
+        extra_headers={
+            "Content-Type": "application/x-amz-json-1.0",
+            "X-Amz-Target": "DynamoDB_20120810.Query",
+        },
+        reason="Looking up active sessions for user_123",
+    )
+    items = response.json()
+    print(f"Found {items['Count']} sessions")
+```
+
+```typescript TypeScript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+const response = await vault.request(
+  "AWS_CONNECTION_ID",
+  HttpMethod.POST,
+  "https://dynamodb.us-east-1.amazonaws.com",
+  {
+    json: {
+      TableName: "UserSessions",
+      KeyConditionExpression: "user_id = :uid",
+      ExpressionAttributeValues: {
+        ":uid": { S: "user_123" },
+      },
+    },
+    extraHeaders: {
+      "Content-Type": "application/x-amz-json-1.0",
+      "X-Amz-Target": "DynamoDB_20120810.Query",
+    },
+    reason: "Looking up active sessions for user_123",
+  }
+);
+const items = await response.json();
+console.log(`Found ${items.Count} sessions`);
+
+await vault.close();
+```
+
+</CodeGroup>
+
+## How SigV4 Signing Works
+
+You do not need to implement SigV4 signing yourself. When you call `vault.request()` with an AWS connection:
+
+1. The SDK retrieves your AWS credentials from the vault
+2. The SDK computes the SigV4 signature using the request method, URL, headers, body, region, and service
+3. The signed `Authorization` header is injected into the outgoing request
+4. The request is sent to the AWS service endpoint
+5. Your code receives the response -- credentials never appear in your application
+
+<Tip>
+  The region and service are determined automatically from the AWS endpoint URL (e.g., `s3.us-east-1.amazonaws.com`). If you stored a specific region or service when creating the connection, those values take precedence.
+</Tip>
+
+## Common AWS Endpoints
+
+| Service | Example URL |
+|---------|-------------|
+| S3 | `https://{bucket}.s3.{region}.amazonaws.com/{key}` |
+| Bedrock Runtime | `https://bedrock-runtime.{region}.amazonaws.com/model/{model-id}/invoke` |
+| DynamoDB | `https://dynamodb.{region}.amazonaws.com` |
+| Lambda | `https://lambda.{region}.amazonaws.com/2015-03-31/functions/{name}/invocations` |
+| SES v2 | `https://email.{region}.amazonaws.com/v2/email/outbound-emails` |
+| SQS | `https://sqs.{region}.amazonaws.com/{account-id}/{queue-name}` |
+| Secrets Manager | `https://secretsmanager.{region}.amazonaws.com` |
+
+## IAM Policy Recommendations
+
+Create a dedicated IAM user or role with only the permissions your app needs:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": "arn:aws:s3:::my-bucket/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "bedrock:InvokeModel",
+      "Resource": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0"
+    }
+  ]
+}
+```
+
+<Tip>
+  Follow the principle of least privilege. Scope IAM permissions to specific resources and actions. Rotate access keys regularly and monitor usage via the Developer Portal audit logs.
+</Tip>
+
+## Notes
+
+- SigV4 signatures are computed per-request. Each `vault.request()` call generates a fresh signature with the current timestamp.
+- The SDK parses the AWS service and region from the endpoint URL. You can also set them explicitly when storing the credential.
+- AWS credentials stored in Alter Vault are encrypted at rest (AES-256-GCM) and never exposed to your application code.
+- All AWS API calls made through `vault.request()` are logged in the Developer Portal audit trail, including the service, method, and reason.
+- For temporary credentials (STS), re-store the updated credentials in the Developer Portal when they rotate.

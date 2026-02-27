@@ -89,7 +89,8 @@
         "providers/google",
         "providers/github",
         "providers/slack",
-        "providers/sentry"
+        "providers/sentry",
+        "providers/aws"
       ]
     },
     {

@@ -36,7 +36,7 @@ asyncio.run(main())
 ```
 
 <Note>
-  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend requests are cryptographically signed for integrity and authenticity.
+  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend requests are cryptographically signed with a derived HMAC-SHA256 key for integrity, authenticity, and replay protection.
 </Note>
 
 ## Configuration
@@ -249,7 +249,7 @@ async with AlterVault(
     data = response.json()
 ```
 
-The SDK auto-detects the connection type and injects the credential as the correct header (`Authorization: Bearer`, `X-API-Key`, etc.). Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
+The SDK auto-detects the connection type and injects the credential as the correct header (`Authorization: Bearer`, `X-API-Key`, etc.). For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
 
 ## Actor Tracking (AI Agents & MCP Servers)
 

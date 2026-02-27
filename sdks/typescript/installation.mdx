@@ -36,7 +36,7 @@ The Alter SDK for TypeScript provides secure credential management with automati
 
 ```typescript
 import { AlterVault } from "@alter-ai/alter-sdk";
-console.log("Alter SDK loaded successfully");  // should print without errors
+console.log("Alter SDK loaded successfully"); // should print without errors
 ```
 
 ## Key Features
@@ -68,7 +68,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 ## Architecture Notes
 
 <Note>
-  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it.
+  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it. All backend requests are signed with HMAC-SHA256 using a derived signing key for request integrity, authenticity, and replay protection.
 </Note>
 
 <Warning>

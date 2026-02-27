@@ -19,8 +19,8 @@ sequenceDiagram
 
     User->>OpenClaw Agent: "List my recent emails"
     OpenClaw Agent->>Alter Plugin: alter_api(provider: google, ...)
-    Alter Plugin->>Alter Vault API: POST /sdk/token (x-api-key + HMAC)
-    Alter Vault API-->>Alter Plugin: access_token (internal only)
+    Alter Plugin->>Alter Vault API: Retrieve token (signed request)
+    Alter Vault API-->>Alter Plugin: Token injected internally
     Alter Plugin->>Gmail/GitHub/etc: GET /gmail/v1/... (Bearer token)
     Gmail/GitHub/etc-->>Alter Plugin: emails
     Alter Plugin-->>OpenClaw Agent: { status: 200, body: [...] }
