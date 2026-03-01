@@ -112,10 +112,12 @@ async function connectAccount() {
   // Open Connect UI
   await alterConnect.open({
     token: session_token,
-    onSuccess: (connection) => {
-      console.log('Connected!', connection);
-      // Save connection.connection_id to your database
-      saveConnection(connection);
+    onSuccess: (connections) => {
+      console.log('Connected!', connections);
+      // Save each connection_id to your database
+      for (const conn of connections) {
+        saveConnection(conn);
+      }
     },
     onError: (error) => {
       console.error('Connection failed:', error);
@@ -151,22 +153,24 @@ function ConnectButton() {
       // Open Connect UI
       await alterConnect.open({
         token: session_token,
-        onSuccess: async (connection) => {
-          console.log('Connected!', connection);
+        onSuccess: async (connections) => {
+          console.log('Connected!', connections);
 
-          // Save to your database
-          await fetch('/api/connections', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${userToken}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              connection_id: connection.connection_id,
-              provider: connection.provider,
-              account: connection.account_identifier
-            })
-          });
+          // Save each connection to your database
+          for (const conn of connections) {
+            await fetch('/api/connections', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${userToken}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                connection_id: conn.connection_id,
+                provider: conn.provider,
+                account: conn.account_identifier
+              })
+            });
+          }
 
           // Update UI
           refreshConnections();
@@ -226,14 +230,16 @@ async function handleConnect() {
     // Open Connect UI
     await alterConnect.value.open({
       token: session_token,
-      onSuccess: async (connection) => {
-        console.log('Connected!', connection);
+      onSuccess: async (connections) => {
+        console.log('Connected!', connections);
 
-        // Save to your database
-        await saveConnection(connection);
+        // Save each connection to your database
+        for (const conn of connections) {
+          await saveConnection(conn);
+        }
 
         // Update UI
-        emit('connection-created', connection);
+        emit('connections-created', connections);
       },
       onError: (error) => {
         console.error('Connection failed:', error);
@@ -248,33 +254,36 @@ async function handleConnect() {
 
 </CodeGroup>
 
-## Connection Response
+## Connections Response
 
-When a user successfully connects, you receive a connection object:
+When a user successfully connects, `onSuccess` receives an array of `Connection` objects. Users can connect multiple providers in a single session.
 
 ```typescript
-{
-  connection_id: "550e8400-e29b-41d4-a716-446655440000",  // Store this!
-  provider: "google",
-  provider_name: "Google",
-  account_identifier: "user@gmail.com",
-  timestamp: "2024-01-15T10:30:00Z",
-  operation: "creation",  // or "reauth"
-  scopes: [
-    "openid",
-    "email",
-    "profile",
-    "https://www.googleapis.com/auth/calendar.readonly"
-  ],
-  status: "active",
-  metadata: {
-    // Additional provider-specific data
+// onSuccess receives Connection[]
+[
+  {
+    connection_id: "550e8400-e29b-41d4-a716-446655440000",  // Store this!
+    provider: "google",
+    provider_name: "Google",
+    account_identifier: "user@gmail.com",
+    timestamp: "2024-01-15T10:30:00Z",
+    operation: "creation",  // "creation", "reauth", or "grant"
+    scopes: [
+      "openid",
+      "email",
+      "profile",
+      "https://www.googleapis.com/auth/calendar.readonly"
+    ],
+    status: "active",
+    metadata: {
+      // Additional provider-specific data
+    }
   }
-}
+]
 ```
 
 <Note>
-  **Important**: Store the `connection_id` in your database. You'll use this to retrieve OAuth tokens for API calls.
+  **Important**: Store each `connection_id` in your database. You'll use these to retrieve OAuth tokens for API calls.
 </Note>
 
 <Tip>
@@ -412,14 +421,17 @@ allowed_providers: ['google', 'slack', 'github', 'sentry']
 ```javascript
 await alterConnect.open({
   token: session_token,
-  onSuccess: async (connection) => {
-    // Ensure user connected the right provider
-    if (connection.provider !== 'google') {
+  onSuccess: async (connections) => {
+    // Check that Google was connected
+    const google = connections.find(c => c.provider === 'google');
+    if (!google) {
       alert('Please connect your Google account for calendar sync');
       return;
     }
 
-    await saveConnection(connection);
+    for (const conn of connections) {
+      await saveConnection(conn);
+    }
   }
 });
 ```
@@ -429,14 +441,15 @@ await alterConnect.open({
 ```javascript
 await alterConnect.open({
   token: session_token,
-  onSuccess: async (connection) => {
-    // Ensure work email
-    if (!connection.account_identifier.endsWith('@company.com')) {
-      alert('Please use your @company.com work email');
-      return;
+  onSuccess: async (connections) => {
+    // Validate work email for all connections
+    for (const conn of connections) {
+      if (!conn.account_identifier.endsWith('@company.com')) {
+        alert('Please use your @company.com work email');
+        return;
+      }
+      await saveConnection(conn);
     }
-
-    await saveConnection(connection);
   }
 });
 ```
@@ -446,15 +459,18 @@ await alterConnect.open({
 ```javascript
 await alterConnect.open({
   token: session_token,
-  onSuccess: async (connection) => {
-    if (connection.operation === 'reauth') {
-      console.log('Successfully reauthenticated');
-      // Update existing connection
-      await updateConnection(connection);
-    } else {
-      console.log('New connection created');
-      // Create new connection
-      await createConnection(connection);
+  onSuccess: async (connections) => {
+    for (const conn of connections) {
+      if (conn.operation === 'reauth') {
+        console.log('Successfully reauthenticated', conn.provider);
+        await updateConnection(conn);
+      } else if (conn.operation === 'grant') {
+        console.log('Existing connection granted', conn.provider);
+        await saveConnection(conn);
+      } else {
+        console.log('New connection created', conn.provider);
+        await createConnection(conn);
+      }
     }
   }
 });
@@ -516,11 +532,13 @@ const alterConnect = AlterConnect.create({
 
 await alterConnect.open({
   token: sessionToken,
-  onSuccess: (connection: Connection) => {
+  onSuccess: (connections: Connection[]) => {
     // TypeScript knows all properties
-    const id: string = connection.connection_id;
-    const provider: string = connection.provider;
-    const scopes: string[] = connection.scopes;
+    for (const conn of connections) {
+      const id: string = conn.connection_id;
+      const provider: string = conn.provider;
+      const scopes: string[] = conn.scopes;
+    }
   },
   onError: (error: AlterError) => {
     const code: string = error.code;

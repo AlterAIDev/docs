@@ -4,9 +4,11 @@ description: 'Start using the Alter SDK for Python in minutes'
 icon: 'python'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
 
 ## Basic Setup
+
+The fastest way to get started -- `connect()` opens a browser, the user authorizes, and you get back a connection you can use immediately:
 
 ```python
 import asyncio
@@ -19,8 +21,16 @@ async def main():
         actor_identifier="my-agent",
     )
 
+    # Open browser → user authorizes → SDK returns connection
+    results = await vault.connect(
+        end_user={"id": "alice"},
+        providers=["google"],
+    )
+    print(f"Connected: {results[0].connection_id}")
+
+    # Make API calls with the connection
     response = await vault.request(
-        "CONNECTION_ID",  # from Alter Connect (see below)
+        results[0].connection_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -38,6 +48,10 @@ asyncio.run(main())
 <Note>
   **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend requests are cryptographically signed with a derived HMAC-SHA256 key for integrity, authenticity, and replay protection.
 </Note>
+
+<Tip>
+  **Already have a `connection_id`?** Skip `connect()` and go straight to `vault.request(connection_id, ...)`. The `connect()` method is for when you need to initiate a new OAuth flow from code. For web apps with a frontend, use [Alter Connect](/sdks/javascript/quickstart) instead.
+</Tip>
 
 ## Configuration
 
@@ -115,16 +129,24 @@ response = await vault.request(
 ### Google Calendar Events
 
 ```python
+import asyncio
 from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async def list_calendar_events(connection_id: str):
+async def main():
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     ) as vault:
+        # Connect Google account (opens browser)
+        results = await vault.connect(
+            end_user={"id": "alice"},
+            providers=["google"],
+        )
+
+        # Fetch calendar events
         response = await vault.request(
-            connection_id,
+            results[0].connection_id,
             HttpMethod.GET,
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             query_params={
@@ -139,20 +161,25 @@ async def list_calendar_events(connection_id: str):
             start = event["start"].get("dateTime", event["start"].get("date"))
             print(f"{start}: {event.get('summary', 'No title')}")
 
-        return events
+asyncio.run(main())
 ```
 
 ### GitHub Repositories
 
 ```python
-async def list_repos(connection_id: str):
+async def main():
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     ) as vault:
+        results = await vault.connect(
+            end_user={"id": "alice"},
+            providers=["github"],
+        )
+
         response = await vault.request(
-            connection_id,
+            results[0].connection_id,
             HttpMethod.GET,
             "https://api.github.com/user/repos",
             query_params={"sort": "updated", "per_page": "10"},
@@ -167,6 +194,7 @@ async def list_repos(connection_id: str):
 
 ```python
 async def post_slack_message(connection_id: str, channel: str, text: str):
+    """Use an existing connection_id (e.g., from your database) to post a message."""
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
@@ -458,6 +486,32 @@ print(f"Connect URL: {session.connect_url}")
 
 Returns `ConnectSession` with `session_token`, `connect_url`, `expires_in`, `expires_at`.
 
+### Headless Connect (from code)
+
+For CLI tools, Jupyter notebooks, and backend scripts, use `connect()` to open the browser, wait for the user to complete OAuth, and get the result back:
+
+```python
+results = await vault.connect(
+    end_user={"id": "alice"},
+    providers=["google"],
+    timeout=300,         # max wait in seconds (default: 5 min)
+    open_browser=True,   # set False to print URL instead
+)
+for result in results:
+    print(f"Connected: {result.connection_id} ({result.provider_id})")
+
+# Now use the connection_id with vault.request()
+response = await vault.request(
+    results[0].connection_id,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+)
+```
+
+Returns `list[ConnectResult]` -- one per connected provider. Each has `connection_id`, `provider_id`, `account_identifier`, `scopes`.
+
+Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
+
 ## Error Handling
 
 <Warning>
@@ -472,6 +526,8 @@ AlterSDKError (base — also raised for input validation: invalid api_key, actor
 │   ├── PolicyViolationError (403 - policy denied access)
 │   ├── ConnectionNotFoundError (404 - no OAuth connection)
 │   └── TokenExpiredError (400/502 - refresh failed)
+├── ConnectFlowError (headless connect() failed - user denied, provider error)
+│   └── ConnectTimeoutError (user didn't complete OAuth in time)
 ├── ProviderAPIError (provider returned 4xx/5xx)
 └── NetworkError (connection/timeout failures)
     └── TimeoutError (request timed out - safe to retry)

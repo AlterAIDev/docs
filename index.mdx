@@ -97,19 +97,26 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 <CodeGroup>
 
-```python Python
+```python Python (Headless)
 import asyncio
 from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async def use_google_calendar():
+async def main():
     vault = AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     )
 
+    # Open browser → user authorizes → SDK returns connection
+    result = await vault.connect(
+        end_user={"id": "alice"},
+        providers=["google"],
+    )
+
+    # Make API calls with the connection
     response = await vault.request(
-        "CONNECTION_ID",  # from Alter Connect
+        result.connection_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -119,10 +126,10 @@ async def use_google_calendar():
 
     await vault.close()
 
-asyncio.run(use_google_calendar())
+asyncio.run(main())
 ```
 
-```javascript JavaScript
+```javascript JavaScript (Web App)
 import AlterConnect from '@alter-ai/connect';
 
 // Create Connect instance
@@ -134,7 +141,7 @@ const alterConnect = AlterConnect.create({
 
 // Open OAuth flow
 async function connectProvider() {
-    // Call YOUR backend to create a session (see "Backend" tab)
+    // Call YOUR backend to create a session
     const { session_token } = await fetch('/api/connect/session')
         .then(r => r.json());
 

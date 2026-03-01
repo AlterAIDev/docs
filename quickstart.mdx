@@ -6,33 +6,81 @@ description: 'Complete guide to integrating Alter Vault into your application'
 ## Overview
 
 This guide will help you integrate Alter Vault into your application. By the end, you'll be able to:
-- Connect your users' OAuth accounts using Alter Connect
-- Use the Python SDK to make API calls with automatic token injection
+- Connect OAuth accounts and make authenticated API calls
+- Use the Python SDK with automatic token injection
 - Never handle OAuth tokens directly
 
-## Architecture
+## Two Integration Paths
 
-```mermaid
-graph LR
-    A[Your App] --> B[Create Session]
-    B --> C[Alter Connect UI]
-    C --> D[User Authorizes]
-    D --> E[vault.request]
-    E --> F[API Response]
-```
-
-### Key Components
-
-1. **Python SDK (`alter-sdk`)** - Backend SDK that makes authenticated API calls via `vault.request()`
-2. **Connect SDK (`@alter-ai/connect`)** - Frontend JavaScript SDK for OAuth flow UI
-3. **Alter API** - Handles OAuth and token management (no URL configuration needed — SDKs connect automatically)
+| Path | Best for | What you need |
+|------|----------|---------------|
+| **Quick path** (below) | CLI tools, scripts, Jupyter notebooks, prototyping | Python only |
+| **Full web app** (Step 4+) | Production web apps with a frontend | Python + JavaScript |
 
 ## Prerequisites
 
 Before you begin, you'll need:
 - An Alter Vault account ([sign up free](https://portal.alterai.dev))
 - An OAuth app with your provider (Google, GitHub, etc.)
-- Python 3.11+ or Node.js 18+
+- Python 3.11+
+
+## Quick Path: Connect from Python
+
+The fastest way to get started. Everything happens in Python -- the SDK opens a browser for the user to authorize, then returns the connection.
+
+```python
+import asyncio
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async def main():
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    )
+
+    # Open browser → user authorizes → SDK returns connection
+    result = await vault.connect(
+        end_user={"id": "alice"},
+        providers=["google"],
+    )
+    print(f"Connected: {result.connection_id} ({result.provider_id})")
+
+    # Make API calls with the connection
+    response = await vault.request(
+        result.connection_id,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        query_params={"maxResults": "10"},
+    )
+    events = response.json()
+    for event in events.get("items", []):
+        print(f"Event: {event['summary']}")
+
+    await vault.close()
+
+asyncio.run(main())
+```
+
+That's it. No frontend code, no session tokens, no callbacks. The SDK handles the entire OAuth flow.
+
+<Note>
+  `connect()` opens the user's default browser. Set `open_browser=False` to print the URL instead (useful for remote servers).
+</Note>
+
+Skip to [Step 6](#step-6-use-the-python-sdk) for more usage examples, or continue below for the full web app integration.
+
+---
+
+## Full Web App Integration
+
+For production web apps with a frontend UI, use the session-based flow with Alter Connect.
+
+### Key Components
+
+1. **Python SDK (`alter-sdk`)** -- Backend SDK that makes authenticated API calls via `vault.request()`
+2. **Connect SDK (`@alter-ai/connect`)** -- Frontend JavaScript SDK for OAuth flow UI
+3. **Alter API** -- Handles OAuth and token management (SDKs connect automatically)
 
 ## Step 1: Create Your Application
 

@@ -229,17 +229,18 @@ If the policy service (Cerbos) is unavailable, the system **denies all token acc
 
 ## API Keys
 
-### Get Your API Key
+### Create an API Key
 
 1. Go to **Application** → **API Keys**
-2. Copy your **API Key**: `alter_key_...`
+2. Click **Create Key**, name it (e.g., "Production Backend"), and choose an expiration
+3. Copy and save your key: `alter_key_...` (shown only once)
 
 ### Security Best Practices
 
 - **Backend Only**: Never put API keys in frontend code
 - **Session Tokens**: Create temporary tokens for frontend
-- **Rotate Keys**: Generate new keys every 90 days
-- **IP Restrictions**: Add allowlists for production
+- **Set Expiration**: Use 90-day or shorter expiration for production keys
+- **Name Your Keys**: Use descriptive names to track what each key is for
 - **Environment Variables**: Never commit keys to code
 
 ## Connection Management

@@ -311,6 +311,33 @@ console.log(`Connect URL: ${session.connectUrl}`);
 
 Returns `ConnectSession` with `sessionToken`, `connectUrl`, `expiresIn`, `expiresAt`.
 
+### Headless Connect (from code)
+
+For CLI tools, scripts, and server-side applications, use `connect()` to open the browser, wait for the user to complete OAuth, and get the result back:
+
+```typescript
+const results = await vault.connect({
+  endUser: { id: "alice" },
+  providers: ["google"],
+  timeout: 300,        // max wait in seconds (default: 5 min)
+  openBrowser: true,   // set false to print URL instead
+});
+for (const result of results) {
+  console.log(`Connected: ${result.connectionId} (${result.providerId})`);
+}
+
+// Now use the connectionId with vault.request()
+const response = await vault.request(
+  results[0].connectionId,
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+);
+```
+
+Returns `ConnectResult[]` -- one per connected provider. Each has `connectionId`, `providerId`, `accountIdentifier`, `scopes`.
+
+Throws `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
+
 ## Error Handling
 
 <Warning>
@@ -325,6 +352,8 @@ AlterSDKError (base — also thrown for input validation: invalid apiKey, actorT
 |   +-- PolicyViolationError (403 - policy denied access)
 |   +-- ConnectionNotFoundError (404 - no OAuth connection)
 |   +-- TokenExpiredError (400/502 - refresh failed)
++-- ConnectFlowError (headless connect() failed - user denied, provider error)
+|   +-- ConnectTimeoutError (user didn't complete OAuth in time)
 +-- ProviderAPIError (provider returned 4xx/5xx)
 +-- NetworkError (connection failures)
     +-- TimeoutError (request timed out)

@@ -36,7 +36,7 @@ The Alter SDK for TypeScript provides secure credential management with automati
 
 ```typescript
 import { AlterVault } from "@alter-ai/alter-sdk";
-console.log("Alter SDK loaded successfully"); // should print without errors
+console.log("Alter SDK loaded successfully"); // v0.4.0+
 ```
 
 ## Key Features
@@ -56,6 +56,10 @@ console.log("Alter SDK loaded successfully"); // should print without errors
 
   <Card title="Audit Logging" icon="clipboard-list">
     All API calls are logged automatically as background tasks for compliance
+  </Card>
+
+  <Card title="AWS SigV4 Signing" icon="aws">
+    Native AWS Signature V4 support for services like Bedrock, S3, and Lambda — including GovCloud regions
   </Card>
 </CardGroup>
 

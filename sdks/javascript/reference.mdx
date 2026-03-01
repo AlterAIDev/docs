@@ -78,8 +78,8 @@ Configure the widget when opening:
 ```javascript
 await alterConnect.open({
   // Required
-  token: sessionToken,           // From your backend
-  onSuccess: (connection) => {}, // Success callback
+  token: sessionToken,             // From your backend
+  onSuccess: (connections) => {}, // Called with array of Connection objects
 
   // Optional
   onError: (error) => {},        // Error callback
@@ -88,9 +88,9 @@ await alterConnect.open({
 });
 ```
 
-## Connection Object
+## Connections Array
 
-After successful connection:
+`onSuccess` receives an array of `Connection` objects (multi-provider flow). Users can connect multiple providers in a single session.
 
 ```typescript
 interface Connection {
@@ -99,7 +99,7 @@ interface Connection {
   provider_name: string;       // Display name (e.g., 'Google')
   account_identifier: string;  // User's email/username
   timestamp: string;           // ISO 8601 timestamp
-  operation: 'creation' | 'reauth';  // New connection or re-authorization
+  operation: 'creation' | 'reauth' | 'grant';  // How the connection was established
   scopes: string[];           // OAuth scopes granted
   status: 'active' | 'pending' | 'error';
   metadata?: {                // Optional provider-specific data
@@ -116,9 +116,11 @@ Handle errors gracefully:
 ```javascript
 await alterConnect.open({
   token: sessionToken,
-  onSuccess: (connection) => {
-    // Save connection_id to your database
-    saveConnection(connection.connection_id);
+  onSuccess: (connections) => {
+    // Save each connection_id to your database
+    for (const conn of connections) {
+      saveConnection(conn.connection_id, conn.provider);
+    }
   },
   onError: (error) => {
     console.error('Connection failed:', error);
@@ -206,7 +208,7 @@ Listen to SDK events:
 // Analytics events via onEvent callback
 await alterConnect.open({
   token: sessionToken,
-  onSuccess: (connection) => { /* ... */ },
+  onSuccess: (connections) => { /* ... */ },
   onEvent: (eventName, metadata) => {
     console.log('Event:', eventName, metadata);
     // Fires: 'connect_opened' when popup opens
@@ -214,7 +216,7 @@ await alterConnect.open({
 });
 
 // Or use the on() method for global listeners
-alterConnect.on('success', (connection) => {
+alterConnect.on('success', (connections) => {
   console.log('Connection successful:', connection);
 });
 
