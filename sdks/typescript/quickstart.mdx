@@ -302,9 +302,12 @@ Generate a URL for end-users to connect OAuth providers:
 
 ```typescript
 const session = await vault.createConnectSession({
-  endUser: { id: "alice" },
   allowedProviders: ["google", "github"],
   returnUrl: "https://myapp.com/callback",
+  connectionPolicy: {             // optional: set TTL bounds
+    maxTtlSeconds: 86400,         // max duration the user can pick
+    defaultTtlSeconds: 3600,      // pre-selected duration in UI
+  },
 });
 console.log(`Connect URL: ${session.connectUrl}`);
 ```
@@ -317,8 +320,11 @@ For CLI tools, scripts, and server-side applications, use `connect()` to open th
 
 ```typescript
 const results = await vault.connect({
-  endUser: { id: "alice" },
   providers: ["google"],
+  connectionPolicy: {  // optional TTL bounds
+    maxTtlSeconds: 86400,
+    defaultTtlSeconds: 3600,
+  },
   timeout: 300,        // max wait in seconds (default: 5 min)
   openBrowser: true,   // set false to print URL instead
 });
@@ -334,7 +340,7 @@ const response = await vault.request(
 );
 ```
 
-Returns `ConnectResult[]` -- one per connected provider. Each has `connectionId`, `providerId`, `accountIdentifier`, `scopes`.
+Returns `ConnectResult[]` -- one per connected provider. Each has `connectionId`, `providerId`, `accountIdentifier`, `scopes`, and optionally `connectionPolicy` (with `expires_at` if a TTL was set).
 
 Throws `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
 

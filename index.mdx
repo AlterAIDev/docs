@@ -110,7 +110,6 @@ async def main():
 
     # Open browser → user authorizes → SDK returns connection
     result = await vault.connect(
-        end_user={"id": "alice"},
         providers=["google"],
     )
 
@@ -164,9 +163,7 @@ vault = AlterVault(
 )
 
 # Create session for frontend
-session = await vault.create_connect_session(
-    end_user={"id": "user_123"},
-)
+session = await vault.create_connect_session()
 session_token = session.session_token
 ```
 

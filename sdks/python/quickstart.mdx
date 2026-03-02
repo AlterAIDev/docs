@@ -23,7 +23,6 @@ async def main():
 
     # Open browser → user authorizes → SDK returns connection
     results = await vault.connect(
-        end_user={"id": "alice"},
         providers=["google"],
     )
     print(f"Connected: {results[0].connection_id}")
@@ -140,7 +139,6 @@ async def main():
     ) as vault:
         # Connect Google account (opens browser)
         results = await vault.connect(
-            end_user={"id": "alice"},
             providers=["google"],
         )
 
@@ -174,7 +172,6 @@ async def main():
         actor_identifier="my-agent",
     ) as vault:
         results = await vault.connect(
-            end_user={"id": "alice"},
             providers=["github"],
         )
 
@@ -477,9 +474,12 @@ Generate a URL for end-users to connect OAuth providers:
 
 ```python
 session = await vault.create_connect_session(
-    end_user={"id": "alice"},
     allowed_providers=["google", "github"],
     return_url="https://myapp.com/callback",
+    connection_policy={               # optional: set TTL bounds
+        "max_ttl_seconds": 86400,     # max duration the user can pick
+        "default_ttl_seconds": 3600,  # pre-selected duration in UI
+    },
 )
 print(f"Connect URL: {session.connect_url}")
 ```
@@ -492,8 +492,11 @@ For CLI tools, Jupyter notebooks, and backend scripts, use `connect()` to open t
 
 ```python
 results = await vault.connect(
-    end_user={"id": "alice"},
     providers=["google"],
+    connection_policy={  # optional TTL bounds
+        "max_ttl_seconds": 86400,
+        "default_ttl_seconds": 3600,
+    },
     timeout=300,         # max wait in seconds (default: 5 min)
     open_browser=True,   # set False to print URL instead
 )
@@ -508,7 +511,7 @@ response = await vault.request(
 )
 ```
 
-Returns `list[ConnectResult]` -- one per connected provider. Each has `connection_id`, `provider_id`, `account_identifier`, `scopes`.
+Returns `list[ConnectResult]` -- one per connected provider. Each has `connection_id`, `provider_id`, `account_identifier`, `scopes`, and optionally `connection_policy` (with `expires_at` if a TTL was set).
 
 Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
 
@@ -519,6 +522,8 @@ Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowE
 </Warning>
 
 ### Exception Hierarchy
+
+All internal invariants raise typed exceptions (never bare `AssertionError`), so errors are always catchable with the hierarchy below.
 
 ```
 AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)

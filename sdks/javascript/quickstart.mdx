@@ -48,11 +48,6 @@ const vault = new AlterVault({
 
 app.post('/api/alter/session', async (req, res) => {
   const session = await vault.createConnectSession({
-    endUser: {
-      id: req.user.id,
-      email: req.user.email,
-      name: req.user.name,
-    },
     allowedProviders: ['google', 'slack', 'github'],
   });
 
@@ -73,11 +68,6 @@ vault = AlterVault(
 @app.post("/api/alter/session")
 async def create_alter_session(current_user = Depends(get_current_user)):
     session = await vault.create_connect_session(
-        end_user={
-            "id": current_user.id,
-            "email": current_user.email,
-            "name": current_user.name,
-        },
         allowed_providers=["google", "slack", "github"],
     )
 
@@ -301,11 +291,6 @@ When a user successfully connects, `onSuccess` receives an array of `Connection`
 ```javascript Node.js/Express (TypeScript SDK)
 app.post('/api/alter/session', async (req, res) => {
   const session = await vault.createConnectSession({
-    endUser: {
-      id: req.user.id,
-      email: req.user.email,
-      name: req.user.name,
-    },
     // ✅ No allowedProviders = show all configured providers
   });
 
@@ -317,11 +302,6 @@ app.post('/api/alter/session', async (req, res) => {
 @app.post("/api/alter/session")
 async def create_alter_session(current_user = Depends(get_current_user)):
     session = await vault.create_connect_session(
-        end_user={
-            "id": current_user.id,
-            "email": current_user.email,
-            "name": current_user.name,
-        },
         # ✅ No allowed_providers = show all configured providers
     )
 
@@ -347,7 +327,6 @@ const allowed = req.user.isPremium
   : ['google'];  // Free tier
 
 const session = await vault.createConnectSession({
-  endUser: { id: req.user.id, email: req.user.email },
   allowedProviders: allowed,  // Dynamic filtering
 });
 ```
@@ -361,7 +340,6 @@ const providers = {
 };
 
 const session = await vault.createConnectSession({
-  endUser: { id: req.user.id, email: req.user.email },
   allowedProviders: providers[req.user.region],
 });
 ```
@@ -379,7 +357,6 @@ if (featureFlags.sentryIntegration) {
 }
 
 const session = await vault.createConnectSession({
-  endUser: { id: req.user.id, email: req.user.email },
   allowedProviders: enabledProviders,
 });
 ```

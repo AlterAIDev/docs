@@ -23,10 +23,6 @@ Always create sessions on your backend:
 ```javascript
 // YOUR backend - never expose API keys
 const session = await vault.createConnectSession({
-  endUser: {
-    id: user.id,
-    email: user.email,
-  },
   allowedProviders: ['google', 'slack'],
   allowedOrigin: 'https://yourapp.com',  // Optional, see below
 });

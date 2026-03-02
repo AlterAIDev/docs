@@ -41,7 +41,6 @@ async def main():
 
     # Open browser → user authorizes → SDK returns connection
     result = await vault.connect(
-        end_user={"id": "alice"},
         providers=["google"],
     )
     print(f"Connected: {result.connection_id} ({result.provider_id})")
@@ -166,7 +165,6 @@ def create_oauth_session():
 
     async def _create():
         session = await vault.create_connect_session(
-            end_user={"id": str(user.id), "email": user.email},
             allowed_providers=["google", "slack", "github"],
             # allowed_origin is optional. If omitted, uses website_url
             # from Developer Portal. Wildcard '*' is NOT supported.
@@ -193,7 +191,6 @@ app.post('/api/connect/session', async (req, res) => {
     const user = req.user; // Your auth
 
     const session = await vault.createConnectSession({
-        endUser: { id: user.id.toString(), email: user.email },
         allowedProviders: ['google', 'slack', 'github'],
         // allowedOrigin is optional. If omitted, uses website_url
         // from Developer Portal. Wildcard '*' is NOT supported.
