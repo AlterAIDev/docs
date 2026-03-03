@@ -4,7 +4,7 @@ description: 'Start using the Alter SDK for Python in minutes'
 icon: 'python'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials -- all retrieved and injected automatically. You never touch them.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials---all retrieved and injected automatically. You never touch them.
 
 ## Basic Setup
 
@@ -255,7 +255,7 @@ async def query_notion(connection_id: str):
 
 ## Using Managed Secrets
 
-The same `vault.request()` method works for managed secrets (API keys, service tokens) stored via the Developer Portal. Just use the managed secret's `connection_id`:
+For your own APIs where **you** already have the credentials (API keys, service tokens), use Managed Secrets. The `connection_id` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
 
 ```python
 async with AlterVault(
@@ -265,7 +265,7 @@ async with AlterVault(
 ) as vault:
     # Call your internal API — secret injected automatically
     response = await vault.request(
-        "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal
+        "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal (not from a user)
         HttpMethod.GET,
         "https://api.internal.com/v1/loyalty/points",
         query_params={"user_id": "alice"},
@@ -274,7 +274,11 @@ async with AlterVault(
     data = response.json()
 ```
 
-The SDK auto-detects the connection type and injects the credential as the correct header (`Authorization: Bearer`, `X-API-Key`, etc.). For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
+<Info>
+**OAuth vs Managed Secrets**: For OAuth, the `connection_id` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connection_id` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
+</Info>
+
+For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
 
 ## Actor Tracking (AI Agents & MCP Servers)
 

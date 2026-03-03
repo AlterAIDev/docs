@@ -5,13 +5,17 @@ description: 'Connect your first OAuth integration in 5 minutes'
 
 Get started with the Alter Connect SDK to add OAuth integrations to your application.
 
+<Note>
+**Alter Connect is for OAuth connections only** — where your **end user** authorizes access to a third-party service (Google, Slack, GitHub). The `connection_id` is returned when the user completes the OAuth flow. For **Managed Secrets** (your own API keys/service tokens), use the [Developer Portal](/reference/managed-secrets) instead — no frontend SDK needed.
+</Note>
+
 ## Overview
 
 The SDK follows a secure three-step process:
 
 <Steps>
   <Step title="Backend creates session">
-    Your backend uses your API key to create a session token
+    Your backend uses your API key to create a session token (no user_id or connection_id needed)
   </Step>
 
   <Step title="Frontend opens Connect UI">
@@ -19,7 +23,7 @@ The SDK follows a secure three-step process:
   </Step>
 
   <Step title="User completes OAuth">
-    User authorizes and connection details are returned
+    User logs into their account (e.g., Google), authorizes access, and the `onSuccess` callback returns a `connection_id` (UUID) for each connected account
   </Step>
 </Steps>
 
@@ -273,7 +277,7 @@ When a user successfully connects, `onSuccess` receives an array of `Connection`
 ```
 
 <Note>
-  **Important**: Store each `connection_id` in your database. You'll use these to retrieve OAuth tokens for API calls.
+  **Important**: Store each `connection_id` in your database, mapped to your user. This is how you'll make API calls later via `vault.request(connection_id, ...)`. The `connection_id` is generated when your **end user** completes the OAuth flow — it's not something you create yourself.
 </Note>
 
 <Tip>

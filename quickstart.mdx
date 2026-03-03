@@ -10,6 +10,22 @@ This guide will help you integrate Alter Vault into your application. By the end
 - Use the Python SDK with automatic token injection
 - Never handle OAuth tokens directly
 
+## Two Types of Credentials
+
+Alter Vault manages two types of credentials. Both use the same `vault.request()` method — the only difference is **where the `connection_id` comes from**.
+
+| | OAuth Connections | Managed Secrets |
+|---|---|---|
+| **What** | Third-party services (Google, Slack, GitHub) | Your own APIs (internal services, partner APIs) |
+| **Who provides credentials** | **End user** authorizes via OAuth flow | **Developer** stores via Developer Portal |
+| **Where `connection_id` comes from** | Returned in `onSuccess` callback when user completes Alter Connect | Returned by Developer Portal when you store a secret |
+| **Setup** | Alter Connect UI (frontend) or `vault.connect()` (headless) | Developer Portal → Managed Secrets → Store Secret |
+| **Token refresh** | Automatic (OAuth refresh flow) | Manual (re-store when rotated) |
+
+<Info>
+**The key distinction**: For OAuth, your **end user** triggers the connection by logging into their account (Google, Slack, etc.), and the `connection_id` is returned to you. For Managed Secrets, **you** (the developer) store the credential in the portal and get the `connection_id` back. Once you have a `connection_id`, usage is identical: `vault.request(connection_id, ...)`.
+</Info>
+
 ## Two Integration Paths
 
 | Path | Best for | What you need |
@@ -39,15 +55,15 @@ async def main():
         actor_identifier="my-agent",
     )
 
-    # Open browser → user authorizes → SDK returns connection
-    result = await vault.connect(
+    # Open browser → user authorizes → SDK returns connections
+    results = await vault.connect(
         providers=["google"],
     )
-    print(f"Connected: {result.connection_id} ({result.provider_id})")
+    print(f"Connected: {results[0].connection_id} ({results[0].provider_id})")
 
     # Make API calls with the connection
     response = await vault.request(
-        result.connection_id,
+        results[0].connection_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -212,11 +228,7 @@ Use Alter Connect to handle the OAuth flow:
 import AlterConnect from '@alter-ai/connect';
 
 function IntegrationsPage() {
-    const alterConnect = AlterConnect.create({
-        customization: {
-            colors: { primary: '#6366f1' }
-        }
-    });
+    const alterConnect = AlterConnect.create();
 
     const handleConnect = async (provider) => {
         // Call YOUR backend to create a session (see Step 4)
@@ -225,13 +237,14 @@ function IntegrationsPage() {
             headers: { 'Authorization': `Bearer ${authToken}` }
         }).then(r => r.json());
 
-        // Open Alter Connect UI
+        // Open Alter Connect UI — user logs into their account and authorizes
         await alterConnect.open({
             token: session_token,
-            provider: provider, // Optional: pre-select provider
-            onSuccess: (connection) => {
-                console.log('Connected!', connection);
-                // Refresh your integrations list
+            onSuccess: (connections) => {
+                // User completed OAuth! Store each connection_id in your database.
+                for (const conn of connections) {
+                    console.log('Connected!', conn.connection_id, conn.provider);
+                }
                 loadIntegrations();
             },
             onError: (error) => {
@@ -270,12 +283,14 @@ async function connectProvider(provider) {
     });
     const { session_token } = await response.json();
 
-    // Open Alter Connect UI
+    // Open Alter Connect UI — user logs into their account and authorizes
     await alterConnect.open({
         token: session_token,
-        provider: provider,
-        onSuccess: function(connection) {
-            console.log('Connected!', connection);
+        onSuccess: function(connections) {
+            // User completed OAuth! Store each connection_id in your database.
+            for (const conn of connections) {
+                console.log('Connected!', conn.connection_id, conn.provider);
+            }
             location.reload();
         },
         onError: function(error) {
@@ -490,13 +505,17 @@ if __name__ == '__main__':
 
 If you're connecting to **your own APIs** (internal services, partner APIs, SaaS platforms with API keys), you don't need the OAuth flow. Use Managed Secrets instead.
 
-### Step 1: Store Your Secret
+<Info>
+**How is this different from OAuth?** With OAuth, the `connection_id` comes from your **end user** completing an OAuth login. With Managed Secrets, the `connection_id` comes from **you** (the developer) storing a credential in the Developer Portal. No end-user action is needed.
+</Info>
+
+### Step 1: Store Your Secret in the Developer Portal
 
 1. Go to the Developer Portal → your app → **Managed Secrets**
 2. Click **Add Provider** (e.g., "Loyalty API")
 3. Choose credential type (Bearer Token, API Key, or Basic Auth)
 4. Click **Store Secret** and enter the credential value
-5. Copy the `connection_id` returned
+5. **Copy the `connection_id` returned** — this is what you'll use in your code
 
 ### Step 2: Use vault.request()
 
@@ -560,12 +579,20 @@ The Alter SDK **never exposes OAuth tokens** to your code:
 - Refreshed transparently when needed
 - You only work with API results, not credentials
 
-### Connection ID Lookup
-Each OAuth connection has a unique `connection_id` (UUID) returned by Alter Connect when a user completes the OAuth flow. Store this ID in your database, mapped to your users.
+### Where Does `connection_id` Come From?
+
+Every credential in Alter Vault has a unique `connection_id` (UUID). Where it originates depends on the credential type:
+
+- **OAuth connections**: The `connection_id` is returned in the `onSuccess` callback when your **end user** completes the OAuth flow via Alter Connect. Store this in your database, mapped to your users.
+- **Managed secrets**: The `connection_id` is returned by the **Developer Portal** when you store a credential. Hard-code it in your config or environment variables.
 
 ```python
-# Use the connection_id to make API calls
+# OAuth: connection_id stored in your DB after user completed Alter Connect
+connection_id = db.get_connection(user_id=user_id, provider="google")
 await vault.request(connection_id, HttpMethod.GET, url)
+
+# Managed secret: connection_id from Developer Portal, stored in your config
+await vault.request(os.environ["LOYALTY_API_CONNECTION_ID"], HttpMethod.GET, url)
 ```
 
 ### Multiple Connections (Multi-Account)
@@ -576,13 +603,15 @@ A user can connect **multiple accounts** to the same provider (e.g., personal Gm
 
 ```javascript
 // In your Alter Connect onSuccess callback (Step 5)
-onSuccess: async (connection) => {
-    await saveToDatabase({
-        user_id: currentUser.id,
-        connection_id: connection.connection_id,
-        provider: connection.provider,
-        account: connection.account_identifier  // e.g., "alice@gmail.com"
-    });
+onSuccess: async (connections) => {
+    for (const conn of connections) {
+        await saveToDatabase({
+            user_id: currentUser.id,
+            connection_id: conn.connection_id,
+            provider: conn.provider,
+            account: conn.account_identifier  // e.g., "alice@gmail.com"
+        });
+    }
 }
 ```
 

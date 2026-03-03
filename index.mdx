@@ -67,9 +67,17 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 ## How It Works
 
+Alter Vault manages two types of credentials — **OAuth connections** and **managed secrets** — both accessed through the same `vault.request()` method.
+
+| | OAuth Connections | Managed Secrets |
+|---|---|---|
+| **Use case** | Third-party services (Google, Slack, GitHub) | Your own APIs (internal services, API keys) |
+| **Who provides credentials** | **End user** authorizes via OAuth | **Developer** stores via portal |
+| **Where `connection_id` comes from** | `onSuccess` callback after user completes OAuth | Developer Portal when you store a secret |
+
 <Steps>
-  <Step title="Connect or Store Credentials">
-    **OAuth**: User authorizes via Alter Connect UI. **Managed Secrets**: Store your API keys in the Developer Portal.
+  <Step title="Get a connection_id">
+    **OAuth**: Your end user authorizes via Alter Connect UI → `onSuccess` returns a `connection_id`. **Managed Secrets**: You store credentials in the Developer Portal → portal returns a `connection_id`.
   </Step>
 
   <Step title="We Encrypt & Store">
@@ -77,7 +85,7 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
   </Step>
 
   <Step title="You Make API Calls">
-    Call `vault.request()` with a `connection_id` and we inject the right credential automatically
+    Call `vault.request(connection_id, ...)` and we inject the right credential automatically
   </Step>
 
   <Step title="We Handle the Rest">
@@ -89,8 +97,8 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 <Info>
 **Two SDKs for different purposes:**
-- **Python SDK (`alter-sdk`)** - Backend SDK for making authenticated API calls with automatic token injection
-- **Alter Connect (`@alter-ai/connect`)** - Frontend SDK for the OAuth connection UI
+- **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** — Backend SDK for making authenticated API calls via `vault.request()`. Works with both OAuth connections and managed secrets.
+- **Alter Connect (`@alter-ai/connect`)** — Frontend SDK for the OAuth connection UI. Only needed for OAuth (where end users authorize access). Not needed for managed secrets.
 </Info>
 
 ## Quick Example
@@ -108,14 +116,14 @@ async def main():
         actor_identifier="my-agent",
     )
 
-    # Open browser → user authorizes → SDK returns connection
-    result = await vault.connect(
+    # Open browser → user authorizes → SDK returns connections
+    results = await vault.connect(
         providers=["google"],
     )
 
     # Make API calls with the connection
     response = await vault.request(
-        result.connection_id,
+        results[0].connection_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -132,11 +140,7 @@ asyncio.run(main())
 import AlterConnect from '@alter-ai/connect';
 
 // Create Connect instance
-const alterConnect = AlterConnect.create({
-    customization: {
-        colors: { primary: '#6366f1' }
-    }
-});
+const alterConnect = AlterConnect.create();
 
 // Open OAuth flow
 async function connectProvider() {
@@ -146,8 +150,11 @@ async function connectProvider() {
 
     await alterConnect.open({
         token: session_token,
-        onSuccess: (connection) => {
-            console.log('Connected!', connection);
+        onSuccess: (connections) => {
+            // User completed OAuth! Store each connection_id in your DB.
+            for (const conn of connections) {
+                console.log('Connected!', conn.connection_id, conn.provider);
+            }
         }
     });
 }

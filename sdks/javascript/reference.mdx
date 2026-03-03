@@ -113,9 +113,9 @@ Handle errors gracefully:
 await alterConnect.open({
   token: sessionToken,
   onSuccess: (connections) => {
-    // Save each connection_id to your database
+    // User completed OAuth! Save each connection_id to your database, mapped to your user.
     for (const conn of connections) {
-      saveConnection(conn.connection_id, conn.provider);
+      saveConnection(currentUser.id, conn.connection_id, conn.provider);
     }
   },
   onError: (error) => {
@@ -213,7 +213,7 @@ await alterConnect.open({
 
 // Or use the on() method for global listeners
 alterConnect.on('success', (connections) => {
-  console.log('Connection successful:', connection);
+  console.log('Connection successful:', connections);
 });
 
 alterConnect.on('error', (error) => {

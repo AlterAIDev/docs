@@ -66,25 +66,37 @@ Your application **never sees or stores credentials**. Here's what happens inste
 - **GDPR** compliant with data residency options
 - **PCI DSS** Level 1 for payment integrations
 
-## Connection ID Lookup
+## Connection ID: The Universal Handle
 
-Every credential in Alter Vault — whether OAuth or managed secret — has a unique `connection_id` (UUID). For OAuth, it's returned when a user completes the flow via Alter Connect. For managed secrets, it's returned when you store the credential in the Developer Portal.
+Every credential in Alter Vault has a unique `connection_id` (UUID). Once you have one, usage is identical via `vault.request()`. The key difference is **where it comes from**:
+
+| Credential Type | Where `connection_id` Comes From | Who Creates It |
+|---|---|---|
+| **OAuth** | `onSuccess` callback when end user completes OAuth via Alter Connect | **End user** (by logging into Google, Slack, etc.) |
+| **Managed Secret** | Developer Portal when you store a credential | **Developer** (via portal UI) |
 
 ```python
-# OAuth connection — connection_id from Alter Connect
+# OAuth connection — connection_id from end user completing Alter Connect
+# (stored in your DB, mapped to your user)
+oauth_conn_id = db.get_connection(user_id="alice", provider="google")
 response = await vault.request(
-    "OAUTH_CONNECTION_ID",
+    oauth_conn_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 
 # Managed secret — connection_id from Developer Portal
+# (stored in your config/env vars, same for all users)
 response = await vault.request(
-    "MANAGED_SECRET_CONNECTION_ID",
+    os.environ["LOYALTY_API_CONNECTION_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
 )
 ```
+
+<Note>
+**OAuth connections are per-user** — each end user who authorizes gets their own `connection_id`. **Managed secrets are per-service** — you store one credential and all your backend code shares the same `connection_id`.
+</Note>
 
 ### Connection Deduplication
 
@@ -199,15 +211,19 @@ We handle the entire credential lifecycle:
 
 Here's the complete flow in practice:
 
-### 1. Frontend: User Connects
+### 1. Frontend: User Connects (OAuth)
 
 ```javascript
-// User clicks "Connect Google"
-const { session_token } = await fetch('/api/session');
+// User clicks "Connect Google" — your backend creates a session (no user_id needed)
+const { session_token } = await fetch('/api/session').then(r => r.json());
 await alterConnect.open({
   token: session_token,
-  onSuccess: (connection) => {
-    // Connection complete!
+  onSuccess: (connections) => {
+    // User completed OAuth! Each connection has a connection_id.
+    // Store these in your database, mapped to your user.
+    for (const conn of connections) {
+      saveToDb(currentUser.id, conn.connection_id, conn.provider);
+    }
   }
 });
 ```
@@ -223,13 +239,21 @@ vault = AlterVault(
     actor_identifier="my-service",
 )
 
-# Make API calls with auto-injected tokens
+# OAuth: connection_id from your DB (stored when user completed Alter Connect)
+connection_id = db.get_connection(user_id="alice", provider="google")
 response = await vault.request(
-    connection_id,  # connection_id from Alter Connect
+    connection_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 events = response.json()
+
+# Managed secret: connection_id from Developer Portal (stored in your config)
+response = await vault.request(
+    os.environ["LOYALTY_API_CONNECTION_ID"],
+    HttpMethod.GET,
+    "https://api.internal.com/v1/loyalty/points",
+)
 ```
 
 That's it. No token handling, no refresh logic, no storage concerns.

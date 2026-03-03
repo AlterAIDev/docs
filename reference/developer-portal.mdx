@@ -49,7 +49,11 @@ For each provider you want to support:
 
 ## Managed Secrets
 
-Managed Secrets let you store API keys, service tokens, and other credentials for your own APIs — no OAuth flow needed.
+Managed Secrets let you store API keys, service tokens, and other credentials for your own APIs — no OAuth flow or end-user action needed.
+
+<Info>
+**How is this different from OAuth?** With OAuth connections, the `connection_id` comes from your **end user** completing an OAuth flow via Alter Connect. With Managed Secrets, the `connection_id` comes from **this portal** when you store a credential. No end user is involved — you store the secret, get a `connection_id`, and use it in your code.
+</Info>
 
 ### When to Use Managed Secrets
 
@@ -326,32 +330,41 @@ Set up notifications for:
 ```python
 from alter_sdk import AlterVault, ActorType, HttpMethod
 
-# Initialize SDK with your API key from portal
 vault = AlterVault(
     api_key="alter_key_...",
     actor_type=ActorType.BACKEND_SERVICE,
     actor_identifier="my-service",
 )
 
-# Make API calls - token injected automatically
+# OAuth: connection_id from your DB (stored when user completed Alter Connect)
+connection_id = db.get_connection(user_id="alice", provider="google")
 response = await vault.request(
-    "CONNECTION_ID",  # from Alter Connect
+    connection_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
-events = response.json()
+
+# Managed secret: connection_id from Developer Portal (stored in config/env)
+response = await vault.request(
+    os.environ["LOYALTY_API_CONNECTION_ID"],
+    HttpMethod.GET,
+    "https://api.internal.com/v1/loyalty/points",
+)
 ```
 
 ### Frontend Code
 ```javascript
 // Call YOUR backend to create a session (using API key)
-const { session_token } = await fetch('/api/connect/session');
+const { session_token } = await fetch('/api/connect/session').then(r => r.json());
 
 // Open OAuth flow (no API key needed)
 await alterConnect.open({
     token: session_token,
-    onSuccess: (connection) => {
-        console.log('Connected!', connection);
+    onSuccess: (connections) => {
+        // Each connection has a connection_id (UUID) — store it in your database
+        for (const conn of connections) {
+            console.log('Connected!', conn.connection_id, conn.provider);
+        }
     }
 });
 ```

@@ -164,7 +164,7 @@ async function listRepos(connectionId: string) {
 
 ## Using Managed Secrets
 
-The same `vault.request()` method works for managed secrets (API keys, service tokens) stored via the Developer Portal. Just use the managed secret's `connectionId`:
+For your own APIs where **you** already have the credentials (API keys, service tokens), use Managed Secrets. The `connectionId` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
 
 ```typescript
 const vault = new AlterVault({
@@ -175,7 +175,7 @@ const vault = new AlterVault({
 
 // Call your internal API — secret injected automatically
 const response = await vault.request(
-  "MANAGED_SECRET_CONNECTION_ID",  // from Developer Portal
+  "MANAGED_SECRET_CONNECTION_ID",  // from Developer Portal (not from a user)
   HttpMethod.GET,
   "https://api.internal.com/v1/loyalty/points",
   {
@@ -187,7 +187,11 @@ const data = await response.json();
 await vault.close();
 ```
 
-The SDK auto-detects the connection type and injects the credential as the correct header (`Authorization: Bearer`, `X-API-Key`, etc.). For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
+<Info>
+**OAuth vs Managed Secrets**: For OAuth, the `connectionId` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connectionId` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
+</Info>
+
+For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
 
 ## Actor Tracking (AI Agents & MCP Servers)
 
