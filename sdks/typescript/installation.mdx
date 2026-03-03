@@ -43,7 +43,7 @@ console.log("Alter SDK loaded successfully"); // v0.4.0+
 
 <CardGroup cols={2}>
   <Card title="Zero Token Exposure" icon="lock">
-    Tokens are never exposed to your code — all injection happens behind the scenes
+    Tokens are never exposed to your code -all injection happens behind the scenes
   </Card>
 
   <Card title="Single Entry Point" icon="bullseye">
@@ -58,21 +58,18 @@ console.log("Alter SDK loaded successfully"); // v0.4.0+
     All API calls are logged automatically as background tasks for compliance
   </Card>
 
-  <Card title="AWS SigV4 Signing" icon="aws">
-    Native AWS Signature V4 support for services like Bedrock, S3, and Lambda — including GovCloud regions
-  </Card>
 </CardGroup>
 
 ## Dependencies
 
-The SDK has **zero runtime dependencies** — it uses the built-in `fetch` API (Node.js 18+).
+The SDK has **zero runtime dependencies** -it uses the built-in `fetch` API (Node.js 18+).
 
 No provider-specific dependencies are needed. The SDK works with **any** OAuth provider through a single generic `vault.request()` method.
 
 ## Architecture Notes
 
 <Note>
-  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it. All backend requests are signed with HMAC-SHA256 using a derived signing key for request integrity, authenticity, and replay protection.
+  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation -your API key only communicates with Alter Vault, while provider requests are made separately without it. All backend requests are signed with HMAC-SHA256 using a derived signing key for request integrity, authenticity, and replay protection.
 </Note>
 
 <Warning>
@@ -83,7 +80,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Warning>
 
 <Note>
-  The SDK enforces a **closed instance guard** — after `close()` is called, any further `request()` calls throw `AlterSDKError`. `close()` is idempotent and safe to call multiple times.
+  The SDK enforces a **closed instance guard** -after `close()` is called, any further `request()` calls throw `AlterSDKError`. `close()` is idempotent and safe to call multiple times.
 </Note>
 
 <Note>
@@ -91,7 +88,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Note>
 
 <Note>
-  All input validation errors (invalid `apiKey`, invalid/missing `actorType`, missing `actorIdentifier`, invalid URL scheme, missing `pathParams`) throw `AlterSDKError` — the base error class for the SDK. The `actorType` (use `ActorType` enum) and `actorIdentifier` parameters are **required** at initialization.
+  All input validation errors (invalid `apiKey`, invalid/missing `actorType`, missing `actorIdentifier`, invalid URL scheme, missing `pathParams`) throw `AlterSDKError` -the base error class for the SDK. The `actorType` (use `ActorType` enum) and `actorIdentifier` parameters are **required** at initialization.
 </Note>
 
 ## Next Steps

@@ -52,9 +52,6 @@ print(alter_sdk.__version__)  # v0.4.0+
     All API calls are logged automatically as background tasks for compliance
   </Card>
 
-  <Card title="AWS SigV4 Signing" icon="aws">
-    Native AWS Signature V4 support for services like Bedrock, S3, and Lambda — including GovCloud regions
-  </Card>
 </CardGroup>
 
 ## Dependencies
@@ -69,7 +66,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 ## Architecture Notes
 
 <Note>
-  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation — your API key only communicates with Alter Vault, while provider requests are made separately without it. All backend requests are signed with HMAC-SHA256 using a derived signing key for request integrity, authenticity, and replay protection.
+  Your API key is **never sent to external provider APIs**. The SDK ensures complete credential isolation -your API key only communicates with Alter Vault, while provider requests are made separately without it. All backend requests are signed with HMAC-SHA256 using a derived signing key for request integrity, authenticity, and replay protection.
 </Note>
 
 <Warning>
@@ -80,7 +77,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Warning>
 
 <Note>
-  The SDK enforces a **closed instance guard** — after `close()` is called (or the context manager exits), any further `request()` calls raise `AlterSDKError`. `close()` is idempotent and safe to call multiple times.
+  The SDK enforces a **closed instance guard** -after `close()` is called (or the context manager exits), any further `request()` calls raise `AlterSDKError`. `close()` is idempotent and safe to call multiple times.
 </Note>
 
 <Note>
@@ -88,7 +85,7 @@ No provider-specific dependencies are needed. The SDK works with **any** OAuth p
 </Note>
 
 <Note>
-  All input validation errors (invalid `api_key`, invalid/missing `actor_type`, missing `actor_identifier`, invalid URL scheme, missing `path_params`) raise `AlterSDKError` — the base exception class for the SDK. The `actor_type` (use `ActorType` enum) and `actor_identifier` parameters are **required** at initialization.
+  All input validation errors (invalid `api_key`, invalid/missing `actor_type`, missing `actor_identifier`, invalid URL scheme, missing `path_params`) raise `AlterSDKError` -the base exception class for the SDK. The `actor_type` (use `ActorType` enum) and `actor_identifier` parameters are **required** at initialization.
 </Note>
 
 ## Next Steps

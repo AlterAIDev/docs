@@ -12,7 +12,7 @@ This guide will help you integrate Alter Vault into your application. By the end
 
 ## Two Types of Credentials
 
-Alter Vault manages two types of credentials. Both use the same `vault.request()` method — the only difference is **where the `connection_id` comes from**.
+Alter Vault manages two types of credentials. Both use the same `vault.request()` method -the only difference is **where the `connection_id` comes from**.
 
 | | OAuth Connections | Managed Secrets |
 |---|---|---|
@@ -89,13 +89,25 @@ Skip to [Step 6](#step-6-use-the-python-sdk) for more usage examples, or continu
 
 ## Full Web App Integration
 
-For production web apps with a frontend UI, use the session-based flow with Alter Connect.
+For production web apps, use the session-based flow. Your backend creates a session and gets back a `connect_url` - a hosted page where the user completes OAuth.
+
+### Choosing Your OAuth Trigger Method
+
+| Method | When to use | How it works |
+|--------|------------|--------------|
+| **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, backend agents. No frontend at all. | SDK creates the session, opens the user's default browser, and polls until OAuth completes. Everything happens in Python/TypeScript. |
+| **Redirect** (`connect_url`) | Server-rendered apps (Django, Rails, etc.), email links, or any app that can redirect a browser. No JavaScript SDK needed. | Your backend creates a session, gets a `connect_url`, and redirects the user to it. After OAuth, the user is redirected back to your `return_url` with the results. |
+| **Popup** (`@alter-ai/connect` SDK) | Single-page apps (React, Vue, etc.) where you want a popup overlay with real-time `onSuccess`/`onError` callbacks without leaving the page. | Your backend creates a session and passes the `session_token` to the frontend SDK, which opens the hosted page in a popup. |
+
+<Info>
+**The frontend JavaScript SDK (`@alter-ai/connect`) is optional.** The `connect_url` returned by `create_connect_session()` is a standard HTTPS URL that works in any browser. The frontend SDK just wraps it in a popup with callbacks for a smoother SPA experience.
+</Info>
 
 ### Key Components
 
-1. **Python SDK (`alter-sdk`)** -- Backend SDK that makes authenticated API calls via `vault.request()`
-2. **Connect SDK (`@alter-ai/connect`)** -- Frontend JavaScript SDK for OAuth flow UI
-3. **Alter API** -- Handles OAuth and token management (SDKs connect automatically)
+1. **Python / TypeScript SDK** - Backend SDK that creates sessions and makes authenticated API calls via `vault.request()`
+2. **Alter Connect UI** - Hosted page (at the `connect_url`) that handles provider selection and the entire OAuth flow
+3. **Connect SDK (`@alter-ai/connect`)** - **Optional** frontend SDK that opens the hosted page in a popup with callbacks
 
 ## Step 1: Create Your Application
 
@@ -142,29 +154,27 @@ Let's set up Google as an example (other providers work similarly):
   </Step>
 </Steps>
 
-## Step 3: Install the SDKs
+## Step 3: Install the SDK
 
-<CodeGroup>
-
-```bash Python Backend
+```bash
 pip install alter-sdk
 ```
 
-```bash JavaScript Frontend
-npm install @alter-ai/connect
-```
+<Tip>
+If you're using the **popup flow** (SPAs), also install the optional frontend SDK: `npm install @alter-ai/connect`. For the redirect flow or headless flow, only the backend SDK is needed.
+</Tip>
 
-</CodeGroup>
+## Step 4: Create a Session
 
-## Step 4: Create Session Endpoint
-
-Your backend needs to create session tokens for the OAuth flow. Use the SDK's `create_connect_session()` method:
+Your backend calls `create_connect_session()` which returns:
+- **`connect_url`** - a hosted page where the user completes OAuth (use this for the redirect flow)
+- **`session_token`** - a short-lived token to pass to the frontend SDK (use this for the popup flow)
 
 <CodeGroup>
 
 ```python Flask (Python SDK)
 import asyncio
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 from alter_sdk import AlterVault, ActorType
 
 app = Flask(__name__)
@@ -182,13 +192,16 @@ def create_oauth_session():
     async def _create():
         session = await vault.create_connect_session(
             allowed_providers=["google", "slack", "github"],
-            # allowed_origin is optional. If omitted, uses website_url
-            # from Developer Portal. Wildcard '*' is NOT supported.
         )
         return session
 
     session = asyncio.run(_create())
-    return jsonify({"session_token": session.session_token})
+
+    # Return both - your frontend decides which to use
+    return jsonify({
+        "session_token": session.session_token,  # For popup flow
+        "connect_url": session.connect_url,       # For redirect flow
+    })
 ```
 
 ```javascript Express (TypeScript SDK)
@@ -208,19 +221,68 @@ app.post('/api/connect/session', async (req, res) => {
 
     const session = await vault.createConnectSession({
         allowedProviders: ['google', 'slack', 'github'],
-        // allowedOrigin is optional. If omitted, uses website_url
-        // from Developer Portal. Wildcard '*' is NOT supported.
     });
 
-    res.json({ session_token: session.sessionToken });
+    // Return both - your frontend decides which to use
+    res.json({
+        session_token: session.sessionToken,  // For popup flow
+        connect_url: session.connectUrl,       // For redirect flow
+    });
 });
 ```
 
 </CodeGroup>
 
-## Step 5: Add OAuth UI (Frontend)
+## Step 5: Trigger the OAuth Flow
 
-Use Alter Connect to handle the OAuth flow:
+Choose the approach that fits your app:
+
+### Option A: Redirect Flow (no frontend SDK needed)
+
+Redirect the user's browser to the `connect_url`. After OAuth completes, the user is redirected back to your app. This works with any backend framework - no JavaScript SDK required.
+
+<CodeGroup>
+
+```python Flask - Server-side redirect
+@app.route('/connect/<provider>')
+def connect_provider(provider):
+    user = request.user  # Your auth
+
+    async def _create():
+        session = await vault.create_connect_session(
+            allowed_providers=[provider],
+            return_url="https://myapp.com/connect/callback",
+        )
+        return session
+
+    session = asyncio.run(_create())
+    return redirect(session.connect_url)  # User goes to hosted OAuth page
+
+@app.route('/connect/callback')
+def connect_callback():
+    # User returns here after completing OAuth
+    # The connection_id is available via vault.list_connections()
+    return "Connected! You can close this tab."
+```
+
+```javascript Frontend - window.location redirect
+async function connectProvider(provider) {
+    const response = await fetch('/api/connect/session', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const { connect_url } = await response.json();
+
+    // Navigate to the hosted OAuth page - no SDK needed
+    window.location.href = connect_url;
+}
+```
+
+</CodeGroup>
+
+### Option B: Popup Flow (frontend SDK)
+
+Use the `@alter-ai/connect` SDK to open the OAuth page in a popup with real-time callbacks. The user stays on your page.
 
 <CodeGroup>
 
@@ -237,7 +299,7 @@ function IntegrationsPage() {
             headers: { 'Authorization': `Bearer ${authToken}` }
         }).then(r => r.json());
 
-        // Open Alter Connect UI — user logs into their account and authorizes
+        // Open Alter Connect UI -user logs into their account and authorizes
         await alterConnect.open({
             token: session_token,
             onSuccess: (connections) => {
@@ -283,7 +345,7 @@ async function connectProvider(provider) {
     });
     const { session_token } = await response.json();
 
-    // Open Alter Connect UI — user logs into their account and authorizes
+    // Open Alter Connect UI -user logs into their account and authorizes
     await alterConnect.open({
         token: session_token,
         onSuccess: function(connections) {
@@ -324,7 +386,7 @@ async def fetch_calendar_events(user_id: str):
     connection_id = db.get_connection(user_id=user_id, provider="google")
 
     try:
-        # Make API request — token is injected automatically
+        # Make API request -token is injected automatically
         response = await vault.request(
             connection_id,
             HttpMethod.GET,
@@ -515,11 +577,11 @@ If you're connecting to **your own APIs** (internal services, partner APIs, SaaS
 2. Click **Add Provider** (e.g., "Loyalty API")
 3. Choose credential type (Bearer Token, API Key, or Basic Auth)
 4. Click **Store Secret** and enter the credential value
-5. **Copy the `connection_id` returned** — this is what you'll use in your code
+5. **Copy the `connection_id` returned** -this is what you'll use in your code
 
 ### Step 2: Use vault.request()
 
-Use the exact same `vault.request()` method — just pass the managed secret's `connection_id`:
+Use the exact same `vault.request()` method -just pass the managed secret's `connection_id`:
 
 <CodeGroup>
 
@@ -531,7 +593,7 @@ async with AlterVault(
     actor_type=ActorType.AI_AGENT,
     actor_identifier="my-agent",
 ) as vault:
-    # Call your internal API — secret injected automatically
+    # Call your internal API -secret injected automatically
     response = await vault.request(
         "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal
         HttpMethod.GET,
@@ -573,11 +635,13 @@ await vault.close();
 ## Key Concepts
 
 ### Zero Token Exposure
-The Alter SDK **never exposes OAuth tokens** to your code:
-- Tokens are retrieved internally by the SDK
-- Automatically injected into API calls as Bearer headers
-- Refreshed transparently when needed
-- You only work with API results, not credentials
+`vault.request()` **is your HTTP client** -it replaces direct `fetch` or `httpx` calls. Instead of constructing auth headers yourself, you pass a `connection_id` and the target URL. The SDK:
+- Makes the HTTP request on your behalf
+- Retrieves the credential internally and injects it as the correct auth header
+- Returns the API response directly to you
+- Refreshes OAuth tokens transparently before they expire
+
+Your code never sees, stores, or handles any tokens or secrets -eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
 
 ### Where Does `connection_id` Come From?
 

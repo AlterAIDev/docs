@@ -3,10 +3,14 @@ title: 'Quickstart'
 description: 'Connect your first OAuth integration in 5 minutes'
 ---
 
-Get started with the Alter Connect SDK to add OAuth integrations to your application.
+Get started with the Alter Connect frontend SDK to add OAuth popup flows to your single-page application.
 
 <Note>
-**Alter Connect is for OAuth connections only** — where your **end user** authorizes access to a third-party service (Google, Slack, GitHub). The `connection_id` is returned when the user completes the OAuth flow. For **Managed Secrets** (your own API keys/service tokens), use the [Developer Portal](/reference/managed-secrets) instead — no frontend SDK needed.
+**This frontend SDK is optional.** The Alter Connect UI is a hosted page - your backend can create a session and redirect users to the `connect_url` directly without any frontend SDK. This SDK is for SPAs (React, Vue, etc.) that want a popup overlay with real-time `onSuccess`/`onError` callbacks. See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for all three ways to trigger the OAuth flow.
+</Note>
+
+<Note>
+**OAuth connections only.** For Managed Secrets (your own API keys/service tokens), use the [Developer Portal](/reference/managed-secrets) instead - no OAuth flow needed.
 </Note>
 
 ## Overview

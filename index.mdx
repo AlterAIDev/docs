@@ -67,7 +67,9 @@ Works with your existing authentication system. Use JWT tokens from Auth0, Clerk
 
 ## How It Works
 
-Alter Vault manages two types of credentials — **OAuth connections** and **managed secrets** — both accessed through the same `vault.request()` method.
+Alter Vault manages two types of credentials -**OAuth connections** and **managed secrets** -both accessed through the same `vault.request()` method.
+
+`vault.request()` **is your HTTP client**. Instead of calling `fetch` or `httpx` directly (and constructing auth headers yourself), you call `vault.request()` with a `connection_id` and the target URL. The SDK makes the HTTP request on your behalf with the correct credential automatically injected -your code never sees, stores, or handles any tokens or secrets. This eliminates the risk of accidental token leakage through logs, error messages, or insecure storage.
 
 | | OAuth Connections | Managed Secrets |
 |---|---|---|
@@ -81,24 +83,25 @@ Alter Vault manages two types of credentials — **OAuth connections** and **man
   </Step>
 
   <Step title="We Encrypt & Store">
-    All credentials are encrypted (AES-256-GCM) and stored in our secure vault — never in your database
+    All credentials are encrypted (AES-256-GCM) and stored in our secure vault -never in your database
   </Step>
 
-  <Step title="You Make API Calls">
-    Call `vault.request(connection_id, ...)` and we inject the right credential automatically
+  <Step title="You Call vault.request()">
+    `vault.request()` acts as your HTTP client -it makes the API call and injects the right credential automatically. You get back the API response. The token never touches your code.
   </Step>
 
   <Step title="We Handle the Rest">
-    Token refresh, policy enforcement, audit logging — all automatic
+    Token refresh, policy enforcement, audit logging -all automatic
   </Step>
 </Steps>
 
 ## Our SDKs
 
 <Info>
-**Two SDKs for different purposes:**
-- **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** — Backend SDK for making authenticated API calls via `vault.request()`. Works with both OAuth connections and managed secrets.
-- **Alter Connect (`@alter-ai/connect`)** — Frontend SDK for the OAuth connection UI. Only needed for OAuth (where end users authorize access). Not needed for managed secrets.
+**SDKs and tools:**
+- **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** - Backend SDK for creating OAuth sessions and making authenticated API calls via `vault.request()`. Works with both OAuth connections and managed secrets.
+- **Alter Connect UI** - Hosted page where users complete OAuth. Your backend creates a session and gets a `connect_url` that works in any browser. No frontend SDK required.
+- **Connect SDK (`@alter-ai/connect`)** - **Optional** frontend SDK that opens the Alter Connect UI in a popup with `onSuccess`/`onError` callbacks. Useful for SPAs, but not required.
 </Info>
 
 ## Quick Example
@@ -205,7 +208,7 @@ Connect to the services your users already use:
 
 <AccordionGroup>
   <Accordion title="Simple Integration">
-    Drop-in SDK for Python and TypeScript with a single method (`vault.request()`) for any provider — OAuth or managed secrets. REST API for everything else. Get started in minutes.
+    Drop-in SDK for Python and TypeScript with a single method (`vault.request()`) for any provider -OAuth or managed secrets. REST API for everything else. Get started in minutes.
   </Accordion>
 
   <Accordion title="Your Auth System">

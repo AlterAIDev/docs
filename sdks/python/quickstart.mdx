@@ -63,13 +63,13 @@ vault = AlterVault(
 )
 ```
 
-Audit logging is always enabled — every token retrieval and API call is automatically logged for compliance and security. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
+Audit logging is always enabled -every token retrieval and API call is automatically logged for compliance and security. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
 ## Core Concepts
 
-### vault.request() - Single Entry Point
+### vault.request() -Your Authenticated HTTP Client
 
-All provider API calls go through one method:
+`vault.request()` acts as your HTTP client. Instead of calling `httpx` directly and managing auth headers, you pass a `connection_id` and URL -the SDK makes the request with the correct credential injected automatically. Your code never sees tokens or secrets.
 
 ```python
 response = await vault.request(
@@ -263,7 +263,7 @@ async with AlterVault(
     actor_type=ActorType.AI_AGENT,
     actor_identifier="my-agent",
 ) as vault:
-    # Call your internal API — secret injected automatically
+    # Call your internal API -secret injected automatically
     response = await vault.request(
         "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal (not from a user)
         HttpMethod.GET,
@@ -278,11 +278,11 @@ async with AlterVault(
 **OAuth vs Managed Secrets**: For OAuth, the `connection_id` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connection_id` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
 </Info>
 
-For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
+Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
 
 ## Actor Tracking (AI Agents & MCP Servers)
 
-Every SDK instance requires actor identity — `actor_type` and `actor_identifier` are mandatory. This gives you full observability into **which agent** is making API calls and **why**.
+Every SDK instance requires actor identity -`actor_type` and `actor_identifier` are mandatory. This gives you full observability into **which agent** is making API calls and **why**.
 
 ### Why Actor Tracking?
 
@@ -530,7 +530,7 @@ Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowE
 All internal invariants raise typed exceptions (never bare `AssertionError`), so errors are always catchable with the hierarchy below.
 
 ```
-AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)
+AlterSDKError (base -also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)
 ├── TokenRetrievalError (backend errors)
 │   ├── PolicyViolationError (403 - policy denied access)
 │   ├── ConnectionNotFoundError (404 - no OAuth connection)
@@ -644,7 +644,7 @@ async def safe_api_call(connection_id: str):
     # Forgot to call vault.close()!
     ```
 
-    After `close()` is called, any further `request()` calls raise `AlterSDKError`. `close()` is idempotent — calling it multiple times is safe.
+    After `close()` is called, any further `request()` calls raise `AlterSDKError`. `close()` is idempotent -calling it multiple times is safe.
   </Accordion>
 
   <Accordion title="Handle Errors Explicitly" icon="shield-exclamation">

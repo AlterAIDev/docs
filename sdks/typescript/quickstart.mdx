@@ -35,7 +35,7 @@ await vault.close();
 ```
 
 <Note>
-  **Key Principle: Zero Token Exposure** — You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend requests are cryptographically signed with a derived HMAC-SHA256 key for integrity, authenticity, and replay protection.
+  **Key Principle: Zero Token Exposure** -You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend requests are cryptographically signed with a derived HMAC-SHA256 key for integrity, authenticity, and replay protection.
 </Note>
 
 ## Configuration
@@ -49,13 +49,13 @@ const vault = new AlterVault({
 });
 ```
 
-Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
+Audit logging is always enabled and cannot be disabled -every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
 ## Core Concepts
 
-### vault.request() — Single Entry Point
+### vault.request() -Your Authenticated HTTP Client
 
-All provider API calls go through one method:
+`vault.request()` acts as your HTTP client. Instead of calling `fetch` directly and managing auth headers, you pass a `connectionId` and URL -the SDK makes the request with the correct credential injected automatically. Your code never sees tokens or secrets.
 
 ```typescript
 const response = await vault.request(
@@ -155,7 +155,7 @@ async function listRepos(connectionId: string) {
 
   const repos = await response.json();
   for (const repo of repos) {
-    console.log(`${repo.name} — ${repo.description ?? "No description"}`);
+    console.log(`${repo.name} -${repo.description ?? "No description"}`);
   }
 
   await vault.close();
@@ -173,7 +173,7 @@ const vault = new AlterVault({
   actorIdentifier: "my-agent",
 });
 
-// Call your internal API — secret injected automatically
+// Call your internal API -secret injected automatically
 const response = await vault.request(
   "MANAGED_SECRET_CONNECTION_ID",  // from Developer Portal (not from a user)
   HttpMethod.GET,
@@ -191,7 +191,7 @@ await vault.close();
 **OAuth vs Managed Secrets**: For OAuth, the `connectionId` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connectionId` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
 </Info>
 
-For AWS services, SigV4 signing is handled automatically with no additional dependencies required. Policy enforcement, audit logging, and error handling all work identically. See the [Managed Secrets guide](/reference/managed-secrets) for setup details, or the [AWS provider guide](/providers/aws) for AWS-specific usage.
+Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
 
 ## Actor Tracking (AI Agents & MCP Servers)
 
@@ -357,7 +357,7 @@ Throws `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowE
 ### Exception Hierarchy
 
 ```
-AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
+AlterSDKError (base -also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
 +-- TokenRetrievalError (backend errors)
 |   +-- PolicyViolationError (403 - policy denied access)
 |   +-- ConnectionNotFoundError (404 - no OAuth connection)
@@ -406,7 +406,7 @@ async function safeApiCall(connectionId: string) {
     } else if (e instanceof TokenExpiredError) {
       console.log(`Token expired for connection: ${e.connectionId}`);
     } else if (e instanceof TimeoutError) {
-      console.log(`Request timed out — safe to retry: ${e.message}`);
+      console.log(`Request timed out -safe to retry: ${e.message}`);
     } else if (e instanceof NetworkError) {
       console.log(`Network issue: ${e.message}`);
     } else if (e instanceof ProviderAPIError) {
