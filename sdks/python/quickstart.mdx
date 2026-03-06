@@ -4,7 +4,7 @@ description: 'Start using the Alter SDK for Python in minutes'
 icon: 'python'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials---all retrieved and injected automatically. You never touch them.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials — including multi-header and query param auth — all retrieved and injected automatically. You never touch them.
 
 ## Basic Setup
 
@@ -45,7 +45,7 @@ asyncio.run(main())
 ```
 
 <Note>
-  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend requests are cryptographically signed with a derived HMAC-SHA256 key for integrity, authenticity, and replay protection.
+  **Key Principle: Zero Token Exposure** - You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend communication is cryptographically secured for integrity, authenticity, and replay protection.
 </Note>
 
 <Tip>
@@ -329,9 +329,8 @@ vault = AlterVault(
 
 1. **First request**: SDK sends `actor_type` + `actor_identifier` as HTTP headers
 2. **Backend registers**: Actor is upserted in the database and assigned a UUID
-3. **Backend responds**: UUID returned in `X-Alter-Actor-ID` response header
-4. **SDK caches**: UUID is cached automatically for the session
-5. **Subsequent requests**: Cached UUID is sent (skips database lookup)
+3. **Backend responds**: UUID returned and cached automatically
+4. **Subsequent requests**: Cached identifier is sent (skips database lookup)
 
 This is fully automatic - you just configure the actor at initialization and the SDK handles the rest.
 
