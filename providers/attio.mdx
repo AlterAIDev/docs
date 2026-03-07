@@ -1,0 +1,124 @@
+---
+title: 'Attio'
+description: 'Set up Attio OAuth for relationship-driven CRM and pipeline management'
+---
+
+## Overview
+
+Connect your users to Attio for relationship-driven CRM, pipeline management, and workspace collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `attio` |
+| **Category** | CRM |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Attio OAuth App
+
+<Steps>
+  <Step title="Go to Attio Developer Settings">
+    Navigate to [Attio Developer Settings](https://app.attio.com/settings/developers) and sign in.
+  </Step>
+
+  <Step title="Create a new integration">
+    Click **Create a new integration** and enter the integration name and description.
+  </Step>
+
+  <Step title="Configure OAuth">
+    Under **OAuth**, add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to **Redirect URIs**.
+  </Step>
+
+  <Step title="Select scopes">
+    Select the scopes your integration needs. See [Available Scopes](#available-scopes) below.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Attio provider">
+    Go to **OAuth Providers** > **Add Provider** > **Attio**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Attio Client ID
+    - **Client Secret**: Paste your Attio Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+### Records
+
+| Scope | Description |
+|-------|-------------|
+| `record_permission:read` | Read access to records (people, companies, etc.) |
+| `record_permission:read-write` | Read and write access to records |
+
+### List Entries
+
+| Scope | Description |
+|-------|-------------|
+| `list_entry:read` | Read access to list entries |
+| `list_entry:read-write` | Read and write access to list entries |
+
+### Notes
+
+| Scope | Description |
+|-------|-------------|
+| `note:read` | Read access to notes |
+| `note:read-write` | Read and write access to notes |
+
+### Tasks
+
+| Scope | Description |
+|-------|-------------|
+| `task:read` | Read access to tasks |
+| `task:read-write` | Read and write access to tasks |
+
+### User Management
+
+| Scope | Description |
+|-------|-------------|
+| `user_management:read` | Read access to workspace user management |
+
+### Webhooks
+
+| Scope | Description |
+|-------|-------------|
+| `webhook:read-write` | Create and manage webhooks |
+
+### Object Configuration
+
+| Scope | Description |
+|-------|-------------|
+| `object_configuration:read` | Read access to object and attribute configuration |
+| `object_configuration:read-write` | Read and write access to object and attribute configuration |
+
+## Notes
+
+- Attio scopes follow a read/read-write pattern. Request only the access level your application needs.
+- For most CRM use cases, `record_permission:read` and `list_entry:read` provide sufficient read-only access.
+- See the [Attio API documentation](https://developers.attio.com/docs/authorization) for more details on available endpoints.

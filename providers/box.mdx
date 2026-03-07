@@ -1,0 +1,79 @@
+---
+title: 'Box'
+description: 'Set up Box OAuth for enterprise file storage and collaboration'
+---
+
+## Overview
+
+Connect your users to Box for enterprise file storage, collaboration, and content management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `box` |
+| **Category** | Storage |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Box OAuth App
+
+<Steps>
+  <Step title="Go to the Box Developer Console">
+    Navigate to [app.box.com/developers/console](https://app.box.com/developers/console) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create New App** then **Custom App**. Select **User Authentication (OAuth 2.0)**.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Under **Configuration**, add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Box provider">
+    Go to **OAuth Providers** > **Add Provider** > **Box**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Box Client ID
+    - **Client Secret**: Paste your Box Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `root_readwrite` | Read and write access to all files and folders |
+| `root_readonly` | Read-only access to all files and folders |
+| `manage_managed_users` | Manage enterprise users |
+| `manage_groups` | Manage enterprise groups |
+
+## Notes
+
+- Box scopes are configured at the application level in the Box Developer Console.
+- See the [Box OAuth documentation](https://developer.box.com/guides/authentication/oauth2/) for more details.

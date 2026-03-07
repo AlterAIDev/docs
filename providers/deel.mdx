@@ -1,0 +1,104 @@
+---
+title: 'Deel'
+description: 'Set up Deel OAuth for global payroll, HR, and contractor management'
+---
+
+## Overview
+
+Connect your users to Deel for global payroll, HR management, and contractor payments.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `deel` |
+| **Category** | HR |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Deel OAuth App
+
+<Steps>
+  <Step title="Go to the Deel Developer Center">
+    Navigate to [Deel Developer Center](https://app.deel.com/developer-center) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create New App**.
+  </Step>
+
+  <Step title="Configure the application">
+    Enter the application name and description. Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Select scopes">
+    Select the scopes your application needs. See [Available Scopes](#available-scopes) below.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Deel provider">
+    Go to **OAuth Providers** > **Add Provider** > **Deel**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Deel Client ID
+    - **Client Secret**: Paste your Deel Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+### Contracts
+
+| Scope | Description |
+|-------|-------------|
+| `contracts:read` | Read access to contracts |
+| `contracts:write` | Write access to contracts |
+
+### People
+
+| Scope | Description |
+|-------|-------------|
+| `people:read` | Read access to people (employees and contractors) |
+| `people:write` | Write access to people |
+
+### Payments and Invoices
+
+| Scope | Description |
+|-------|-------------|
+| `payments:read` | Read access to payment information |
+| `invoices:read` | Read access to invoices |
+| `invoices:write` | Write access to invoices |
+
+### Organizations
+
+| Scope | Description |
+|-------|-------------|
+| `organizations:read` | Read access to organization information |
+
+## Notes
+
+- For read-only HR integrations, `contracts:read`, `people:read`, and `organizations:read` provide sufficient access.
+- See the [Deel API documentation](https://developer.deel.com/docs/oauth-2-0) for more details on authentication and available endpoints.

@@ -1,0 +1,92 @@
+---
+title: 'Autodesk'
+description: 'Set up Autodesk OAuth for CAD, BIM, and design data management'
+---
+
+## Overview
+
+Connect your users to Autodesk for CAD, BIM, and design data management through the Autodesk Platform Services (formerly Forge).
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `autodesk` |
+| **Category** | Design |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Autodesk OAuth App
+
+<Steps>
+  <Step title="Go to the Autodesk Platform Services Portal">
+    Navigate to [aps.autodesk.com/myapps](https://aps.autodesk.com/myapps/) and sign in.
+  </Step>
+
+  <Step title="Create an application">
+    Click **Create Application**.
+  </Step>
+
+  <Step title="Select APIs">
+    Select the APIs your application needs access to.
+  </Step>
+
+  <Step title="Add the callback URL">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Callback URL** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Autodesk provider">
+    Go to **OAuth Providers** > **Add Provider** > **Autodesk**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Autodesk Client ID
+    - **Client Secret**: Paste your Autodesk Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `data:read` | Read access to data including files, folders, and projects |
+| `data:write` | Write access to data including uploading files and creating folders |
+| `data:create` | Create new data resources like projects and storage locations |
+| `data:search` | Search across data resources |
+| `account:read` | Read access to account information |
+| `account:write` | Write access to account information |
+| `user:read` | Read access to user profile information |
+| `user:write` | Write access to user profile information |
+| `bucket:read` | Read access to OSS buckets |
+| `bucket:create` | Create OSS buckets |
+| `bucket:update` | Update OSS bucket permissions |
+| `bucket:delete` | Delete OSS buckets |
+
+## Notes
+
+- Autodesk does not support PKCE for 3-legged OAuth.
+- Formerly known as Forge, now Autodesk Platform Services (APS).
+- The `data:read` scope is included by default and is sufficient for most read-only use cases.

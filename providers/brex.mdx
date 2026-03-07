@@ -1,0 +1,95 @@
+---
+title: 'Brex'
+description: 'Set up Brex OAuth for corporate card and expense management'
+---
+
+## Overview
+
+Connect your users to Brex for corporate card management, expense tracking, and financial data access.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `brex` |
+| **Category** | Finance |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Brex OAuth App
+
+<Steps>
+  <Step title="Go to the Brex Developer Dashboard">
+    Navigate to [developer.brex.com](https://developer.brex.com/) and sign in.
+  </Step>
+
+  <Step title="Create an application">
+    Navigate to **OAuth Applications** and click **Create Application**.
+  </Step>
+
+  <Step title="Configure your app">
+    Enter the application name and description.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Select scopes">
+    Select the scopes your application needs. See [Available Scopes](#available-scopes) below.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Brex provider">
+    Go to **OAuth Providers** > **Add Provider** > **Brex**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Brex Client ID
+    - **Client Secret**: Paste your Brex Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect authentication |
+| `offline_access` | Request a refresh token for long-lived access |
+| `transactions.card.readonly` | Read-only access to card transactions |
+| `accounts.card.readonly` | Read-only access to card accounts |
+| `users.readonly` | Read-only access to user information |
+| `expenses.card` | Access to card expense data |
+| `budgets.readonly` | Read-only access to budgets |
+| `vendors.readonly` | Read-only access to vendor information |
+
+<Tip>
+  Include both `openid` and `offline_access` scopes to enable automatic token refresh.
+</Tip>
+
+## Notes
+
+- The `openid` and `offline_access` scopes are included by default.
+- Brex scopes configured in your OAuth application must match the scopes you request during authorization.

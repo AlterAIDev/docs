@@ -86,11 +86,86 @@
     {
       "group": "Providers",
       "pages": [
-        "providers/google",
-        "providers/github",
-        "providers/slack",
-        "providers/sentry",
-        "providers/aws"
+        {
+          "group": "Popular",
+          "pages": [
+            "providers/google",
+            "providers/github",
+            "providers/slack",
+            "providers/asana",
+            "providers/atlassian",
+            "providers/calendly",
+            "providers/clickup",
+            "providers/canva",
+            "providers/notion"
+          ]
+        },
+        {
+          "group": "Productivity",
+          "pages": [
+            "providers/airtable",
+            "providers/basecamp",
+            "providers/cal-com",
+            "providers/linear",
+            "providers/acuity-scheduling"
+          ]
+        },
+        {
+          "group": "CRM & Sales",
+          "pages": [
+            "providers/attio",
+            "providers/close",
+            "providers/apollo"
+          ]
+        },
+        {
+          "group": "Design & Developer Tools",
+          "pages": [
+            "providers/adobe",
+            "providers/autodesk",
+            "providers/bitbucket",
+            "providers/contentful"
+          ]
+        },
+        {
+          "group": "Marketing",
+          "pages": [
+            "providers/bitly",
+            "providers/constant-contact"
+          ]
+        },
+        {
+          "group": "Communication",
+          "pages": [
+            "providers/aircall",
+            "providers/dialpad"
+          ]
+        },
+        {
+          "group": "Storage & Files",
+          "pages": [
+            "providers/box"
+          ]
+        },
+        {
+          "group": "Finance & HR",
+          "pages": [
+            "providers/brex",
+            "providers/deel"
+          ]
+        },
+        {
+          "group": "Error Monitoring",
+          "pages": [
+            "providers/sentry"
+          ]
+        },
+        {
+          "group": "Cloud & Infrastructure",
+          "pages": [
+            "providers/aws"
+          ]
+        }
       ]
     },
     {

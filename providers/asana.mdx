@@ -1,0 +1,76 @@
+---
+title: 'Asana'
+description: 'Set up Asana OAuth for project and task management'
+---
+
+## Overview
+
+Connect your users to Asana for project management, task tracking, and team collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `asana` |
+| **Category** | Productivity |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Asana OAuth App
+
+<Steps>
+  <Step title="Go to the Asana Developer Console">
+    Navigate to [app.asana.com/0/my-apps](https://app.asana.com/0/my-apps) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create New App**. Enter your application name and select your workspace.
+  </Step>
+
+  <Step title="Add the redirect URL">
+    Under **OAuth**, add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URLs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Asana provider">
+    Go to **OAuth Providers** > **Add Provider** > **Asana**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Asana Client ID
+    - **Client Secret**: Paste your Asana Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `default` | Access to all Asana resources the user can access |
+
+## Notes
+
+- Asana uses a single `default` scope that grants access to all resources the authenticated user has permissions for.
+- See the [Asana OAuth documentation](https://developers.asana.com/docs/oauth) for more details on authentication and available endpoints.

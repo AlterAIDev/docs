@@ -1,0 +1,79 @@
+---
+title: 'Close'
+description: 'Set up Close OAuth for sales CRM and pipeline management'
+---
+
+## Overview
+
+Connect your users to Close for sales CRM, pipeline management, and lead tracking.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `close` |
+| **Category** | CRM |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Close OAuth App
+
+<Steps>
+  <Step title="Go to Close Developer Settings">
+    Navigate to [Close Developer Settings](https://app.close.com/settings/developer/) and sign in.
+  </Step>
+
+  <Step title="Register a new application">
+    Click **Register New OAuth Application**.
+  </Step>
+
+  <Step title="Configure the application">
+    Enter the application name and description. Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to **Redirect URIs**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Close provider">
+    Go to **OAuth Providers** > **Add Provider** > **Close**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Close Client ID
+    - **Client Secret**: Paste your Close Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `offline_access` | Request a refresh token for long-lived access |
+| `all.full_access` | Full read and write access to all resources |
+| `all.read` | Read-only access to all resources |
+
+## Notes
+
+- Include the `offline_access` scope to receive a refresh token. Without it, access tokens will expire and cannot be renewed automatically.
+- For read-only integrations, use `all.read` combined with `offline_access`.
+- See the [Close API documentation](https://developer.close.com/topics/authentication/) for more details on authentication and available endpoints.

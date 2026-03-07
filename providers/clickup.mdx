@@ -1,0 +1,65 @@
+---
+title: 'ClickUp'
+description: 'Set up ClickUp OAuth for project management and task tracking'
+---
+
+## Overview
+
+Connect your users to ClickUp for project management, task tracking, and team collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `clickup` |
+| **Category** | Productivity |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a ClickUp OAuth App
+
+<Steps>
+  <Step title="Go to ClickUp Integrations">
+    Navigate to [ClickUp Settings > Integrations > ClickUp API](https://app.clickup.com/settings/integrations) and sign in.
+  </Step>
+
+  <Step title="Create an app">
+    Click **Create an App**.
+  </Step>
+
+  <Step title="Configure your app">
+    Enter the app name and add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) as the **Redirect URL**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add ClickUp provider">
+    Go to **OAuth Providers** > **Add Provider** > **ClickUp**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your ClickUp Client ID
+    - **Client Secret**: Paste your ClickUp Client Secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Notes
+
+- ClickUp does not use scopes. The OAuth token grants access based on the user's workspace permissions.

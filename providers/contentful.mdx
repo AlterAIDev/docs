@@ -1,0 +1,81 @@
+---
+title: 'Contentful'
+description: 'Set up Contentful OAuth for headless CMS content management'
+---
+
+## Overview
+
+Connect your users to Contentful for headless CMS content management, content delivery, and space administration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `contentful` |
+| **Category** | Developer Tools |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Contentful OAuth App
+
+<Steps>
+  <Step title="Go to Contentful OAuth Applications">
+    Navigate to [Contentful account settings](https://app.contentful.com/account/profile/developers/applications) and go to **OAuth applications**.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **New Application**.
+  </Step>
+
+  <Step title="Configure your app">
+    Enter the application name and description.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Contentful provider">
+    Go to **OAuth Providers** > **Add Provider** > **Contentful**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Contentful Client ID
+    - **Client Secret**: Paste your Contentful Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `content_management_manage` | Full access to the Content Management API |
+| `content_management_read` | Read-only access to the Content Management API |
+
+## Notes
+
+- The `content_management_manage` scope is included by default and provides full read/write access.
+- Use `content_management_read` if your app only needs to read content.

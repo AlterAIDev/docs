@@ -1,0 +1,80 @@
+---
+title: 'Aircall'
+description: 'Set up Aircall OAuth for cloud phone system and call management'
+---
+
+## Overview
+
+Connect your users to Aircall for cloud-based phone systems, call management, and team communication.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `aircall` |
+| **Category** | Communication |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Aircall OAuth App
+
+<Steps>
+  <Step title="Go to the Aircall Dashboard">
+    Navigate to [Aircall Dashboard](https://dashboard.aircall.io/integrations) and sign in.
+  </Step>
+
+  <Step title="Build your own integration">
+    Click **Build your own integration**.
+  </Step>
+
+  <Step title="Configure the application">
+    Enter the application name and description. Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Aircall provider">
+    Go to **OAuth Providers** > **Add Provider** > **Aircall**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Aircall Client ID
+    - **Client Secret**: Paste your Aircall Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `public_api` | Full access to the Aircall public API (calls, contacts, users, etc.) |
+
+<Note>
+  The `public_api` scope is required for API access and is selected by default.
+</Note>
+
+## Notes
+
+- Aircall requires the `public_api` scope for all API access. This scope covers calls, contacts, users, and other resources.
+- See the [Aircall API documentation](https://developer.aircall.io/api-references/#oauth-overview) for more details on available endpoints.

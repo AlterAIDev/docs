@@ -1,0 +1,88 @@
+---
+title: 'Bitbucket'
+description: 'Set up Bitbucket OAuth for repository management and CI/CD pipelines'
+---
+
+## Overview
+
+Connect your users to Bitbucket for repository management, pull requests, and CI/CD pipelines.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `bitbucket` |
+| **Category** | Developer Tools |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Bitbucket OAuth Consumer
+
+<Steps>
+  <Step title="Go to Bitbucket workspace settings">
+    Navigate to your Bitbucket workspace settings, then go to **OAuth consumers**.
+  </Step>
+
+  <Step title="Add a consumer">
+    Click **Add consumer**. Enter your application name.
+  </Step>
+
+  <Step title="Add the callback URL">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Callback URL** field.
+  </Step>
+
+  <Step title="Select permissions">
+    Select the required permissions for your application.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Key** (Client ID) and **Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Bitbucket provider">
+    Go to **OAuth Providers** > **Add Provider** > **Bitbucket**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Bitbucket Key
+    - **Client Secret**: Paste your Bitbucket Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `account` | Read your account information |
+| `repository` | Read access to your repositories |
+| `repository:write` | Write access to your repositories |
+| `pullrequest` | Read and write access to pull requests |
+| `issue` | Read and write access to issues |
+| `webhook` | Read and write access to webhooks |
+| `pipeline` | Read access to Bitbucket Pipelines CI/CD |
+| `pipeline:write` | Read and write access to Bitbucket Pipelines |
+| `snippet` | Read and write access to snippets |
+
+## Notes
+
+- Bitbucket refers to the Client ID as the **Key** in the OAuth consumer settings.
+- See the [Bitbucket OAuth documentation](https://support.atlassian.com/bitbucket-cloud/docs/use-oauth-on-bitbucket-cloud/) for more details.

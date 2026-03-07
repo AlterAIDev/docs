@@ -1,0 +1,71 @@
+---
+title: 'Basecamp'
+description: 'Set up Basecamp OAuth for project management and team collaboration'
+---
+
+## Overview
+
+Connect your users to Basecamp for project management, team collaboration, and task tracking.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `basecamp` |
+| **Category** | Productivity |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Basecamp OAuth App
+
+<Steps>
+  <Step title="Go to 37signals Launchpad">
+    Navigate to [37signals Launchpad](https://launchpad.37signals.com/integrations) and sign in with your Basecamp account.
+  </Step>
+
+  <Step title="Register a new application">
+    Click **Register another application**.
+  </Step>
+
+  <Step title="Configure the application">
+    Enter the application name and company website. Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Basecamp provider">
+    Go to **OAuth Providers** > **Add Provider** > **Basecamp**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Basecamp Client ID
+    - **Client Secret**: Paste your Basecamp Client Secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+Basecamp does not use OAuth scopes. The access token grants access based on the authenticating user's permissions within their Basecamp account.
+
+## Notes
+
+- The OAuth flow goes through 37signals Launchpad, the parent company of Basecamp.
+- Basecamp does not use scopes. Tokens grant access to all Basecamp resources the authenticating user has permission to access.
+- See the [Basecamp API documentation](https://github.com/basecamp/api/blob/master/sections/authentication.md) for more details on authentication and available endpoints.

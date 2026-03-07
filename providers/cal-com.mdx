@@ -1,0 +1,79 @@
+---
+title: 'Cal.com'
+description: 'Set up Cal.com OAuth for open-source scheduling and appointment management'
+---
+
+## Overview
+
+Connect your users to Cal.com for open-source scheduling, appointment management, and availability tracking.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `cal-com` |
+| **Category** | Productivity |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Cal.com OAuth Client
+
+<Steps>
+  <Step title="Go to Cal.com OAuth Settings">
+    Navigate to [Cal.com OAuth Settings](https://app.cal.com/settings/developer/oauth-clients) and sign in.
+  </Step>
+
+  <Step title="Create OAuth Client">
+    Click **Create OAuth Client**.
+  </Step>
+
+  <Step title="Configure the client">
+    Enter the client name and add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) as the **Redirect URI**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Cal.com provider">
+    Go to **OAuth Providers** > **Add Provider** > **Cal.com**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Cal.com Client ID
+    - **Client Secret**: Paste your Cal.com Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `READ_BOOKING` | Read access to bookings |
+| `READ_PROFILE` | Read access to user profile |
+| `READ_AVAILABILITY` | Read access to availability schedules |
+
+## Notes
+
+- Cal.com is an open-source scheduling platform, so self-hosted instances may have different OAuth endpoints.
+- For most scheduling use cases, `READ_BOOKING` and `READ_AVAILABILITY` provide sufficient access.
+- See the [Cal.com documentation](https://cal.com/docs/platform/quick-start) for more details on available API endpoints.

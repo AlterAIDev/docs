@@ -1,0 +1,70 @@
+---
+title: 'Bitly'
+description: 'Set up Bitly OAuth for link shortening and click analytics'
+---
+
+## Overview
+
+Connect your users to Bitly for link shortening, click analytics, and link management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `bitly` |
+| **Category** | Marketing |
+| **PKCE** | Supported |
+| **Token refresh** | Not available |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Bitly OAuth App
+
+<Steps>
+  <Step title="Go to Bitly Developer Settings">
+    Navigate to [Bitly Settings > API > OAuth Apps](https://app.bitly.com/settings/api/) and sign in.
+  </Step>
+
+  <Step title="Register a new application">
+    Click **Register New Application**.
+  </Step>
+
+  <Step title="Configure your app">
+    Fill in the application name, link, and description.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Bitly provider">
+    Go to **OAuth Providers** > **Add Provider** > **Bitly**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Bitly Client ID
+    - **Client Secret**: Paste your Bitly Client Secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Notes
+
+- Bitly does not use scopes. OAuth tokens have full access to the user's account.
+- Bitly tokens do not expire and cannot be refreshed.

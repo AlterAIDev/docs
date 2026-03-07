@@ -1,0 +1,79 @@
+---
+title: 'Linear'
+description: 'Set up Linear OAuth for issue tracking and project management'
+---
+
+## Overview
+
+Connect your users to Linear for issue tracking, project management, and team workflow automation.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `linear` |
+| **Category** | Project Management |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Linear OAuth App
+
+<Steps>
+  <Step title="Go to Linear API Settings">
+    Navigate to [Linear Settings > API > OAuth Applications](https://linear.app/settings/api/applications/new) and sign in.
+  </Step>
+
+  <Step title="Create a new OAuth application">
+    Click **Create new OAuth application**. Enter your application name and description.
+  </Step>
+
+  <Step title="Add the callback URL">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Callback URLs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the application page.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Linear provider">
+    Go to **OAuth Providers** > **Add Provider** > **Linear**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Linear Client ID
+    - **Client Secret**: Paste your Linear Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `read` | Read access to your Linear data |
+| `write` | Write access to your Linear data |
+| `issues:create` | Create new issues |
+| `admin` | Admin access to workspace settings |
+
+## Notes
+
+- Linear uses comma-separated scopes (handled automatically by Alter Vault).
+- See the [Linear OAuth documentation](https://developers.linear.app/docs/oauth/authentication) for more details.

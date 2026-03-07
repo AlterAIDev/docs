@@ -1,0 +1,104 @@
+---
+title: 'Atlassian'
+description: 'Set up Atlassian OAuth for Jira and Confluence integration'
+---
+
+## Overview
+
+Connect your users to Atlassian for Jira issue tracking, Confluence wiki access, and team collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `atlassian` |
+| **Category** | Developer Tools |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+<Note>
+  This provider covers **Jira** and **Confluence** via Atlassian's unified OAuth 2.0 (3LO). For Bitbucket, use the dedicated [Bitbucket provider](/providers/bitbucket).
+</Note>
+
+## Step 1: Create an Atlassian OAuth App
+
+<Steps>
+  <Step title="Go to the Atlassian Developer Console">
+    Navigate to [developer.atlassian.com/console/myapps](https://developer.atlassian.com/console/myapps/) and sign in.
+  </Step>
+
+  <Step title="Create a new OAuth 2.0 integration">
+    Click **Create** then **OAuth 2.0 integration**. Enter your app name.
+  </Step>
+
+  <Step title="Add the callback URL">
+    Under **Authorization**, add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Callback URL** field.
+  </Step>
+
+  <Step title="Configure permissions">
+    Under **Permissions**, add the required scopes for your Atlassian products (Jira, Confluence).
+  </Step>
+
+  <Step title="Get your credentials">
+    Go to **Settings** to find your **Client ID** and **Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Atlassian provider">
+    Go to **OAuth Providers** > **Add Provider** > **Atlassian**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Atlassian Client ID
+    - **Client Secret**: Paste your Atlassian Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+### Identity
+
+| Scope | Description |
+|-------|-------------|
+| `read:me` | Read the current user's profile and discover accessible cloud instances (required for all API calls) |
+| `offline_access` | Access resources on behalf of the user when they are not present |
+
+### Jira
+
+| Scope | Description |
+|-------|-------------|
+| `read:jira-work` | Read Jira project and issue data |
+| `write:jira-work` | Create and edit Jira issues and projects |
+| `read:jira-user` | Read Jira user information |
+
+### Confluence
+
+| Scope | Description |
+|-------|-------------|
+| `read:confluence-content.all` | Read Confluence pages and blog posts |
+| `write:confluence-content` | Create and update Confluence pages |
+| `read:confluence-space.summary` | Read Confluence space summaries |
+
+## Notes
+
+- You must configure specific API scopes under **Permissions** in the Atlassian Developer Console for each product (Jira, Confluence).
+- The `read:me` scope is required for all Atlassian API calls to discover accessible cloud instances.
+- See the [Atlassian OAuth documentation](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) for more details.

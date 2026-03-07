@@ -1,0 +1,76 @@
+---
+title: 'Apollo.io'
+description: 'Set up Apollo.io OAuth for sales intelligence and engagement'
+---
+
+## Overview
+
+Connect your users to Apollo.io for sales intelligence, lead enrichment, and engagement sequences.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `apollo` |
+| **Category** | CRM & Sales |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Apollo.io OAuth App
+
+<Steps>
+  <Step title="Go to the Apollo.io Developer Portal">
+    Navigate to [Apollo.io Developer Portal](https://developer.apollo.io/) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **Create Application**.
+  </Step>
+
+  <Step title="Configure the application">
+    Enter the application name and description. Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Apollo.io provider">
+    Go to **OAuth Providers** > **Add Provider** > **Apollo.io**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Apollo.io Client ID
+    - **Client Secret**: Paste your Apollo.io Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `api:default` | Standard access to Apollo.io API for contacts, accounts, and sequences |
+
+## Notes
+
+- Apollo.io uses a single `api:default` scope that provides standard access to the API, including contacts, accounts, and sequences.
+- See the [Apollo.io API documentation](https://apolloio.github.io/apollo-api-docs/) for more details on available endpoints.

@@ -1,0 +1,81 @@
+---
+title: 'Dialpad'
+description: 'Set up Dialpad OAuth for business phone, video, and messaging'
+---
+
+## Overview
+
+Connect your users to Dialpad for business phone systems, video conferencing, and team messaging.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `dialpad` |
+| **Category** | Communication |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Dialpad OAuth App
+
+<Steps>
+  <Step title="Go to the Dialpad Developer Portal">
+    Navigate to [Dialpad Developer Portal](https://dialpad.com/developer) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Create a new application and enter the application name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Dialpad provider">
+    Go to **OAuth Providers** > **Add Provider** > **Dialpad**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Dialpad Client ID
+    - **Client Secret**: Paste your Dialpad Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `calls` | Access to call logs and call management |
+| `contacts` | Access to contacts |
+| `users` | Access to user information |
+| `sms` | Access to SMS messages |
+| `recordings` | Access to call recordings |
+
+## Notes
+
+- Select only the scopes your application needs. For basic call analytics, `calls` and `users` are typically sufficient.
+- The `recordings` scope provides access to call recordings, which may contain sensitive data. Request this only when needed.
+- See the [Dialpad API documentation](https://developers.dialpad.com/docs/oauth2) for more details on available endpoints.

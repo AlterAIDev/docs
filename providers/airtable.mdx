@@ -1,0 +1,85 @@
+---
+title: 'Airtable'
+description: 'Set up Airtable OAuth for database and spreadsheet management'
+---
+
+## Overview
+
+Connect your users to Airtable for database and spreadsheet management, record access, and schema operations.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `airtable` |
+| **Category** | Productivity |
+| **PKCE** | Required |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Airtable OAuth Integration
+
+<Steps>
+  <Step title="Go to the Airtable Developer Hub">
+    Navigate to [airtable.com/create/oauth](https://airtable.com/create/oauth) and sign in.
+  </Step>
+
+  <Step title="Create a new OAuth integration">
+    Enter your integration name and description.
+  </Step>
+
+  <Step title="Add the redirect URL">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URLs** field.
+  </Step>
+
+  <Step title="Select scopes">
+    Select the scopes your application needs (e.g., `data.records:read`, `schema.bases:read`).
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and generate a **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Airtable provider">
+    Go to **OAuth Providers** > **Add Provider** > **Airtable**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Airtable Client ID
+    - **Client Secret**: Paste your Airtable Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `data.records:read` | Read records in bases |
+| `data.records:write` | Create, update, and delete records |
+| `schema.bases:read` | Read base schema |
+| `schema.bases:write` | Create and modify base schema |
+| `webhook:manage` | Create and manage webhooks |
+
+## Notes
+
+- Airtable requires PKCE for all OAuth flows. Alter Vault handles this automatically.
+- Scopes are colon-separated (e.g., `data.records:read`).
+- See the [Airtable OAuth documentation](https://airtable.com/developers/web/api/oauth-reference) for more details.

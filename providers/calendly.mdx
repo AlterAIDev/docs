@@ -1,0 +1,80 @@
+---
+title: 'Calendly'
+description: 'Set up Calendly OAuth for scheduling automation and event management'
+---
+
+## Overview
+
+Connect your users to Calendly for scheduling automation, event management, and availability tracking.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `calendly` |
+| **Category** | Productivity |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Calendly OAuth App
+
+<Steps>
+  <Step title="Go to the Calendly Developer Portal">
+    Navigate to [developer.calendly.com](https://developer.calendly.com/) and sign in.
+  </Step>
+
+  <Step title="Create an application">
+    Click **Create an Application** under **My Apps**.
+  </Step>
+
+  <Step title="Configure your app">
+    Fill in the app name, description, and company URL.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Calendly provider">
+    Go to **OAuth Providers** > **Add Provider** > **Calendly**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Calendly Client ID
+    - **Client Secret**: Paste your Calendly Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `default` | Access to Calendly scheduling data including events, invitees, and availability |
+
+## Notes
+
+- Calendly OAuth apps require approval for production access.
+- During development, you can test with up to 100 users.

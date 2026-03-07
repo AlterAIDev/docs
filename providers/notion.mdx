@@ -1,0 +1,80 @@
+---
+title: 'Notion'
+description: 'Set up Notion OAuth for notes, docs, and knowledge management'
+---
+
+## Overview
+
+Connect your users to Notion for notes, documents, databases, and knowledge management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `notion` |
+| **Category** | Productivity |
+| **PKCE** | Not supported |
+| **Token refresh** | Not needed (tokens don't expire) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+<Note>
+  Notion tokens do not expire and cannot be refreshed. Permissions are granted per-page by the user during authorization.
+</Note>
+
+## Step 1: Create a Notion Integration
+
+<Steps>
+  <Step title="Go to Notion Integrations">
+    Navigate to [notion.so/my-integrations](https://www.notion.so/my-integrations) and sign in.
+  </Step>
+
+  <Step title="Create a new integration">
+    Click **New integration**. Select the workspace you want to connect.
+  </Step>
+
+  <Step title="Set integration type to Public">
+    Set the integration type to **Public** (required for OAuth).
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Under **OAuth Domain & URIs**, add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **OAuth client ID** and **OAuth client secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Notion provider">
+    Go to **OAuth Providers** > **Add Provider** > **Notion**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Notion OAuth client ID
+    - **Client Secret**: Paste your Notion OAuth client secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+Notion does not use traditional OAuth scopes. Instead, permissions are granted per-page by the user during the authorization flow. The user selects which pages and databases to share with your integration.
+
+## Notes
+
+- Notion uses **Internal** and **Public** integration types. You must use **Public** for OAuth.
+- Notion tokens do not expire and cannot be refreshed.
+- Users grant access to specific pages and databases during authorization, not via scopes.
+- See the [Notion OAuth documentation](https://developers.notion.com/docs/authorization) for more details.

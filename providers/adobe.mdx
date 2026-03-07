@@ -1,0 +1,81 @@
+---
+title: 'Adobe'
+description: 'Set up Adobe OAuth for Creative Cloud and document workflow integration'
+---
+
+## Overview
+
+Connect your users to Adobe for Creative Cloud assets, document workflows, and identity integration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `adobe` |
+| **Category** | Design |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Adobe OAuth App
+
+<Steps>
+  <Step title="Go to the Adobe Developer Console">
+    Navigate to [developer.adobe.com/console](https://developer.adobe.com/console) and sign in.
+  </Step>
+
+  <Step title="Create a new project">
+    Click **Create New Project** and add an **OAuth 2.0** credential. Set the application type to **Web Application**.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the redirect URI field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the credential details.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Adobe provider">
+    Go to **OAuth Providers** > **Add Provider** > **Adobe**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Adobe Client ID
+    - **Client Secret**: Paste your Adobe Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect identity scope (required for authorization) |
+| `AdobeID` | Adobe identity scope (required for issuing identity tokens) |
+| `offline_access` | Enable refresh tokens (requires openid or AdobeID as a base scope) |
+| `creative_cloud` | Access Creative Cloud assets and services |
+| `read_organizations` | Read organization information |
+
+## Notes
+
+- Adobe IMS requires `openid` and/or `AdobeID` as foundational identity scopes; `offline_access` alone is insufficient.
+- You may need to create an Adobe developer account first if you don't have one.
+- See the [Adobe OAuth documentation](https://developer.adobe.com/developer-console/docs/guides/authentication/OAuth/) for more details.

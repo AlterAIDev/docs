@@ -1,0 +1,89 @@
+---
+title: 'Canva'
+description: 'Set up Canva OAuth for design creation and brand management'
+---
+
+## Overview
+
+Connect your users to Canva for design creation, brand management, and asset collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `canva` |
+| **Category** | Design |
+| **PKCE** | Required |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Canva Integration
+
+<Steps>
+  <Step title="Go to the Canva Developer Portal">
+    Navigate to [canva.com/developers/integrations](https://www.canva.com/developers/integrations) and sign in.
+  </Step>
+
+  <Step title="Create an integration">
+    Click **Create an integration**.
+  </Step>
+
+  <Step title="Add the redirect URL">
+    Under **Authentication**, add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to **Redirect URLs**.
+  </Step>
+
+  <Step title="Select scopes">
+    Select the scopes your integration needs. See [Available Scopes](#available-scopes) below.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Canva provider">
+    Go to **OAuth Providers** > **Add Provider** > **Canva**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Canva Client ID
+    - **Client Secret**: Paste your Canva Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `design:content:read` | Read access to design content |
+| `design:content:write` | Write access to design content |
+| `design:meta:read` | Read access to design metadata |
+| `folder:read` | Read access to folders |
+| `folder:write` | Write access to folders |
+| `asset:read` | Read access to uploaded assets |
+| `asset:write` | Upload and manage assets |
+| `brandtemplate:content:read` | Read access to brand template content |
+| `brandtemplate:meta:read` | Read access to brand template metadata |
+| `profile:read` | Read access to user profile information |
+
+## Notes
+
+- PKCE is required for all Canva OAuth flows.
+- Scopes configured in your Canva integration must match the scopes you request during authorization.

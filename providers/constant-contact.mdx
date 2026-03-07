@@ -1,0 +1,86 @@
+---
+title: 'Constant Contact'
+description: 'Set up Constant Contact OAuth for email marketing and campaign management'
+---
+
+## Overview
+
+Connect your users to Constant Contact for email marketing, campaign management, and contact list administration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `constant-contact` |
+| **Category** | Marketing |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Constant Contact OAuth App
+
+<Steps>
+  <Step title="Go to the Constant Contact Developer Portal">
+    Navigate to [Constant Contact Developer Portal](https://app.constantcontact.com/pages/dma/portal/) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **New Application**.
+  </Step>
+
+  <Step title="Configure your app">
+    Enter the application name.
+  </Step>
+
+  <Step title="Add the redirect URI">
+    Add the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **API Key** (Client ID) and **App Secret** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your App Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Constant Contact provider">
+    Go to **OAuth Providers** > **Add Provider** > **Constant Contact**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Constant Contact API Key
+    - **Client Secret**: Paste your Constant Contact App Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `contact_data` | Read and write access to contacts and contact lists |
+| `campaign_data` | Read and write access to email campaigns |
+| `offline_access` | Request a refresh token for long-lived access |
+
+<Tip>
+  Include the `offline_access` scope to receive a refresh token. Without it, your token will expire and require the user to re-authorize.
+</Tip>
+
+## Notes
+
+- The `offline_access` scope is included by default to enable automatic token refresh.
+- Constant Contact refers to the Client ID as "API Key" and Client Secret as "App Secret" in their portal.

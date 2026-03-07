@@ -1,0 +1,81 @@
+---
+title: 'Acuity Scheduling'
+description: 'Set up Acuity Scheduling OAuth for appointment booking and calendar management'
+---
+
+## Overview
+
+Connect your users to Acuity Scheduling for appointment booking, calendar management, and client scheduling.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `acuity-scheduling` |
+| **Category** | Productivity |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Acuity Scheduling OAuth App
+
+<Steps>
+  <Step title="Go to the Acuity Scheduling Developer Portal">
+    Navigate to [Acuity Scheduling Developer Portal](https://developers.acuityscheduling.com/) and sign in.
+  </Step>
+
+  <Step title="Register a new application">
+    Register a new OAuth2 application.
+  </Step>
+
+  <Step title="Configure the application">
+    Enter the application name and description. Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Acuity Scheduling provider">
+    Go to **OAuth Providers** > **Add Provider** > **Acuity Scheduling**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Acuity Scheduling Client ID
+    - **Client Secret**: Paste your Acuity Scheduling Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `api-v1` | Full access to the Acuity Scheduling API v1 (appointments, calendars, clients) |
+
+<Note>
+  The `api-v1` scope is required for API access and is selected by default.
+</Note>
+
+## Notes
+
+- Acuity Scheduling is owned by Squarespace. You may need a Squarespace account to access the developer portal.
+- The `api-v1` scope provides full access to appointments, calendars, and client data.
+- See the [Acuity Scheduling API documentation](https://developers.acuityscheduling.com/reference/oauth2) for more details on available endpoints.
