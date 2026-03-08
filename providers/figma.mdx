@@ -1,0 +1,82 @@
+---
+title: 'Figma'
+description: 'Set up Figma OAuth for collaborative design and prototyping'
+---
+
+## Overview
+
+Connect your users to Figma for accessing design files, variables, comments, and developer resources.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `figma` |
+| **Category** | Design & Developer Tools |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Figma OAuth App
+
+<Steps>
+  <Step title="Go to the Figma Developer Portal">
+    Navigate to [figma.com/developers/apps](https://www.figma.com/developers/apps) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **New app** and enter the application name.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URLs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Figma provider">
+    Go to **OAuth Providers** > **Add Provider** > **Figma**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Figma Client ID
+    - **Client Secret**: Paste your Figma Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `files:read` | Read file and project data |
+| `file_variables:read` | Read design variables |
+| `file_variables:write` | Create and update design variables |
+| `file_comments:write` | Post comments on files |
+| `file_dev_resources:read` | Read developer resources |
+| `file_dev_resources:write` | Create and update developer resources |
+| `webhooks:write` | Create and manage webhooks |
+
+## Notes
+
+- For most read-only integrations, `files:read` is sufficient.
+- See the [Figma API authentication documentation](https://www.figma.com/developers/api#authentication) for more details.

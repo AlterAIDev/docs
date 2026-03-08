@@ -1,0 +1,77 @@
+---
+title: 'DigitalOcean'
+description: 'Set up DigitalOcean OAuth for cloud infrastructure management'
+---
+
+## Overview
+
+Connect your users to DigitalOcean for cloud infrastructure management, droplet control, and resource provisioning.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `digitalocean` |
+| **Category** | Cloud & Infrastructure |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a DigitalOcean OAuth App
+
+<Steps>
+  <Step title="Go to the DigitalOcean API Applications page">
+    Navigate to [cloud.digitalocean.com/account/api/applications](https://cloud.digitalocean.com/account/api/applications) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **Create Application** and enter the application name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL (from the [Developer Portal](https://portal.alterai.dev)) to the **Callback URL** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add DigitalOcean provider">
+    Go to **OAuth Providers** > **Add Provider** > **DigitalOcean**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your DigitalOcean Client ID
+    - **Client Secret**: Paste your DigitalOcean Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `read` | Read-only access to account and resources |
+| `read_write` | Full read and write access to account and resources |
+
+## Notes
+
+- DigitalOcean uses `read` and `read write` (space-separated) internally. Alter Vault normalizes `read_write` to the correct format automatically.
+- See the [DigitalOcean OAuth API documentation](https://docs.digitalocean.com/reference/api/oauth-api/) for more details.

@@ -1,0 +1,86 @@
+---
+title: 'Webflow'
+description: 'Set up Webflow OAuth for website building and CMS management'
+---
+
+## Overview
+
+Connect your users to Webflow for website management, CMS collections, page content, forms, and ecommerce data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `webflow` |
+| **Category** | Design & Developer Tools |
+| **PKCE** | Not supported |
+| **Token refresh** | Not supported (permanent tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Webflow OAuth App
+
+<Steps>
+  <Step title="Go to the Webflow Developer Portal">
+    Navigate to [developers.webflow.com](https://developers.webflow.com/) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create New App**, enter the app name, and fill in the app details.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **OAuth Settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Webflow provider">
+    Go to **OAuth Providers** > **Add Provider** > **Webflow**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Webflow Client ID
+    - **Client Secret**: Paste your Webflow Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `sites:read` | Read site data and metadata |
+| `sites:write` | Modify site settings |
+| `pages:read` | Read page content |
+| `pages:write` | Create and modify pages |
+| `collections:read` | Read CMS collection data |
+| `collections:write` | Manage CMS collections and items |
+| `forms:read` | Read form submissions |
+| `ecommerce:read` | Read ecommerce orders and products |
+| `ecommerce:write` | Manage ecommerce data |
+| `assets:read` | Read asset data |
+| `assets:write` | Upload and manage assets |
+
+## Notes
+
+- Webflow tokens do not expire. There is no refresh token flow.
+- See the [Webflow OAuth authorization documentation](https://developers.webflow.com/data/reference/authorization/authorize) for more details.

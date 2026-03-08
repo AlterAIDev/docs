@@ -1,0 +1,83 @@
+---
+title: 'Dropbox'
+description: 'Set up Dropbox OAuth for cloud file storage and sharing'
+---
+
+## Overview
+
+Connect your users to Dropbox for cloud file storage, file sharing, and document collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `dropbox` |
+| **Category** | Storage & Files |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Dropbox OAuth App
+
+<Steps>
+  <Step title="Go to the Dropbox App Console">
+    Navigate to [dropbox.com/developers/apps](https://www.dropbox.com/developers/apps) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create app**, choose **Scoped access**, select **Full Dropbox** or **App folder**, and enter a name.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under the **Settings** tab, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to **Redirect URIs**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **App key** (Client ID) and **App secret** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your App secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Dropbox provider">
+    Go to **OAuth Providers** > **Add Provider** > **Dropbox**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Dropbox App key
+    - **Client Secret**: Paste your Dropbox App secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `account_info.read` | Read account information |
+| `files.metadata.read` | Read file and folder metadata |
+| `files.metadata.write` | Write file and folder metadata |
+| `files.content.read` | Read file contents |
+| `files.content.write` | Write file contents |
+| `sharing.read` | Read sharing settings |
+| `sharing.write` | Manage sharing settings |
+
+## Notes
+
+- Dropbox uses short-lived access tokens with refresh tokens. Alter Vault handles automatic token refresh.
+- The `files.content.read` and `files.content.write` scopes must be enabled in your app's **Permissions** tab in the Dropbox App Console.
+- See the [Dropbox API documentation](https://www.dropbox.com/developers/documentation/http/documentation) for more details.

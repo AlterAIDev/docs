@@ -1,0 +1,85 @@
+---
+title: 'Discord'
+description: 'Set up Discord OAuth for user identity, server data, and messaging'
+---
+
+## Overview
+
+Connect your users to Discord for identity verification, server membership data, and messaging integrations.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `discord` |
+| **Category** | Communication |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Discord OAuth App
+
+<Steps>
+  <Step title="Go to the Discord Developer Portal">
+    Navigate to [discord.com/developers/applications](https://discord.com/developers/applications) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **New Application**, enter a name, and click **Create**.
+  </Step>
+
+  <Step title="Configure OAuth2">
+    In the left sidebar, click **OAuth2**. Under **Redirects**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev).
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the OAuth2 page.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Discord provider">
+    Go to **OAuth Providers** > **Add Provider** > **Discord**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Discord Client ID
+    - **Client Secret**: Paste your Discord Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `identify` | Access to user ID, username, and avatar |
+| `email` | Access to user's verified email address |
+| `guilds` | Access to list of servers the user belongs to |
+| `guilds.join` | Add user to a server |
+| `guilds.members.read` | Read server member data |
+| `messages.read` | Read DM messages (requires approval) |
+| `bot` | Add a bot to a server |
+| `connections` | Access to linked third-party accounts |
+| `webhook.incoming` | Create webhooks in servers |
+
+## Notes
+
+- The `messages.read` scope requires Discord approval and is only available to verified bots.
+- For most user-facing integrations, `identify` and `email` are sufficient.
+- See the [Discord OAuth2 documentation](https://discord.com/developers/docs/topics/oauth2) for more details.

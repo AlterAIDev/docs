@@ -97,25 +97,34 @@
             "providers/calendly",
             "providers/clickup",
             "providers/canva",
-            "providers/notion"
+            "providers/notion",
+            "providers/hubspot",
+            "providers/microsoft",
+            "providers/salesforce"
           ]
         },
         {
           "group": "Productivity",
           "pages": [
+            "providers/acuity-scheduling",
             "providers/airtable",
             "providers/basecamp",
             "providers/cal-com",
             "providers/linear",
-            "providers/acuity-scheduling"
+            "providers/miro",
+            "providers/monday",
+            "providers/todoist",
+            "providers/typeform"
           ]
         },
         {
           "group": "CRM & Sales",
           "pages": [
+            "providers/apollo",
             "providers/attio",
             "providers/close",
-            "providers/apollo"
+            "providers/outreach",
+            "providers/pipedrive"
           ]
         },
         {
@@ -124,34 +133,74 @@
             "providers/adobe",
             "providers/autodesk",
             "providers/bitbucket",
-            "providers/contentful"
+            "providers/contentful",
+            "providers/figma",
+            "providers/pagerduty",
+            "providers/webflow"
           ]
         },
         {
           "group": "Marketing",
           "pages": [
             "providers/bitly",
-            "providers/constant-contact"
+            "providers/constant-contact",
+            "providers/mailchimp"
           ]
         },
         {
           "group": "Communication",
           "pages": [
             "providers/aircall",
-            "providers/dialpad"
+            "providers/dialpad",
+            "providers/discord",
+            "providers/ringcentral",
+            "providers/webex"
+          ]
+        },
+        {
+          "group": "Social",
+          "pages": [
+            "providers/facebook",
+            "providers/instagram",
+            "providers/linkedin",
+            "providers/pinterest",
+            "providers/reddit",
+            "providers/snapchat",
+            "providers/spotify",
+            "providers/tiktok",
+            "providers/twitter"
           ]
         },
         {
           "group": "Storage & Files",
           "pages": [
-            "providers/box"
+            "providers/box",
+            "providers/dropbox"
           ]
         },
         {
           "group": "Finance & HR",
           "pages": [
             "providers/brex",
-            "providers/deel"
+            "providers/deel",
+            "providers/mercury",
+            "providers/quickbooks",
+            "providers/ramp"
+          ]
+        },
+        {
+          "group": "Payments",
+          "pages": [
+            "providers/paypal",
+            "providers/square",
+            "providers/stripe"
+          ]
+        },
+        {
+          "group": "E-Commerce",
+          "pages": [
+            "providers/ebay",
+            "providers/squarespace"
           ]
         },
         {
@@ -163,7 +212,15 @@
         {
           "group": "Cloud & Infrastructure",
           "pages": [
-            "providers/aws"
+            "providers/aws",
+            "providers/digitalocean"
+          ]
+        },
+        {
+          "group": "Business",
+          "pages": [
+            "providers/docusign",
+            "providers/eventbrite"
           ]
         }
       ]

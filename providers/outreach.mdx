@@ -1,0 +1,79 @@
+---
+title: 'Outreach'
+description: 'Set up Outreach OAuth for sales engagement and outreach automation'
+---
+
+## Overview
+
+Connect your users to Outreach for sales engagement, sequence management, prospect tracking, and account data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `outreach` |
+| **Category** | CRM & Sales |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Outreach OAuth App
+
+<Steps>
+  <Step title="Go to the Outreach Developer Portal">
+    Navigate to [developers.outreach.io](https://developers.outreach.io/) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Register a new OAuth application and enter the application name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Outreach provider">
+    Go to **OAuth Providers** > **Add Provider** > **Outreach**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Outreach Client ID
+    - **Client Secret**: Paste your Outreach Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `prospects.read` | Read prospect records |
+| `prospects.write` | Create and update prospects |
+| `sequences.read` | Read sequence data |
+| `sequences.write` | Create and manage sequences |
+| `accounts.read` | Read account records |
+
+## Notes
+
+- See the [Outreach OAuth documentation](https://developers.outreach.io/api/oauth/) for more details on available endpoints and scopes.

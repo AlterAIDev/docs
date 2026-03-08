@@ -1,0 +1,78 @@
+---
+title: 'Mercury'
+description: 'Set up Mercury OAuth for business banking and financial data'
+---
+
+## Overview
+
+Connect your users to Mercury for business banking data, account balances, transactions, and financial management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `mercury` |
+| **Category** | Finance & HR |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Mercury OAuth App
+
+<Steps>
+  <Step title="Go to the Mercury Developer Settings">
+    Navigate to [app.mercury.com/settings/developers](https://app.mercury.com/settings/developers) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **Create Application** and enter the application name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Mercury provider">
+    Go to **OAuth Providers** > **Add Provider** > **Mercury**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Mercury Client ID
+    - **Client Secret**: Paste your Mercury Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `read` | Read-only access to account and transaction data |
+| `write` | Write access to account data |
+| `transfer` | Initiate transfers and payments |
+
+## Notes
+
+- Request only the scopes your application needs. For read-only financial dashboards, `read` is sufficient.
+- See the [Mercury OAuth documentation](https://docs.mercury.com/reference/oauth) for more details.

@@ -1,0 +1,82 @@
+---
+title: 'LinkedIn'
+description: 'Set up LinkedIn OAuth for professional networking and social posting'
+---
+
+## Overview
+
+Connect your users to LinkedIn for professional profile data, social posting, and organizational content.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `linkedin` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a LinkedIn OAuth App
+
+<Steps>
+  <Step title="Go to the LinkedIn Developer Portal">
+    Navigate to [linkedin.com/developers/apps](https://www.linkedin.com/developers/apps) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create app**, fill in the app name, associate it with a LinkedIn Page, and upload a logo.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under the **Auth** tab, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to **Authorized redirect URLs for your app**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the **Auth** tab.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add LinkedIn provider">
+    Go to **OAuth Providers** > **Add Provider** > **LinkedIn**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your LinkedIn Client ID
+    - **Client Secret**: Paste your LinkedIn Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect authentication |
+| `profile` | Access to profile name, photo, and headline |
+| `email` | Access to primary email address |
+| `w_member_social` | Post, comment, and like on behalf of member |
+| `r_liteprofile` | Read basic profile data |
+| `r_emailaddress` | Read email address |
+| `r_organization_social` | Read organizational posts and statistics |
+
+## Notes
+
+- LinkedIn requires requesting product access for some scopes (e.g., `r_organization_social`). Apply in the **Products** tab of your app.
+- See the [LinkedIn OAuth 2.0 documentation](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow) for more details.

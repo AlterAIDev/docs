@@ -1,0 +1,83 @@
+---
+title: 'RingCentral'
+description: 'Set up RingCentral OAuth for cloud communications and telephony'
+---
+
+## Overview
+
+Connect your users to RingCentral for cloud phone systems, messaging, video meetings, and call log access.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `ringcentral` |
+| **Category** | Communication |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a RingCentral OAuth App
+
+<Steps>
+  <Step title="Go to the RingCentral Developer Portal">
+    Navigate to [developers.ringcentral.com/my-account.html](https://developers.ringcentral.com/my-account.html) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create App**, select **OAuth 2.0**, and fill in the app name and platform type.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **OAuth Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add RingCentral provider">
+    Go to **OAuth Providers** > **Add Provider** > **RingCentral**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your RingCentral Client ID
+    - **Client Secret**: Paste your RingCentral Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `ReadAccounts` | Read account and extension data |
+| `EditAccounts` | Modify account settings |
+| `ReadMessages` | Read messages, voicemails, and faxes |
+| `EditMessages` | Send and manage messages |
+| `ReadCallLog` | Read call log history |
+| `ReadPresence` | Read presence status |
+| `Meetings` | Access meeting data |
+| `Contacts` | Read and manage contacts |
+
+## Notes
+
+- RingCentral has separate sandbox and production environments. Test with sandbox credentials before going to production.
+- See the [RingCentral authentication guide](https://developers.ringcentral.com/guide/authentication) for more details.

@@ -1,0 +1,82 @@
+---
+title: 'Squarespace'
+description: 'Set up Squarespace OAuth for website and ecommerce management'
+---
+
+## Overview
+
+Connect your users to Squarespace for website content management, ecommerce orders, inventory, and product data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `squarespace` |
+| **Category** | E-Commerce |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Squarespace OAuth App
+
+<Steps>
+  <Step title="Go to the Squarespace Developer Portal">
+    Navigate to [developers.squarespace.com](https://developers.squarespace.com/) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Register a new application and enter the app name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Squarespace provider">
+    Go to **OAuth Providers** > **Add Provider** > **Squarespace**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Squarespace Client ID
+    - **Client Secret**: Paste your Squarespace Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `website.orders.read` | Read order data |
+| `website.orders.write` | Manage orders |
+| `website.inventory.read` | Read inventory data |
+| `website.inventory.write` | Manage inventory |
+| `website.pages.read` | Read page content |
+| `website.products.read` | Read product catalog |
+| `website.products.write` | Manage products |
+
+## Notes
+
+- Squarespace issues short-lived tokens. Alter Vault handles automatic token refresh.
+- See the [Squarespace OAuth documentation](https://developers.squarespace.com/oauth) for more details.

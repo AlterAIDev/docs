@@ -1,0 +1,80 @@
+---
+title: 'PayPal'
+description: 'Set up PayPal OAuth for payment processing and account access'
+---
+
+## Overview
+
+Connect your users to PayPal for payment processing, account information, and financial transaction data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `paypal` |
+| **Category** | Payments |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a PayPal OAuth App
+
+<Steps>
+  <Step title="Go to the PayPal Developer Dashboard">
+    Navigate to [developer.paypal.com/dashboard/applications](https://developer.paypal.com/dashboard/applications) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create App**, enter an app name, and select **Merchant** or **Platform** as the app type.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **App Settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Return URL** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add PayPal provider">
+    Go to **OAuth Providers** > **Add Provider** > **PayPal**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your PayPal Client ID
+    - **Client Secret**: Paste your PayPal Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect authentication |
+| `email` | Access to verified email address |
+| `profile` | Access to account profile information |
+| `address` | Access to account address |
+| `https://uri.paypal.com/services/paypalattributes` | Access to PayPal account attributes |
+
+## Notes
+
+- PayPal has separate sandbox and production environments. Use sandbox credentials for development.
+- See the [PayPal Log In with PayPal documentation](https://developer.paypal.com/docs/log-in-with-paypal/integrate/) for more details.

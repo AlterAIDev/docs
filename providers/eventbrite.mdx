@@ -1,0 +1,67 @@
+---
+title: 'Eventbrite'
+description: 'Set up Eventbrite OAuth for event management and ticketing'
+---
+
+## Overview
+
+Connect your users to Eventbrite for event creation, attendee management, and ticketing data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `eventbrite` |
+| **Category** | Business |
+| **PKCE** | Not supported |
+| **Token refresh** | Not supported (permanent tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Eventbrite OAuth App
+
+<Steps>
+  <Step title="Go to the Eventbrite API Keys page">
+    Navigate to [eventbrite.com/platform/api-keys](https://www.eventbrite.com/platform/api-keys) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create App** and fill in the application name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **OAuth Redirect URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Eventbrite provider">
+    Go to **OAuth Providers** > **Add Provider** > **Eventbrite**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Eventbrite Client ID
+    - **Client Secret**: Paste your Eventbrite Client Secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Notes
+
+- Eventbrite issues permanent (non-expiring) access tokens. There is no refresh token flow.
+- Access is granted to all Eventbrite API scopes by default — no scope selection is required.
+- See the [Eventbrite API documentation](https://www.eventbrite.com/platform/api) for more details.

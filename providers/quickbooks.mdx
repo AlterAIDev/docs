@@ -1,0 +1,81 @@
+---
+title: 'QuickBooks'
+description: 'Set up QuickBooks OAuth for accounting and financial management'
+---
+
+## Overview
+
+Connect your users to QuickBooks for accounting data, invoicing, expense tracking, and financial reporting.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `quickbooks` |
+| **Category** | Finance & HR |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a QuickBooks OAuth App
+
+<Steps>
+  <Step title="Go to the Intuit Developer Dashboard">
+    Navigate to [developer.intuit.com/app/developer/dashboard](https://developer.intuit.com/app/developer/dashboard) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create an app**, select **QuickBooks Online and Payments**, and fill in the app name.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **Development** > **Keys & OAuth**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add QuickBooks provider">
+    Go to **OAuth Providers** > **Add Provider** > **QuickBooks**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your QuickBooks Client ID
+    - **Client Secret**: Paste your QuickBooks Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `com.intuit.quickbooks.accounting` | Full access to QuickBooks accounting data |
+| `com.intuit.quickbooks.payment` | Access to payment processing |
+| `openid` | OpenID Connect authentication |
+| `profile` | Access to user profile |
+| `email` | Access to user email address |
+
+## Notes
+
+- QuickBooks has separate sandbox and production environments. Use sandbox credentials during development.
+- The `com.intuit.quickbooks.accounting` scope is required for most accounting operations.
+- See the [QuickBooks OAuth 2.0 documentation](https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0) for more details.

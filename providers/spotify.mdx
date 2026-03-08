@@ -1,0 +1,85 @@
+---
+title: 'Spotify'
+description: 'Set up Spotify OAuth for music data, playlists, and listening history'
+---
+
+## Overview
+
+Connect your users to Spotify for music data, playlist management, playback control, and listening history.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `spotify` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Spotify OAuth App
+
+<Steps>
+  <Step title="Go to the Spotify Developer Dashboard">
+    Navigate to [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create app**, fill in the app name and description, and accept the terms.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **Edit settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the app dashboard.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Spotify provider">
+    Go to **OAuth Providers** > **Add Provider** > **Spotify**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Spotify Client ID
+    - **Client Secret**: Paste your Spotify Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `user-read-email` | Read user's email address |
+| `user-read-private` | Read user's subscription details and country |
+| `playlist-read-private` | Read private playlists |
+| `playlist-modify-public` | Create and modify public playlists |
+| `playlist-modify-private` | Create and modify private playlists |
+| `user-library-read` | Read saved tracks and albums |
+| `user-library-modify` | Save and remove tracks and albums |
+| `user-top-read` | Read top tracks and artists |
+| `user-read-recently-played` | Read recently played tracks |
+| `streaming` | Control playback via the Web Playback SDK |
+
+## Notes
+
+- Spotify access tokens expire after 1 hour. Alter Vault handles automatic refresh.
+- See the [Spotify Web API authorization documentation](https://developer.spotify.com/documentation/web-api/concepts/authorization) for more details.

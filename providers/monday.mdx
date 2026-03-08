@@ -1,0 +1,81 @@
+---
+title: 'monday.com'
+description: 'Set up monday.com OAuth for work management and project tracking'
+---
+
+## Overview
+
+Connect your users to monday.com for work management, project boards, task tracking, and team collaboration.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `monday` |
+| **Category** | Productivity |
+| **PKCE** | Not supported |
+| **Token refresh** | Not supported (permanent tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a monday.com OAuth App
+
+<Steps>
+  <Step title="Go to the monday.com Developer Center">
+    Navigate to [monday.com/developers/apps](https://monday.com/developers/apps) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create app** and enter the app name.
+  </Step>
+
+  <Step title="Configure OAuth">
+    Under **OAuth**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URLs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the OAuth settings.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add monday.com provider">
+    Go to **OAuth Providers** > **Add Provider** > **monday.com**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your monday.com Client ID
+    - **Client Secret**: Paste your monday.com Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `me:read` | Read authenticated user information |
+| `boards:read` | Read boards and items |
+| `boards:write` | Create and modify boards and items |
+| `workspaces:read` | Read workspace information |
+| `updates:read` | Read updates on items |
+| `updates:write` | Create updates on items |
+
+## Notes
+
+- monday.com tokens do not expire. There is no refresh token flow.
+- See the [monday.com OAuth documentation](https://developer.monday.com/apps/docs/oauth) for more details.

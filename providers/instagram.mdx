@@ -1,0 +1,82 @@
+---
+title: 'Instagram'
+description: 'Set up Instagram OAuth for business account data and media management'
+---
+
+## Overview
+
+Connect your users to Instagram for business account data, media publishing, comment management, and insights — via the Meta Graph API.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `instagram` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an Instagram OAuth App
+
+<Steps>
+  <Step title="Go to the Meta for Developers portal">
+    Navigate to [developers.facebook.com/apps](https://developers.facebook.com/apps/) and sign in. Instagram OAuth requires a Meta (Facebook) app.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create App**, select **Business** type, and fill in the app details.
+  </Step>
+
+  <Step title="Add Instagram Login">
+    In the app dashboard, add the **Instagram** product. Under **Instagram** > **Instagram Login** > **Settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to **Valid OAuth Redirect URIs**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Go to **Settings** > **Basic** and copy the **App ID** (Client ID) and **App Secret** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your App Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Instagram provider">
+    Go to **OAuth Providers** > **Add Provider** > **Instagram**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Meta App ID
+    - **Client Secret**: Paste your Meta App Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `instagram_basic` | Access to Instagram profile and media |
+| `instagram_content_publish` | Publish media to Instagram |
+| `instagram_manage_comments` | Read and reply to comments |
+| `instagram_manage_insights` | Access account insights and metrics |
+| `pages_show_list` | List connected Facebook Pages |
+| `pages_read_engagement` | Read Page engagement data |
+
+## Notes
+
+- Instagram OAuth requires the user's Instagram account to be connected to a Facebook Page.
+- Some permissions require App Review before use in production.
+- See the [Instagram API with Facebook Login documentation](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login) for more details.

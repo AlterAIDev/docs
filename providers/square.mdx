@@ -1,0 +1,84 @@
+---
+title: 'Square'
+description: 'Set up Square OAuth for payment processing and commerce management'
+---
+
+## Overview
+
+Connect your users to Square for payment processing, inventory management, order tracking, and customer data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `square` |
+| **Category** | Payments |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Square OAuth App
+
+<Steps>
+  <Step title="Go to the Square Developer Portal">
+    Navigate to [developer.squareup.com/apps](https://developer.squareup.com/apps) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **Create your first application** (or **+** to add another), enter the app name, and click **Save**.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **OAuth**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URL** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Application ID** (Client ID) and **Application Secret** (Client Secret) from the **Credentials** tab.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Application Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Square provider">
+    Go to **OAuth Providers** > **Add Provider** > **Square**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Square Application ID
+    - **Client Secret**: Paste your Square Application Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `MERCHANT_PROFILE_READ` | Read merchant profile and business info |
+| `PAYMENTS_READ` | Read payment records |
+| `PAYMENTS_WRITE` | Create and process payments |
+| `ORDERS_READ` | Read order data |
+| `ORDERS_WRITE` | Create and manage orders |
+| `ITEMS_READ` | Read catalog items and inventory |
+| `ITEMS_WRITE` | Create and manage catalog items |
+| `CUSTOMERS_READ` | Read customer profiles |
+| `CUSTOMERS_WRITE` | Create and manage customers |
+
+## Notes
+
+- Square has separate sandbox and production environments. Use sandbox credentials during development.
+- See the [Square OAuth API documentation](https://developer.squareup.com/docs/oauth-api/overview) for more details.

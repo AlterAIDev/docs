@@ -1,0 +1,83 @@
+---
+title: 'Webex'
+description: 'Set up Webex OAuth for team messaging, video meetings, and collaboration'
+---
+
+## Overview
+
+Connect your users to Webex for team messaging, video conferencing, room management, and collaboration integrations.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `webex` |
+| **Category** | Communication |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Webex OAuth App
+
+<Steps>
+  <Step title="Go to the Webex Developer Portal">
+    Navigate to [developer.webex.com/my-apps](https://developer.webex.com/my-apps) and sign in.
+  </Step>
+
+  <Step title="Create a new integration">
+    Click **Create a New App** > **Create an Integration**. Fill in the integration name, description, and icon.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URI(s)** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Webex provider">
+    Go to **OAuth Providers** > **Add Provider** > **Webex**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Webex Client ID
+    - **Client Secret**: Paste your Webex Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `spark:all` | Full access to all Webex APIs |
+| `spark:people_read` | Read user profile information |
+| `spark:rooms_read` | Read room and space data |
+| `spark:messages_read` | Read messages in rooms |
+| `spark:messages_write` | Send messages to rooms |
+| `spark:memberships_read` | Read room memberships |
+| `meeting:schedules_read` | Read meeting schedules |
+| `meeting:schedules_write` | Create and manage meetings |
+
+## Notes
+
+- For most integrations, using specific scopes rather than `spark:all` is recommended.
+- See the [Webex integrations documentation](https://developer.webex.com/docs/integrations) for more details.

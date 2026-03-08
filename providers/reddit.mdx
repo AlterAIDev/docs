@@ -1,0 +1,86 @@
+---
+title: 'Reddit'
+description: 'Set up Reddit OAuth for reading and posting to communities'
+---
+
+## Overview
+
+Connect your users to Reddit for reading posts, submitting content, managing subscriptions, and community interactions.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `reddit` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Reddit OAuth App
+
+<Steps>
+  <Step title="Go to Reddit App Preferences">
+    Navigate to [reddit.com/prefs/apps](https://www.reddit.com/prefs/apps) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **are you a developer? create an app...**. Select **web app** as the app type, enter the name, and fill in the description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Enter the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) in the **redirect uri** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** (shown under the app name) and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Reddit provider">
+    Go to **OAuth Providers** > **Add Provider** > **Reddit**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Reddit Client ID
+    - **Client Secret**: Paste your Reddit Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `identity` | Access to account username and karma |
+| `read` | Read posts and comments |
+| `submit` | Submit posts and comments |
+| `edit` | Edit posts and comments |
+| `history` | Access to account history |
+| `subscribe` | Manage subreddit subscriptions |
+| `vote` | Upvote and downvote content |
+| `privatemessages` | Read and send private messages |
+| `save` | Save and unsave posts and comments |
+| `flair` | Manage user and post flair |
+| `mysubreddits` | Access to subscribed subreddits |
+
+## Notes
+
+- Reddit access tokens expire after 1 hour. Alter Vault handles automatic token refresh.
+- See the [Reddit OAuth2 documentation](https://github.com/reddit-archive/reddit/wiki/OAuth2) for more details.

@@ -1,0 +1,77 @@
+---
+title: 'PagerDuty'
+description: 'Set up PagerDuty OAuth for incident management and on-call scheduling'
+---
+
+## Overview
+
+Connect your users to PagerDuty for incident management, on-call scheduling, alert routing, and service health monitoring.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `pagerduty` |
+| **Category** | Design & Developer Tools |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a PagerDuty OAuth App
+
+<Steps>
+  <Step title="Go to the PagerDuty Developer Portal">
+    Navigate to the [PagerDuty OAuth2 documentation](https://developer.pagerduty.com/docs/app-integration-development/oauth-2-functionality/) and sign in to your PagerDuty account.
+  </Step>
+
+  <Step title="Register your app">
+    Go to **Integrations** > **App Registration** and register a new app. Select **OAuth 2.0** as the authorization type.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URLs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add PagerDuty provider">
+    Go to **OAuth Providers** > **Add Provider** > **PagerDuty**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your PagerDuty Client ID
+    - **Client Secret**: Paste your PagerDuty Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect authentication |
+| `read` | Read-only access to PagerDuty data |
+| `write` | Read and write access to PagerDuty data |
+
+## Notes
+
+- See the [PagerDuty OAuth2 documentation](https://developer.pagerduty.com/docs/app-integration-development/oauth-2-functionality/) for more details.

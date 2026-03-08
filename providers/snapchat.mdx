@@ -1,0 +1,77 @@
+---
+title: 'Snapchat'
+description: 'Set up Snapchat OAuth for marketing and advertising management'
+---
+
+## Overview
+
+Connect your users to Snapchat for marketing campaign management, advertising data, and profile information.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `snapchat` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Snapchat OAuth App
+
+<Steps>
+  <Step title="Go to the Snapchat Business Manager">
+    Navigate to [business.snapchat.com](https://business.snapchat.com/) and sign in.
+  </Step>
+
+  <Step title="Register your app">
+    Go to **Business Settings** > **OAuth Apps** and click **Register App**. Fill in the app name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URLs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Snapchat provider">
+    Go to **OAuth Providers** > **Add Provider** > **Snapchat**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Snapchat Client ID
+    - **Client Secret**: Paste your Snapchat Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `snapchat-marketing-api` | Access to Snapchat Marketing API for ad management |
+| `snapchat-profile-api` | Access to user profile data |
+
+## Notes
+
+- Snapchat Marketing API access requires approval from Snapchat. Apply through the Business Manager.
+- See the [Snapchat Marketing API authentication documentation](https://marketingapi.snapchat.com/docs/#authentication) for more details.

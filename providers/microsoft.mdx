@@ -1,0 +1,92 @@
+---
+title: 'Microsoft'
+description: 'Set up Microsoft OAuth for Office 365, Outlook, OneDrive, and Azure services'
+---
+
+## Overview
+
+Connect your users to Microsoft for Office 365, Outlook email, OneDrive files, Teams, Calendar, and Azure services.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `microsoft` |
+| **Category** | Popular |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Microsoft OAuth App
+
+<Steps>
+  <Step title="Go to the Azure App Registrations">
+    Navigate to the [Azure App Registrations](https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationsListBlade) and sign in with your Microsoft account.
+  </Step>
+
+  <Step title="Register a new application">
+    Click **New registration**. Enter an application name and select **Accounts in any organizational directory and personal Microsoft accounts**.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **Authentication**, click **Add a platform** > **Web**. Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) as the redirect URI.
+  </Step>
+
+  <Step title="Create a client secret">
+    Go to **Certificates & secrets** > **New client secret**. Set an expiry and copy the **Value** immediately — it's only shown once.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Application (client) ID** from the **Overview** page. The secret you copied is your Client Secret.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Microsoft provider">
+    Go to **OAuth Providers** > **Add Provider** > **Microsoft**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Application (client) ID
+    - **Client Secret**: Paste your client secret Value
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect authentication |
+| `profile` | Access to user profile information |
+| `email` | Access to user email address |
+| `offline_access` | Obtain refresh tokens for long-lived access |
+| `User.Read` | Read user profile |
+| `User.ReadWrite` | Read and write user profile |
+| `Mail.Read` | Read email messages |
+| `Mail.Send` | Send emails on behalf of user |
+| `Calendars.Read` | Read calendar events |
+| `Calendars.ReadWrite` | Create and manage calendar events |
+| `Files.Read` | Read OneDrive files |
+| `Files.ReadWrite` | Read and write OneDrive files |
+
+## Notes
+
+- Always include `offline_access` to receive a refresh token for long-lived access.
+- Microsoft requires admin consent for certain organizational scopes.
+- See the [Microsoft OAuth 2.0 documentation](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) for more details.

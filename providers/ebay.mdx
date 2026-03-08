@@ -1,0 +1,81 @@
+---
+title: 'eBay'
+description: 'Set up eBay OAuth for marketplace selling and order management'
+---
+
+## Overview
+
+Connect your users to eBay for marketplace selling, inventory management, order fulfillment, and account data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `ebay` |
+| **Category** | E-Commerce |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create an eBay OAuth App
+
+<Steps>
+  <Step title="Go to the eBay Developer Portal">
+    Navigate to [developer.ebay.com/my/keys](https://developer.ebay.com/my/keys) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Click **Get a Keyset** and fill in the application details.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    In your app settings, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **RuName** (eBay Redirect URL name) configuration.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** (App ID) and **Client Secret** (Cert ID).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add eBay provider">
+    Go to **OAuth Providers** > **Add Provider** > **eBay**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your eBay App ID
+    - **Client Secret**: Paste your eBay Cert ID
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `https://api.ebay.com/oauth/api_scope` | Basic public data access |
+| `https://api.ebay.com/oauth/api_scope/sell.marketing` | Marketing tools access |
+| `https://api.ebay.com/oauth/api_scope/sell.inventory` | Inventory management |
+| `https://api.ebay.com/oauth/api_scope/sell.fulfillment` | Order fulfillment |
+| `https://api.ebay.com/oauth/api_scope/sell.account` | Account settings |
+
+## Notes
+
+- eBay uses full URL strings as scope values rather than short names.
+- eBay has separate sandbox and production environments. Test with sandbox credentials before going to production.
+- See the [eBay OAuth documentation](https://developer.ebay.com/api-docs/static/oauth-authorization-code-grant.html) for more details.

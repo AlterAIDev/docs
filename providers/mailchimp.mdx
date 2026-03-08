@@ -1,0 +1,68 @@
+---
+title: 'Mailchimp'
+description: 'Set up Mailchimp OAuth for email marketing and audience management'
+---
+
+## Overview
+
+Connect your users to Mailchimp for email marketing campaigns, audience management, and subscriber data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `mailchimp` |
+| **Category** | Marketing |
+| **PKCE** | Not supported |
+| **Token refresh** | Not supported (permanent tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Mailchimp OAuth App
+
+<Steps>
+  <Step title="Go to the Mailchimp OAuth2 page">
+    Navigate to [admin.mailchimp.com/account/oauth2](https://admin.mailchimp.com/account/oauth2/) and sign in.
+  </Step>
+
+  <Step title="Register a new application">
+    Click **Register App** and fill in the application name, description, and website URL.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Enter the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) as the **Redirect URI**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Mailchimp provider">
+    Go to **OAuth Providers** > **Add Provider** > **Mailchimp**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Mailchimp Client ID
+    - **Client Secret**: Paste your Mailchimp Client Secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Notes
+
+- Mailchimp issues permanent (non-expiring) access tokens. There is no refresh token flow.
+- No scope selection is required — the token grants access to all Mailchimp API endpoints for the authenticated user.
+- Mailchimp uses a data center suffix in API URLs (e.g., `us1`). The API base URL is returned in the metadata endpoint after authorization.
+- See the [Mailchimp OAuth2 guide](https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/) for more details.

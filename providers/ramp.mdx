@@ -1,0 +1,79 @@
+---
+title: 'Ramp'
+description: 'Set up Ramp OAuth for corporate card and expense management'
+---
+
+## Overview
+
+Connect your users to Ramp for corporate card management, expense tracking, transaction data, and spend analytics.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `ramp` |
+| **Category** | Finance & HR |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Ramp OAuth App
+
+<Steps>
+  <Step title="Go to the Ramp Developer Documentation">
+    Navigate to [docs.ramp.com](https://docs.ramp.com/) and review the OAuth setup guide.
+  </Step>
+
+  <Step title="Contact Ramp to register your app">
+    Ramp's OAuth integration requires registration. Follow the instructions in the Ramp API documentation to request API access and register your application.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to your application's redirect URI configuration.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** provided during registration.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Ramp provider">
+    Go to **OAuth Providers** > **Add Provider** > **Ramp**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Ramp Client ID
+    - **Client Secret**: Paste your Ramp Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `transactions:read` | Read transaction data |
+| `transactions:write` | Manage transaction data |
+| `users:read` | Read user information |
+| `cards:read` | Read corporate card data |
+| `reimbursements:read` | Read reimbursement data |
+
+## Notes
+
+- See the [Ramp API authorization documentation](https://docs.ramp.com/reference/authorization) for more details.

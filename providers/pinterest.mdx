@@ -1,0 +1,84 @@
+---
+title: 'Pinterest'
+description: 'Set up Pinterest OAuth for boards, pins, and visual content management'
+---
+
+## Overview
+
+Connect your users to Pinterest for board management, pin creation, audience insights, and advertising data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `pinterest` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Pinterest OAuth App
+
+<Steps>
+  <Step title="Go to the Pinterest Developer Portal">
+    Navigate to [developers.pinterest.com/apps](https://developers.pinterest.com/apps/) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create app**, enter the app name, and fill in the required details.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **App ID** (Client ID) and **App Secret Key** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your App Secret Key publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Pinterest provider">
+    Go to **OAuth Providers** > **Add Provider** > **Pinterest**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Pinterest App ID
+    - **Client Secret**: Paste your Pinterest App Secret Key
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `boards:read` | Read board data |
+| `boards:write` | Create and manage boards |
+| `pins:read` | Read pin data |
+| `pins:write` | Create and manage pins |
+| `user_accounts:read` | Read user account data |
+| `ads:read` | Read advertising data |
+| `ads:write` | Create and manage ads |
+| `catalogs:read` | Read product catalogs |
+| `catalogs:write` | Manage product catalogs |
+
+## Notes
+
+- Some scopes (e.g., `ads:read`) require your app to be approved for advertising access.
+- See the [Pinterest OAuth documentation](https://developers.pinterest.com/docs/getting-started/authentication-and-scopes/) for more details.

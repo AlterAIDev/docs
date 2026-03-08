@@ -1,0 +1,81 @@
+---
+title: 'TikTok'
+description: 'Set up TikTok OAuth for user data and video management'
+---
+
+## Overview
+
+Connect your users to TikTok for profile data, video management, content publishing, and creator analytics.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `tiktok` |
+| **Category** | Social |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a TikTok OAuth App
+
+<Steps>
+  <Step title="Go to the TikTok for Developers portal">
+    Navigate to [developers.tiktok.com](https://developers.tiktok.com/) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Manage apps** > **Create app**, fill in the app name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **Login Kit** or the appropriate product, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client key** (Client ID) and **Client secret** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add TikTok provider">
+    Go to **OAuth Providers** > **Add Provider** > **TikTok**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your TikTok Client key
+    - **Client Secret**: Paste your TikTok Client secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `user.info.basic` | Basic user information (open_id, display_name, avatar) |
+| `user.info.profile` | Full user profile information |
+| `user.info.stats` | User statistics (followers, likes, videos count) |
+| `video.list` | Read the user's video list |
+| `video.publish` | Publish videos on behalf of the user |
+| `video.upload` | Upload videos for the user |
+
+## Notes
+
+- TikTok requires app review for certain scopes. Apply through the TikTok for Developers portal.
+- See the [TikTok OAuth user access token documentation](https://developers.tiktok.com/doc/oauth-user-access-token-management) for more details.

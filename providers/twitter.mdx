@@ -1,0 +1,87 @@
+---
+title: 'Twitter (X)'
+description: 'Set up Twitter (X) OAuth for reading and posting tweets'
+---
+
+## Overview
+
+Connect your users to Twitter (X) for reading tweets, posting content, managing follows, and accessing user data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `twitter` |
+| **Category** | Social |
+| **PKCE** | Required |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Twitter OAuth App
+
+<Steps>
+  <Step title="Go to the Twitter Developer Portal">
+    Navigate to [developer.x.com/en/portal/dashboard](https://developer.x.com/en/portal/dashboard) and sign in.
+  </Step>
+
+  <Step title="Create a new project and app">
+    Click **Add App** (or create a new Project first), enter the app name, and select the use case.
+  </Step>
+
+  <Step title="Configure OAuth 2.0">
+    In app settings, under **User authentication settings**, enable **OAuth 2.0**. Set the **Type of App** to **Web App**. Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Callback URI** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret** from the **Keys and tokens** tab.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Twitter provider">
+    Go to **OAuth Providers** > **Add Provider** > **Twitter (X)**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Twitter Client ID
+    - **Client Secret**: Paste your Twitter Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `tweet.read` | Read tweets and timelines |
+| `tweet.write` | Create and delete tweets |
+| `users.read` | Read user profile data |
+| `follows.read` | Read follows and followers |
+| `follows.write` | Follow and unfollow accounts |
+| `like.read` | Read liked tweets |
+| `like.write` | Like and unlike tweets |
+| `offline.access` | Obtain a refresh token for long-lived access |
+| `space.read` | Read Twitter Spaces |
+| `bookmark.read` | Read bookmarks |
+| `bookmark.write` | Add and remove bookmarks |
+
+## Notes
+
+- Twitter OAuth 2.0 requires PKCE. Alter Vault handles this automatically.
+- Always include `offline.access` to receive a refresh token.
+- See the [Twitter OAuth 2.0 documentation](https://developer.x.com/en/docs/authentication/oauth-2-0/authorization-code) for more details.

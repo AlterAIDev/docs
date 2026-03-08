@@ -1,0 +1,78 @@
+---
+title: 'Stripe'
+description: 'Set up Stripe Connect OAuth for payment processing and financial infrastructure'
+---
+
+## Overview
+
+Connect your users to Stripe via Stripe Connect for payment processing, account management, and financial data access.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `stripe` |
+| **Category** | Payments |
+| **PKCE** | Not supported |
+| **Token refresh** | Not supported (permanent tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Stripe Connect OAuth App
+
+<Steps>
+  <Step title="Go to Stripe Connect Settings">
+    Navigate to [dashboard.stripe.com/settings/connect](https://dashboard.stripe.com/settings/connect) and sign in.
+  </Step>
+
+  <Step title="Enable OAuth">
+    Under **Integration**, enable **OAuth for Standard accounts**.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** from the Connect settings page. Your **Secret Key** from the **Developers** > **API keys** page is your Client Secret.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Secret Key publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Stripe provider">
+    Go to **OAuth Providers** > **Add Provider** > **Stripe**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Stripe Connect Client ID
+    - **Client Secret**: Paste your Stripe Secret Key
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `read_only` | Read-only access to the connected account |
+| `read_write` | Full read and write access to the connected account |
+
+## Notes
+
+- Stripe Connect tokens do not expire. There is no refresh token flow.
+- Stripe Connect is for connecting to other Stripe accounts (not individual user accounts).
+- See the [Stripe Connect OAuth reference](https://docs.stripe.com/connect/oauth-reference) for more details.

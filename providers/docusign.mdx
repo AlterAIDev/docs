@@ -1,0 +1,83 @@
+---
+title: 'DocuSign'
+description: 'Set up DocuSign OAuth for electronic signatures and agreement management'
+---
+
+## Overview
+
+Connect your users to DocuSign for electronic signature workflows, document management, and agreement automation.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `docusign` |
+| **Category** | Business |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a DocuSign OAuth App
+
+<Steps>
+  <Step title="Go to the DocuSign Developer Portal">
+    Navigate to [developers.docusign.com](https://developers.docusign.com/) and sign in.
+  </Step>
+
+  <Step title="Create a new application">
+    Go to **Apps and Keys** and click **Add App and Integration Key**.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **Additional settings**, add a **Redirect URI** using the Alter callback URL from the [Developer Portal](https://portal.alterai.dev).
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Integration Key** (Client ID) and generate a **Secret Key** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Secret Key publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add DocuSign provider">
+    Go to **OAuth Providers** > **Add Provider** > **DocuSign**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your DocuSign Integration Key
+    - **Client Secret**: Paste your DocuSign Secret Key
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `signature` | Send and sign documents |
+| `extended` | Extended access for additional API endpoints |
+| `impersonation` | Act on behalf of another user |
+| `click.manage` | Manage ClickWrap agreements |
+| `click.send` | Send ClickWrap agreements |
+| `organization_read` | Read organization data |
+| `permission_read` | Read permission profile data |
+
+## Notes
+
+- DocuSign requires separate sandbox and production environments. Use the sandbox (`account-d.docusign.com`) for development.
+- The `signature` scope is required for most eSignature operations.
+- See the [DocuSign OAuth documentation](https://developers.docusign.com/platform/auth/authcode/) for more details.

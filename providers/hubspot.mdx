@@ -1,0 +1,82 @@
+---
+title: 'HubSpot'
+description: 'Set up HubSpot OAuth for CRM and marketing automation'
+---
+
+## Overview
+
+Connect your users to HubSpot for CRM data, contact management, deal tracking, and marketing automation.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `hubspot` |
+| **Category** | Popular |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a HubSpot OAuth App
+
+<Steps>
+  <Step title="Go to the HubSpot Developer Portal">
+    Navigate to [developers.hubspot.com](https://developers.hubspot.com/) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Go to **Apps** and click **Create app**. Fill in the app name and details.
+  </Step>
+
+  <Step title="Configure OAuth settings">
+    Under the **Auth** tab, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to **Redirect URLs**.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add HubSpot provider">
+    Go to **OAuth Providers** > **Add Provider** > **HubSpot**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your HubSpot Client ID
+    - **Client Secret**: Paste your HubSpot Client secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `crm.objects.contacts.read` | Read contact records |
+| `crm.objects.contacts.write` | Create and update contacts |
+| `crm.objects.companies.read` | Read company records |
+| `crm.objects.companies.write` | Create and update companies |
+| `crm.objects.deals.read` | Read deal records |
+| `crm.objects.deals.write` | Create and update deals |
+
+## Notes
+
+- HubSpot enforces granular scopes — request only what your app needs.
+- Tokens expire after 6 hours. Alter Vault handles automatic refresh using the refresh token.
+- See the [HubSpot OAuth quickstart](https://developers.hubspot.com/docs/api/oauth-quickstart-guide) for more details.

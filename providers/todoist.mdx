@@ -1,0 +1,81 @@
+---
+title: 'Todoist'
+description: 'Set up Todoist OAuth for task and project management'
+---
+
+## Overview
+
+Connect your users to Todoist for task management, project organization, and productivity tracking.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `todoist` |
+| **Category** | Productivity |
+| **PKCE** | Not supported |
+| **Token refresh** | Not supported (permanent tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Todoist OAuth App
+
+<Steps>
+  <Step title="Go to the Todoist App Console">
+    Navigate to [developer.todoist.com/appconsole.html](https://developer.todoist.com/appconsole.html) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Click **Create a new app**, enter the app name and description, and submit.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **OAuth redirect URL** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Todoist provider">
+    Go to **OAuth Providers** > **Add Provider** > **Todoist**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Todoist Client ID
+    - **Client Secret**: Paste your Todoist Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `task:add` | Add tasks to the user's inbox |
+| `data:read` | Read all user data |
+| `data:read_write` | Read and write all user data |
+| `data:delete` | Delete user data |
+| `project:delete` | Delete projects |
+
+## Notes
+
+- Todoist tokens do not expire. There is no refresh token flow.
+- For most integrations, `data:read` or `data:read_write` is sufficient.
+- See the [Todoist authorization documentation](https://developer.todoist.com/guides/#authorization) for more details.

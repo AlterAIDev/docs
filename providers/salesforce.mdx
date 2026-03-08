@@ -1,0 +1,82 @@
+---
+title: 'Salesforce'
+description: 'Set up Salesforce OAuth for CRM and sales automation'
+---
+
+## Overview
+
+Connect your users to Salesforce for CRM data, opportunity management, contact records, and sales automation.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `salesforce` |
+| **Category** | Popular |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Salesforce OAuth App
+
+<Steps>
+  <Step title="Log into your Salesforce org">
+    Navigate to [login.salesforce.com](https://login.salesforce.com/) and sign in.
+  </Step>
+
+  <Step title="Create a Connected App">
+    Go to **Setup** > **App Manager** > **New Connected App**. Fill in the app name, API name, and contact email.
+  </Step>
+
+  <Step title="Enable OAuth settings">
+    Check **Enable OAuth Settings**. Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Callback URL** field. Select the required OAuth scopes.
+  </Step>
+
+  <Step title="Get your credentials">
+    After saving, go to **Manage Connected Apps** > your app > **View Consumer Details** to find the **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Consumer Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Salesforce provider">
+    Go to **OAuth Providers** > **Add Provider** > **Salesforce**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Salesforce Consumer Key
+    - **Client Secret**: Paste your Salesforce Consumer Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `api` | Access the Salesforce REST API |
+| `refresh_token` | Obtain a refresh token for long-lived access |
+| `full` | Full access to all accessible data |
+| `id` | Access to the user's identity URL |
+| `chatter_api` | Access to Chatter API |
+| `web` | Access to web services |
+
+## Notes
+
+- Always include `refresh_token` to enable long-lived access.
+- Salesforce uses org-specific API URLs. The instance URL is returned in the token response.
+- See the [Salesforce OAuth web server flow documentation](https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm) for more details.

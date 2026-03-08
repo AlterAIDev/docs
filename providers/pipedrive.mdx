@@ -1,0 +1,80 @@
+---
+title: 'Pipedrive'
+description: 'Set up Pipedrive OAuth for sales CRM and pipeline management'
+---
+
+## Overview
+
+Connect your users to Pipedrive for sales pipeline management, contact tracking, deal management, and activity logging.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `pipedrive` |
+| **Category** | CRM & Sales |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Pipedrive OAuth App
+
+<Steps>
+  <Step title="Go to the Pipedrive Developer Hub">
+    Navigate to [developers.pipedrive.com](https://developers.pipedrive.com/) and sign in.
+  </Step>
+
+  <Step title="Create a new app">
+    Go to **Your Apps** and click **Create an app**. Fill in the app name and details.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **OAuth & Access scopes**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Callback URL** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Pipedrive provider">
+    Go to **OAuth Providers** > **Add Provider** > **Pipedrive**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Pipedrive Client ID
+    - **Client Secret**: Paste your Pipedrive Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `deals:read` | Read deal data |
+| `deals:write` | Create and manage deals |
+| `contacts:read` | Read contact and person data |
+| `contacts:write` | Create and manage contacts |
+| `activities:read` | Read activity data |
+| `activities:write` | Create and manage activities |
+
+## Notes
+
+- See the [Pipedrive OAuth authorization documentation](https://pipedrive.readme.io/docs/marketplace-oauth-authorization) for more details.

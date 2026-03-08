@@ -1,0 +1,85 @@
+---
+title: 'Typeform'
+description: 'Set up Typeform OAuth for forms, surveys, and data collection'
+---
+
+## Overview
+
+Connect your users to Typeform for form management, survey responses, workspace data, and webhook integrations.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `typeform` |
+| **Category** | Productivity |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+
+## Step 1: Create a Typeform OAuth App
+
+<Steps>
+  <Step title="Go to the Typeform Account Settings">
+    Navigate to [admin.typeform.com/account#/section/tokens](https://admin.typeform.com/account#/section/tokens) and sign in.
+  </Step>
+
+  <Step title="Register a new application">
+    Under **Developer apps**, click **Register a new application** and fill in the app name and description.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Redirect URIs** field.
+  </Step>
+
+  <Step title="Get your credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Typeform provider">
+    Go to **OAuth Providers** > **Add Provider** > **Typeform**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Typeform Client ID
+    - **Client Secret**: Paste your Typeform Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes your app needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `accounts:read` | Read account information |
+| `forms:read` | Read form data and settings |
+| `forms:write` | Create and modify forms |
+| `responses:read` | Read form responses |
+| `responses:write` | Manage form responses |
+| `workspaces:read` | Read workspace data |
+| `workspaces:write` | Manage workspaces |
+| `webhooks:read` | Read webhook configurations |
+| `webhooks:write` | Create and manage webhooks |
+| `offline` | Obtain a refresh token for long-lived access |
+
+## Notes
+
+- Include `offline` scope to receive a refresh token for long-lived access.
+- See the [Typeform developer documentation](https://www.typeform.com/developers/get-started/applications/) for more details.
