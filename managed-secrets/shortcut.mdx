@@ -1,0 +1,65 @@
+---
+title: 'Shortcut'
+description: 'Connect Shortcut to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Shortcut credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `shortcut` |
+| **Category** | Developer Tools |
+| **Credential Type** | API Key |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to Shortcut">
+    Log in to Shortcut at [app.shortcut.com](https://app.shortcut.com/).
+  </Step>
+  <Step title="Go to Settings → Account → API Tokens">
+    Go to Settings → Account → API Tokens at [app.shortcut.com/settings/account/api-tokens](https://app.shortcut.com/settings/account/api-tokens).
+  </Step>
+  <Step title="Generate a token">
+    Click 'Generate Token'.
+  </Step>
+  <Step title="Copy your token">
+    Copy the generated API token.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Shortcut">
+    Go to **Managed Secrets** > **Add Provider** > **Shortcut**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your API Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.app.shortcut.com/api/v3/stories",
+)
+```

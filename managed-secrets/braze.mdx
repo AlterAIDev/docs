@@ -1,0 +1,72 @@
+---
+title: 'Braze'
+description: 'Connect Braze to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Braze credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `braze` |
+| **Category** | Marketing |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to Braze">
+    Log in at dashboard.braze.com — you will be redirected to your cluster at [dashboard.braze.com/sign_in](https://dashboard.braze.com/sign_in).
+  </Step>
+  <Step title="Go to Settings → API Keys">
+    Go to Settings → API Keys at [dashboard.braze.com/app_settings/api_settings/](https://dashboard.braze.com/app_settings/api_settings/).
+  </Step>
+  <Step title="Create a new API key">
+    Click 'Create New API Key' and configure permissions.
+  </Step>
+  <Step title="Copy the REST API key">
+    Copy the generated REST API key.
+  </Step>
+  <Step title="Find your instance URL">
+    Find your instance URL on the dashboard (e.g. rest.iad-02.braze.com) for the Instance URL field.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Braze">
+    Go to **Managed Secrets** > **Add Provider** > **Braze**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your REST API Key into the credential field, and your Instance URL (e.g. `rest.iad-02.braze.com`) into the Instance URL field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://YOUR_BRAZE_INSTANCE_URL/messages/send",
+)
+```
+
+## Notes
+
+- Your Braze dashboard URL is cluster-specific. Log in via dashboard.braze.com to be redirected to your cluster automatically.

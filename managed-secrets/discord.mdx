@@ -1,0 +1,68 @@
+---
+title: 'Discord'
+description: 'Connect Discord to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Discord credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `discord` |
+| **Category** | Communication |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the Discord Developer Portal">
+    Log in at [discord.com/developers/applications](https://discord.com/developers/applications).
+  </Step>
+  <Step title="Select your application">
+    Select your application (or create a new one).
+  </Step>
+  <Step title="Go to the Bot section">
+    Go to the Bot section in the left sidebar.
+  </Step>
+  <Step title="Reset Token">
+    Click 'Reset Token' to generate a new bot token (this will invalidate any previously issued token).
+  </Step>
+  <Step title="Copy the bot token">
+    Copy the bot token.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Discord">
+    Go to **Managed Secrets** > **Add Provider** > **Discord**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Bot Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://discord.com/api/v10/channels/YOUR_CHANNEL_ID/messages",
+)
+```

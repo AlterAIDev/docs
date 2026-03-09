@@ -1,0 +1,68 @@
+---
+title: 'GitHub (API Key)'
+description: 'Connect GitHub to Alter Vault using a personal access token for secure API access'
+---
+
+## Overview
+
+Use GitHub credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `github` |
+| **Category** | Developer Tools |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to GitHub">
+    Log in to your GitHub account at [github.com](https://github.com/).
+  </Step>
+  <Step title="Go to Developer Settings → Personal access tokens">
+    Navigate to [Settings → Developer Settings → Personal access tokens](https://github.com/settings/tokens).
+  </Step>
+  <Step title="Choose token type">
+    Choose 'Fine-grained tokens' (recommended) or 'Tokens (classic)'.
+  </Step>
+  <Step title="Generate a new token">
+    Click 'Generate new token' and configure scopes.
+  </Step>
+  <Step title="Copy your token">
+    Copy the generated token (it won't be shown again).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add GitHub">
+    Go to **Managed Secrets** > **Add Provider** > **GitHub**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Personal Access Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.github.com/user/repos",
+)
+```

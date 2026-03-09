@@ -1,0 +1,65 @@
+---
+title: 'Brevo'
+description: 'Connect Brevo to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Brevo credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `brevo` |
+| **Category** | Communication |
+| **Credential Type** | API Key |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to your Brevo account">
+    Log in to your Brevo account at [app.brevo.com](https://app.brevo.com/).
+  </Step>
+  <Step title="Go to Settings → SMTP & API → API Keys">
+    Go to Settings → SMTP & API → API Keys at [app.brevo.com/settings/keys/api](https://app.brevo.com/settings/keys/api).
+  </Step>
+  <Step title="Generate a new API key">
+    Click 'Generate a new API key'.
+  </Step>
+  <Step title="Copy your API key">
+    Copy the generated API key.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Brevo">
+    Go to **Managed Secrets** > **Add Provider** > **Brevo**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://api.brevo.com/v3/smtp/email",
+)
+```

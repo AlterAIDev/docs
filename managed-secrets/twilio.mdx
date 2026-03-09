@@ -1,0 +1,69 @@
+---
+title: 'Twilio'
+description: 'Connect Twilio to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Twilio credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `twilio` |
+| **Category** | Communication |
+| **Credential Type** | Basic Auth |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the Twilio Console">
+    Log in to the Twilio Console at [console.twilio.com](https://console.twilio.com/).
+  </Step>
+  <Step title="Find your credentials">
+    Your Account SID and Auth Token are on the main dashboard.
+  </Step>
+  <Step title="Copy the Account SID">
+    Copy the Account SID for the credential field.
+  </Step>
+  <Step title="Copy the Auth Token">
+    Copy the Auth Token for the Auth Token field.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Twilio">
+    Go to **Managed Secrets** > **Add Provider** > **Twilio**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Account SID and Auth Token into their respective fields.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://api.twilio.com/2010-04-01/Accounts/YOUR_ACCOUNT_SID/Messages.json",
+)
+```
+
+## Notes
+
+- Treat your Auth Token like a password — it grants full access to your Twilio account. Never share it or commit it to source control.

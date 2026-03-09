@@ -1,0 +1,68 @@
+---
+title: 'Grafana'
+description: 'Connect Grafana to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Grafana credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `grafana` |
+| **Category** | Monitoring & Observability |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to Grafana Cloud">
+    Log in to Grafana Cloud at [grafana.com/auth/sign-in](https://grafana.com/auth/sign-in).
+  </Step>
+  <Step title="Open your Grafana instance">
+    Open your Grafana instance and go to Administration → Service Accounts.
+  </Step>
+  <Step title="Create a service account">
+    Create a service account and add a token.
+  </Step>
+  <Step title="Copy the token">
+    Copy the generated token (starts with glsa_).
+  </Step>
+  <Step title="Enter your Grafana domain">
+    Enter your Grafana domain in the Grafana Domain field (e.g. your-stack.grafana.net).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Grafana">
+    Go to **Managed Secrets** > **Add Provider** > **Grafana**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Service Account Token and Grafana Domain into their respective fields.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://your-stack.grafana.net/api/dashboards/home",
+)
+```

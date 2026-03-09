@@ -1,0 +1,65 @@
+---
+title: 'Cursor'
+description: 'Connect Cursor to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Cursor credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `cursor` |
+| **Category** | Developer Tools |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Sign in to Cursor">
+    Sign in to your Cursor account at [www.cursor.com](https://www.cursor.com/).
+  </Step>
+  <Step title="Go to Cursor Settings">
+    Navigate to [Cursor Settings](https://www.cursor.com/settings).
+  </Step>
+  <Step title="Find the API Keys section">
+    Find the API Keys section.
+  </Step>
+  <Step title="Generate a new API key">
+    Generate a new API key and copy it.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Cursor">
+    Go to **Managed Secrets** > **Add Provider** > **Cursor**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.cursor.com/v1/YOUR_ENDPOINT",
+)
+```

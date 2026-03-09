@@ -1,0 +1,69 @@
+---
+title: 'Stripe (API Key)'
+description: 'Connect Stripe to Alter Vault using an API key for secure API access'
+---
+
+## Overview
+
+Use Stripe credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `stripe` |
+| **Category** | Payments |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the Stripe Dashboard">
+    Log in to the Stripe Dashboard at [dashboard.stripe.com](https://dashboard.stripe.com/).
+  </Step>
+  <Step title="Go to Developers → API Keys">
+    Go to Developers → API Keys at [dashboard.stripe.com/apikeys](https://dashboard.stripe.com/apikeys).
+  </Step>
+  <Step title="Create or reveal secret key">
+    Click 'Create secret key' (or reveal the existing one).
+  </Step>
+  <Step title="Copy your secret key">
+    Copy the secret key (starts with sk_live_ or sk_test_).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Stripe">
+    Go to **Managed Secrets** > **Add Provider** > **Stripe**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Secret Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.stripe.com/v1/charges",
+)
+```
+
+## Notes
+
+- Use test mode keys (sk_test_) for development and live keys (sk_live_) for production.

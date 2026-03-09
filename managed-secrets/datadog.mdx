@@ -1,0 +1,72 @@
+---
+title: 'Datadog'
+description: 'Connect Datadog to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Datadog credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `datadog` |
+| **Category** | Monitoring & Observability |
+| **Credential Type** | API Key |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to Datadog">
+    Log in to Datadog at [app.datadoghq.com/account/login](https://app.datadoghq.com/account/login).
+  </Step>
+  <Step title="Go to Organization Settings → API Keys">
+    Go to Organization Settings → API Keys.
+  </Step>
+  <Step title="Create an API key">
+    Click 'New Key' to create an API key and copy it.
+  </Step>
+  <Step title="Get the Application Key">
+    For the Application Key, go to Organization Settings → Application Keys.
+  </Step>
+  <Step title="Enter your Datadog site">
+    If using a non-US site, enter your Datadog site in the Datadog Site field (e.g. datadoghq.eu).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Datadog">
+    Go to **Managed Secrets** > **Add Provider** > **Datadog**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your API Key and Application Key into their respective fields.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.YOUR_DATADOG_SITE/api/v1/events",  # e.g. datadoghq.com (US1), datadoghq.eu (EU), us3.datadoghq.com, etc.
+)
+```
+
+## Notes
+
+- The login URL redirects to your correct Datadog site. If your organization is on a non-US1 site (EU, US3, US5, AP1), you can also log in directly at your site's URL.

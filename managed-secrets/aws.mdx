@@ -1,0 +1,75 @@
+---
+title: 'AWS (API Key)'
+description: 'Connect AWS to Alter Vault using access keys for secure API access'
+---
+
+## Overview
+
+Use AWS credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `aws` |
+| **Category** | Cloud |
+| **Credential Type** | AWS SigV4 |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the AWS Console">
+    Log in to the AWS Console at [console.aws.amazon.com](https://console.aws.amazon.com/).
+  </Step>
+  <Step title="Go to IAM → Users">
+    Go to IAM → Users and select or create a user with least-privilege permissions at [console.aws.amazon.com/iam/home#/users](https://console.aws.amazon.com/iam/home#/users).
+  </Step>
+  <Step title="Create access key">
+    Open the user's Security Credentials tab and click 'Create access key'.
+  </Step>
+  <Step title="Copy the Access Key ID">
+    Copy the Access Key ID for the credential field.
+  </Step>
+  <Step title="Copy the Secret Access Key">
+    Copy the Secret Access Key for the Secret Access Key field.
+  </Step>
+  <Step title="Enter region and service">
+    Enter your AWS Region (e.g. us-east-1) and optionally the service name.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add AWS">
+    Go to **Managed Secrets** > **Add Provider** > **AWS**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Access Key ID, Secret Access Key, Region, and (optionally) service name into their respective fields.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://s3.amazonaws.com/YOUR_BUCKET",
+)
+```
+
+## Notes
+
+- Always create credentials on an IAM user with least-privilege permissions — never use root account access keys.

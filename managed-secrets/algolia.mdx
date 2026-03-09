@@ -1,0 +1,65 @@
+---
+title: 'Algolia'
+description: 'Connect Algolia to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Algolia credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `algolia` |
+| **Category** | Search |
+| **Credential Type** | API Key |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the Algolia Dashboard">
+    Log in to the Algolia Dashboard at [dashboard.algolia.com](https://dashboard.algolia.com/).
+  </Step>
+  <Step title="Go to Settings → API Keys">
+    Go to Settings → API Keys at [dashboard.algolia.com/account/api-keys/all](https://dashboard.algolia.com/account/api-keys/all).
+  </Step>
+  <Step title="Copy the Admin API Key">
+    Copy the Admin API Key (or create a new one with specific permissions).
+  </Step>
+  <Step title="Copy the Application ID">
+    Copy the Application ID for the Application ID field.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Algolia">
+    Go to **Managed Secrets** > **Add Provider** > **Algolia**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Admin API Key and Application ID into their respective fields.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://YOUR_APP_ID-dsn.algolia.net/1/indexes/YOUR_INDEX/query",
+)
+```

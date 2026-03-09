@@ -1,0 +1,65 @@
+---
+title: 'Airtable'
+description: 'Connect Airtable to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Airtable credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `airtable` |
+| **Category** | Productivity |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to Airtable">
+    Log in to Airtable at [airtable.com](https://airtable.com/).
+  </Step>
+  <Step title="Go to the Token Manager">
+    Go to the Token Manager at [airtable.com/create/tokens](https://airtable.com/create/tokens).
+  </Step>
+  <Step title="Create a new token">
+    Click 'Create new token' and configure scopes and access.
+  </Step>
+  <Step title="Copy your token">
+    Copy the generated personal access token.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Airtable">
+    Go to **Managed Secrets** > **Add Provider** > **Airtable**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Personal Access Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.airtable.com/v0/YOUR_BASE_ID/YOUR_TABLE_NAME",
+)
+```

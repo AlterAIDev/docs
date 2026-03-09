@@ -84,7 +84,7 @@
       ]
     },
     {
-      "group": "Providers",
+      "group": "OAuth Providers",
       "pages": [
         {
           "group": "Popular",
@@ -221,6 +221,108 @@
           "pages": [
             "providers/docusign",
             "providers/eventbrite"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Managed Secret Providers",
+      "pages": [
+        {
+          "group": "AI Models",
+          "pages": [
+            "managed-secrets/anthropic",
+            "managed-secrets/cohere",
+            "managed-secrets/elevenlabs",
+            "managed-secrets/falai",
+            "managed-secrets/fireworks",
+            "managed-secrets/google-gemini",
+            "managed-secrets/groq",
+            "managed-secrets/mistral",
+            "managed-secrets/openai",
+            "managed-secrets/perplexity",
+            "managed-secrets/replicate",
+            "managed-secrets/together",
+            "managed-secrets/xai"
+          ]
+        },
+        {
+          "group": "Monitoring & Observability",
+          "pages": [
+            "managed-secrets/axiom",
+            "managed-secrets/datadog",
+            "managed-secrets/grafana",
+            "managed-secrets/incident-io",
+            "managed-secrets/pagerduty",
+            "managed-secrets/rootly",
+            "managed-secrets/sentry"
+          ]
+        },
+        {
+          "group": "Communication",
+          "pages": [
+            "managed-secrets/brevo",
+            "managed-secrets/discord",
+            "managed-secrets/resend",
+            "managed-secrets/sendgrid",
+            "managed-secrets/twilio",
+            "managed-secrets/whatsapp-business"
+          ]
+        },
+        {
+          "group": "Marketing",
+          "pages": [
+            "managed-secrets/braze",
+            "managed-secrets/klaviyo"
+          ]
+        },
+        {
+          "group": "Developer Tools",
+          "pages": [
+            "managed-secrets/clerk",
+            "managed-secrets/cloudflare",
+            "managed-secrets/cursor",
+            "managed-secrets/github",
+            "managed-secrets/gitlab",
+            "managed-secrets/posthog",
+            "managed-secrets/shortcut",
+            "managed-secrets/supabase",
+            "managed-secrets/terraform",
+            "managed-secrets/vercel",
+            "managed-secrets/workos"
+          ]
+        },
+        {
+          "group": "Productivity",
+          "pages": [
+            "managed-secrets/airtable",
+            "managed-secrets/coda"
+          ]
+        },
+        {
+          "group": "Search",
+          "pages": [
+            "managed-secrets/algolia",
+            "managed-secrets/exa"
+          ]
+        },
+        {
+          "group": "E-Commerce",
+          "pages": [
+            "managed-secrets/recharge",
+            "managed-secrets/shopify"
+          ]
+        },
+        {
+          "group": "Payments",
+          "pages": [
+            "managed-secrets/stripe"
+          ]
+        },
+        {
+          "group": "Cloud",
+          "pages": [
+            "managed-secrets/aws"
           ]
         }
       ]

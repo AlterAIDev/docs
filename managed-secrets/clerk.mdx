@@ -1,0 +1,65 @@
+---
+title: 'Clerk'
+description: 'Connect Clerk to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Clerk credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `clerk` |
+| **Category** | Developer Tools |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the Clerk Dashboard">
+    Log in to the Clerk Dashboard at [dashboard.clerk.com](https://dashboard.clerk.com/).
+  </Step>
+  <Step title="Select your application">
+    Select your application.
+  </Step>
+  <Step title="Go to Configure → API Keys">
+    Go to Configure → API Keys.
+  </Step>
+  <Step title="Copy the Secret Key">
+    Copy the Secret Key (starts with sk_live_ or sk_test_).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Clerk">
+    Go to **Managed Secrets** > **Add Provider** > **Clerk**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Secret Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.clerk.com/v1/users",
+)
+```

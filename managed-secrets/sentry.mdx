@@ -1,0 +1,68 @@
+---
+title: 'Sentry (API Key)'
+description: 'Connect Sentry to Alter Vault using an auth token for secure API access'
+---
+
+## Overview
+
+Use Sentry credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `sentry` |
+| **Category** | Monitoring & Observability |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to Sentry">
+    Log in to Sentry at [sentry.io](https://sentry.io/).
+  </Step>
+  <Step title="Go to Settings → Auth Tokens">
+    Go to Settings → Auth Tokens at [sentry.io/settings/auth-tokens/](https://sentry.io/settings/auth-tokens/).
+  </Step>
+  <Step title="Create a new token">
+    Click 'Create New Token' and configure scopes.
+  </Step>
+  <Step title="Copy your auth token">
+    Copy the generated auth token (starts with sntrys_).
+  </Step>
+  <Step title="Enter hostname if self-hosted">
+    If using a self-hosted instance, enter the hostname in the Sentry Hostname field.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Sentry">
+    Go to **Managed Secrets** > **Add Provider** > **Sentry**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Auth Token into the credential field. If using a self-hosted instance, also enter your Sentry hostname in the Sentry Hostname field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://YOUR_SENTRY_HOST/api/0/projects/",  # Use sentry.io for cloud or your self-hosted hostname
+)
+```

@@ -1,0 +1,68 @@
+---
+title: 'Cloudflare'
+description: 'Connect Cloudflare to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Cloudflare credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `cloudflare` |
+| **Category** | Developer Tools |
+| **Credential Type** | Bearer Token |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to the Cloudflare Dashboard">
+    Log in to the Cloudflare Dashboard at [dash.cloudflare.com](https://dash.cloudflare.com/).
+  </Step>
+  <Step title="Go to My Profile → API Tokens">
+    Go to My Profile → API Tokens at [dash.cloudflare.com/profile/api-tokens](https://dash.cloudflare.com/profile/api-tokens).
+  </Step>
+  <Step title="Create a token">
+    Click 'Create Token' and select a template or create custom.
+  </Step>
+  <Step title="Configure permissions">
+    Configure permissions and click 'Create Token'.
+  </Step>
+  <Step title="Copy the generated API token">
+    Copy the generated API token (it won't be shown again).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add Cloudflare">
+    Go to **Managed Secrets** > **Add Provider** > **Cloudflare**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your API Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://api.cloudflare.com/client/v4/zones",
+)
+```

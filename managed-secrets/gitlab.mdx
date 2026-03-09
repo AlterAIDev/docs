@@ -1,0 +1,68 @@
+---
+title: 'GitLab'
+description: 'Connect GitLab to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use GitLab credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `gitlab` |
+| **Category** | Developer Tools |
+| **Credential Type** | API Key |
+
+## Step 1: Get Your Credentials
+
+<Steps>
+  <Step title="Log in to GitLab">
+    Log in to GitLab at [gitlab.com](https://gitlab.com/).
+  </Step>
+  <Step title="Go to User Settings → Access Tokens">
+    Go to User Settings → Access Tokens at [gitlab.com/-/user_settings/personal_access_tokens](https://gitlab.com/-/user_settings/personal_access_tokens).
+  </Step>
+  <Step title="Add a new token">
+    Click 'Add new token', set name, expiration, and scopes.
+  </Step>
+  <Step title="Copy your token">
+    Copy the generated token.
+  </Step>
+  <Step title="Enter hostname if self-hosted">
+    If using a self-hosted instance, enter the hostname in the GitLab Hostname field.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+  </Step>
+
+  <Step title="Add GitLab">
+    Go to **Managed Secrets** > **Add Provider** > **GitLab**.
+  </Step>
+
+  <Step title="Enter your credentials">
+    Paste your Personal Access Token into the credential field. If using a self-hosted instance, also enter your GitLab hostname in the GitLab Hostname field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://YOUR_GITLAB_HOST/api/v4/projects",  # Use gitlab.com for cloud or your self-hosted hostname
+)
+```
