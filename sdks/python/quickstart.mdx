@@ -537,6 +537,7 @@ AlterSDKError (base -also raised for input validation: invalid api_key, actor_ty
 ├── ConnectFlowError (headless connect() failed - user denied, provider error)
 │   └── ConnectTimeoutError (user didn't complete OAuth in time)
 ├── ProviderAPIError (provider returned 4xx/5xx)
+│   └── ScopeReauthRequiredError (403 + scope mismatch - user must re-authorize)
 └── NetworkError (connection/timeout failures)
     └── TimeoutError (request timed out - safe to retry)
 ```
@@ -550,6 +551,7 @@ from alter_sdk.exceptions import (
     ConnectionNotFoundError,
     TokenExpiredError,
     TokenRetrievalError,
+    ScopeReauthRequiredError,
     TimeoutError,
     NetworkError,
     ProviderAPIError,
@@ -599,6 +601,11 @@ async def safe_api_call(connection_id: str):
             print(f"Network issue: {e.message}")
             # Resolution: Check network, retry with backoff
 
+        except ScopeReauthRequiredError as e:
+            # Provider returned 403 and connection has outdated scopes
+            print(f"Scope mismatch on {e.connection_id}: re-auth needed")
+            # Resolution: Create a new Connect session for the user
+
         except ProviderAPIError as e:
             # Provider API returned an error (4xx/5xx from Google, Slack, etc.)
             print(f"Provider error {e.status_code}: {e.response_body}")
@@ -615,6 +622,7 @@ async def safe_api_call(connection_id: str):
 | `TokenRetrievalError` | 401 | Invalid API key | Check your `api_key` |
 | `TokenRetrievalError` | 400 | Provider not configured | Add provider in dashboard |
 | `TokenRetrievalError` | 500/503 | Backend unavailable | Retry with backoff |
+| `ScopeReauthRequiredError` | 403 | Provider 403 + scope mismatch | User must re-authorize via Connect |
 | `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
 | `TimeoutError` | - | Request timed out | Retry with backoff |
 | `NetworkError` | - | Connection refused | Check network, retry |

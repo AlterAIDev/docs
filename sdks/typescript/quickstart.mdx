@@ -365,6 +365,7 @@ AlterSDKError (base -also thrown for input validation: invalid apiKey, actorType
 +-- ConnectFlowError (headless connect() failed - user denied, provider error)
 |   +-- ConnectTimeoutError (user didn't complete OAuth in time)
 +-- ProviderAPIError (provider returned 4xx/5xx)
+|   +-- ScopeReauthRequiredError (403 + scope mismatch - user must re-authorize)
 +-- NetworkError (connection failures)
     +-- TimeoutError (request timed out)
 ```
@@ -378,6 +379,7 @@ import {
   ConnectionNotFoundError,
   TokenExpiredError,
   TokenRetrievalError,
+  ScopeReauthRequiredError,
   NetworkError,
   TimeoutError,
   ProviderAPIError,
@@ -409,6 +411,9 @@ async function safeApiCall(connectionId: string) {
       console.log(`Request timed out -safe to retry: ${e.message}`);
     } else if (e instanceof NetworkError) {
       console.log(`Network issue: ${e.message}`);
+    } else if (e instanceof ScopeReauthRequiredError) {
+      console.log(`Scope mismatch on ${e.connectionId}: re-auth needed`);
+      // Create a new Connect session so the user can grant updated scopes
     } else if (e instanceof ProviderAPIError) {
       console.log(`Provider error ${e.statusCode}: ${e.responseBody}`);
     }
@@ -426,6 +431,7 @@ async function safeApiCall(connectionId: string) {
 | `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
 | `TokenExpiredError` | 400/502 | Refresh token revoked/expired | User must re-authenticate |
 | `TokenRetrievalError` | 401 | Invalid API key | Check your `apiKey` |
+| `ScopeReauthRequiredError` | 403 | Provider 403 + scope mismatch | User must re-authorize via Connect |
 | `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
 | `TimeoutError` | - | Request timed out | Retry with backoff |
 | `NetworkError` | - | Connection refused | Check network |
