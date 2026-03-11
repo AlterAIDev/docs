@@ -479,10 +479,6 @@ Generate a URL for end-users to connect OAuth providers:
 session = await vault.create_connect_session(
     allowed_providers=["google", "github"],
     return_url="https://myapp.com/callback",
-    connection_policy={               # optional: set TTL bounds
-        "max_ttl_seconds": 86400,     # max duration the user can pick
-        "default_ttl_seconds": 3600,  # pre-selected duration in UI
-    },
 )
 print(f"Connect URL: {session.connect_url}")
 ```
@@ -496,10 +492,6 @@ For CLI tools, Jupyter notebooks, and backend scripts, use `connect()` to open t
 ```python
 results = await vault.connect(
     providers=["google"],
-    connection_policy={  # optional TTL bounds
-        "max_ttl_seconds": 86400,
-        "default_ttl_seconds": 3600,
-    },
     timeout=300,         # max wait in seconds (default: 5 min)
     open_browser=True,   # set False to print URL instead
 )
@@ -517,6 +509,44 @@ response = await vault.request(
 Returns `list[ConnectResult]` -- one per connected provider. Each has `connection_id`, `provider_id`, `account_identifier`, `scopes`, and optionally `connection_policy` (with `expires_at` if a TTL was set).
 
 Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
+
+### Connection Policy (TTL)
+
+Use `connection_policy` to control how long a connection stays active. When set, the Connect UI shows an expiry picker and the connection automatically expires after the chosen duration.
+
+```python
+# Restrict connections to a maximum of 7 days
+results = await vault.connect(
+    providers=["google"],
+    connection_policy={
+        "max_ttl_seconds": 604800,     # longest duration the user can pick
+        "default_ttl_seconds": 86400,  # pre-selected in the dropdown
+    },
+)
+```
+
+The Connect UI offers these expiry options: **1 hour**, **1 day**, **7 days**, **30 days**, **90 days**. Setting `max_ttl_seconds` hides any option that exceeds it.
+
+| Parameter | Description |
+|-----------|-------------|
+| `max_ttl_seconds` | Maximum TTL the end user can select. Options above this are hidden from the picker. |
+| `default_ttl_seconds` | Pre-selected option in the dropdown. Falls back to 1 day if not set. |
+
+<Note>
+  The expiry picker **only appears** when `connection_policy` is passed. Without it, connections have no automatic expiry. After a connection expires, token retrieval returns `ConnectionExpiredError` and the user must re-authorize via Alter Connect.
+</Note>
+
+The same parameter works with `create_connect_session()`:
+
+```python
+session = await vault.create_connect_session(
+    allowed_providers=["google"],
+    connection_policy={
+        "max_ttl_seconds": 2592000,    # max 30 days
+        "default_ttl_seconds": 604800, # default 7 days
+    },
+)
+```
 
 ## Error Handling
 

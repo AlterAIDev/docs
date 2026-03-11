@@ -308,10 +308,6 @@ Generate a URL for end-users to connect OAuth providers:
 const session = await vault.createConnectSession({
   allowedProviders: ["google", "github"],
   returnUrl: "https://myapp.com/callback",
-  connectionPolicy: {             // optional: set TTL bounds
-    maxTtlSeconds: 86400,         // max duration the user can pick
-    defaultTtlSeconds: 3600,      // pre-selected duration in UI
-  },
 });
 console.log(`Connect URL: ${session.connectUrl}`);
 ```
@@ -325,10 +321,6 @@ For CLI tools, scripts, and server-side applications, use `connect()` to open th
 ```typescript
 const results = await vault.connect({
   providers: ["google"],
-  connectionPolicy: {  // optional TTL bounds
-    maxTtlSeconds: 86400,
-    defaultTtlSeconds: 3600,
-  },
   timeout: 300,        // max wait in seconds (default: 5 min)
   openBrowser: true,   // set false to print URL instead
 });
@@ -347,6 +339,43 @@ const response = await vault.request(
 Returns `ConnectResult[]` -- one per connected provider. Each has `connectionId`, `providerId`, `accountIdentifier`, `scopes`, and optionally `connectionPolicy` (with `expires_at` if a TTL was set).
 
 Throws `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
+
+### Connection Policy (TTL)
+
+Use `connectionPolicy` to control how long a connection stays active. When set, the Connect UI shows an expiry picker and the connection automatically expires after the chosen duration.
+
+```typescript
+const results = await vault.connect({
+  providers: ["google"],
+  connectionPolicy: {
+    maxTtlSeconds: 604800,     // longest duration the user can pick
+    defaultTtlSeconds: 86400,  // pre-selected in the dropdown
+  },
+});
+```
+
+The Connect UI offers these expiry options: **1 hour**, **1 day**, **7 days**, **30 days**, **90 days**. Setting `maxTtlSeconds` hides any option that exceeds it.
+
+| Parameter | Description |
+|-----------|-------------|
+| `maxTtlSeconds` | Maximum TTL the end user can select. Options above this are hidden from the picker. |
+| `defaultTtlSeconds` | Pre-selected option in the dropdown. Falls back to 1 day if not set. |
+
+<Note>
+  The expiry picker **only appears** when `connectionPolicy` is passed. Without it, connections have no automatic expiry. After a connection expires, token retrieval throws `ConnectionExpiredError` and the user must re-authorize via Alter Connect.
+</Note>
+
+The same parameter works with `createConnectSession()`:
+
+```typescript
+const session = await vault.createConnectSession({
+  allowedProviders: ["google"],
+  connectionPolicy: {
+    maxTtlSeconds: 2592000,    // max 30 days
+    defaultTtlSeconds: 604800, // default 7 days
+  },
+});
+```
 
 ## Error Handling
 
