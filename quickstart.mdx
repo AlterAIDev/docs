@@ -459,10 +459,11 @@ async with AlterVault(
 
 ```python
 from alter_sdk.exceptions import (
+    ReAuthRequiredError,
     PolicyViolationError,
     ConnectionNotFoundError,
-    TokenExpiredError,
     NetworkError,
+    ScopeReauthRequiredError,
     ProviderAPIError,
 )
 
@@ -471,14 +472,16 @@ try:
         connection_id, HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     )
+except ReAuthRequiredError:
+    print("User must re-authorize - redirect to Alter Connect")
 except PolicyViolationError as e:
     print(f"Access denied by policy: {e.message}")
 except ConnectionNotFoundError:
     print("User hasn't connected Google yet - redirect to Alter Connect")
-except TokenExpiredError:
-    print("Token refresh failed - user needs to re-authenticate")
 except NetworkError as e:
     print(f"Network issue: {e.message}")
+except ScopeReauthRequiredError as e:
+    print(f"Scopes outdated for {e.provider_id} - user must re-authorize")
 except ProviderAPIError as e:
     print(f"Google API error {e.status_code}: {e.response_body}")
 ```
@@ -747,7 +750,7 @@ If you get `PolicyViolationError`:
 - If using time restrictions, check if you're within business hours / weekdays
 
 ### Provider Not Configured
-If you get `TokenRetrievalError` with "not configured":
+If you get `BackendError` with "not configured":
 - Add the provider in the Alter Vault dashboard
 - Enter your OAuth Client ID and Client Secret
 

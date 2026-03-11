@@ -328,7 +328,7 @@ The plugin surfaces clear error messages to the agent:
 |-------|-------|-------------------|
 | `ConnectionNotFoundError` | User hasn't connected the provider | "No connection found for google. Use alter_connect to set one up." |
 | `PolicyViolationError` | Access denied by policy rules | "Access denied: [policy reason]" |
-| `TokenExpiredError` | Refresh token expired | "Token expired. User needs to reconnect via alter_connect." |
+| `ReAuthRequiredError` | Connection expired/revoked/deleted | "Connection requires re-authorization. User needs to reconnect via alter_connect." |
 | `NetworkError` | Alter backend unreachable | "Could not reach Alter Vault. Please try again." |
 
 ## Troubleshooting

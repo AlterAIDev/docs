@@ -357,17 +357,22 @@ Throws `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowE
 ### Exception Hierarchy
 
 ```
-AlterSDKError (base -also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
-+-- TokenRetrievalError (backend errors)
-|   +-- PolicyViolationError (403 - policy denied access)
-|   +-- ConnectionNotFoundError (404 - no OAuth connection)
-|   +-- TokenExpiredError (400/502 - refresh failed)
-+-- ConnectFlowError (headless connect() failed - user denied, provider error)
-|   +-- ConnectTimeoutError (user didn't complete OAuth in time)
-+-- ProviderAPIError (provider returned 4xx/5xx)
-|   +-- ScopeReauthRequiredError (403 + scope mismatch - user must re-authorize)
-+-- NetworkError (connection failures)
-    +-- TimeoutError (request timed out)
+AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
+├── BackendError (backend errors)
+│   ├── ReAuthRequiredError (user must re-authorize via Alter Connect)
+│   │   ├── ConnectionExpiredError (403 — TTL elapsed)
+│   │   ├── ConnectionRevokedError (400 — auth permanently broken)
+│   │   └── ConnectionDeletedError (410 — user disconnected via Wallet)
+│   ├── ConnectionNotFoundError (404 — wrong connection_id)
+│   └── PolicyViolationError (403 — policy denied access)
+├── ConnectFlowError (headless connect() failed)
+│   ├── ConnectDeniedError (user denied authorization)
+│   ├── ConnectConfigError (OAuth app misconfigured)
+│   └── ConnectTimeoutError (user didn't complete OAuth in time)
+├── ProviderAPIError (provider returned 4xx/5xx)
+│   └── ScopeReauthRequiredError (403 + scope mismatch — user must re-authorize)
+└── NetworkError (connection failures)
+    └── TimeoutError (request timed out)
 ```
 
 ### Complete Error Handling Example
@@ -375,13 +380,11 @@ AlterSDKError (base -also thrown for input validation: invalid apiKey, actorType
 ```typescript
 import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
 import {
+  ReAuthRequiredError,
   PolicyViolationError,
   ConnectionNotFoundError,
-  TokenExpiredError,
-  TokenRetrievalError,
   ScopeReauthRequiredError,
   NetworkError,
-  TimeoutError,
   ProviderAPIError,
 } from "@alter-ai/alter-sdk";
 
@@ -401,15 +404,15 @@ async function safeApiCall(connectionId: string) {
     return await response.json();
 
   } catch (e) {
-    if (e instanceof PolicyViolationError) {
+    if (e instanceof ReAuthRequiredError) {
+      // Catches ConnectionExpiredError, ConnectionRevokedError, ConnectionDeletedError
+      console.log("User must re-authorize via Alter Connect");
+    } else if (e instanceof PolicyViolationError) {
       console.log(`Access denied by policy: ${e.message}`);
     } else if (e instanceof ConnectionNotFoundError) {
       console.log("User hasn't connected Google yet");
-    } else if (e instanceof TokenExpiredError) {
-      console.log(`Token expired for connection: ${e.connectionId}`);
-    } else if (e instanceof TimeoutError) {
-      console.log(`Request timed out -safe to retry: ${e.message}`);
     } else if (e instanceof NetworkError) {
+      // TimeoutError is a subclass, so this catches both
       console.log(`Network issue: ${e.message}`);
     } else if (e instanceof ScopeReauthRequiredError) {
       console.log(`Scope mismatch on ${e.connectionId}: re-auth needed`);
@@ -427,10 +430,10 @@ async function safeApiCall(connectionId: string) {
 
 | Exception | HTTP Status | Cause | Resolution |
 |-----------|:-----------:|-------|------------|
+| `ReAuthRequiredError` | 400/403/410 | Connection expired/revoked/deleted | Redirect to Alter Connect |
 | `PolicyViolationError` | 403 | Policy denied access | Check policy rules in dashboard |
 | `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
-| `TokenExpiredError` | 400/502 | Refresh token revoked/expired | User must re-authenticate |
-| `TokenRetrievalError` | 401 | Invalid API key | Check your `apiKey` |
+| `BackendError` | 401 | Invalid API key | Check your `apiKey` |
 | `ScopeReauthRequiredError` | 403 | Provider 403 + scope mismatch | User must re-authorize via Connect |
 | `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
 | `TimeoutError` | - | Request timed out | Retry with backoff |
