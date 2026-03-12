@@ -1,0 +1,696 @@
+---
+title: 'Overview'
+description: 'Complete guide to the Alter Python SDK — core concepts, examples, and API reference'
+icon: 'book'
+---
+
+## Core Concepts
+
+### vault.request() — Your Authenticated HTTP Client
+
+`vault.request()` acts as your HTTP client. Instead of calling `httpx` directly and managing auth headers, you pass a `connection_id` and URL — the SDK makes the request with the correct credential injected automatically. Your code never sees tokens or secrets.
+
+```python
+response = await vault.request(
+    connection_id,    # Connection ID (UUID string) from Alter Connect
+    method,           # HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
+    url,              # Full URL of the provider API endpoint
+    json={...},       # Optional: JSON request body
+    query_params={},  # Optional: URL query parameters
+    path_params={},   # Optional: URL path template substitutions
+    extra_headers={}, # Optional: Additional headers (Authorization is auto-injected)
+    reason="...",     # Optional: Reason for audit trail
+)
+```
+
+### Type-Safe Enums
+
+Use enums for autocomplete and type safety:
+
+```python
+from alter_sdk import ActorType, HttpMethod
+
+# HTTP method enums
+HttpMethod.GET        # "GET"
+HttpMethod.POST       # "POST"
+HttpMethod.PUT        # "PUT"
+HttpMethod.PATCH      # "PATCH"
+HttpMethod.DELETE     # "DELETE"
+HttpMethod.HEAD       # "HEAD"
+HttpMethod.OPTIONS    # "OPTIONS"
+```
+
+Strings also work for forward compatibility:
+
+```python
+# These are equivalent
+await vault.request(connection_id, HttpMethod.GET, url)
+await vault.request(connection_id, "GET", url)
+```
+
+### URL Path Templating
+
+Use `{placeholder}` syntax for dynamic URL segments (values are automatically URL-encoded):
+
+```python
+response = await vault.request(
+    connection_id,
+    HttpMethod.GET,
+    "https://api.example.com/v1/accounts/{account_id}/contacts/{contact_id}",
+    path_params={"account_id": "acc-123", "contact_id": "ct-456"},
+)
+# → GET https://api.example.com/v1/accounts/acc-123/contacts/ct-456
+```
+
+## Complete Examples
+
+### Google Calendar Events
+
+```python
+import asyncio
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async def main():
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        # Connect Google account (opens browser)
+        results = await vault.connect(
+            providers=["google"],
+        )
+
+        # Fetch calendar events
+        response = await vault.request(
+            results[0].connection_id,
+            HttpMethod.GET,
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            query_params={
+                "maxResults": "10",
+                "singleEvents": "true",
+                "orderBy": "startTime",
+            },
+        )
+        events = response.json()
+
+        for event in events.get("items", []):
+            start = event["start"].get("dateTime", event["start"].get("date"))
+            print(f"{start}: {event.get('summary', 'No title')}")
+
+asyncio.run(main())
+```
+
+### GitHub Repositories
+
+```python
+async def main():
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        results = await vault.connect(
+            providers=["github"],
+        )
+
+        response = await vault.request(
+            results[0].connection_id,
+            HttpMethod.GET,
+            "https://api.github.com/user/repos",
+            query_params={"sort": "updated", "per_page": "10"},
+        )
+        repos = response.json()
+
+        for repo in repos:
+            print(f"{repo['name']} - {repo.get('description', 'No description')}")
+```
+
+### Slack Message Posting
+
+```python
+async def post_slack_message(connection_id: str, channel: str, text: str):
+    """Use an existing connection_id (e.g., from your database) to post a message."""
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        response = await vault.request(
+            connection_id,
+            HttpMethod.POST,
+            "https://slack.com/api/chat.postMessage",
+            json={"channel": channel, "text": text},
+            reason="Posting message to Slack",
+        )
+        data = response.json()
+
+        if data.get("ok"):
+            print(f"Message posted: {data['ts']}")
+        else:
+            print(f"Slack error: {data.get('error')}")
+```
+
+### POST with JSON Body
+
+```python
+async def create_item(connection_id: str):
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        response = await vault.request(
+            connection_id,
+            HttpMethod.POST,
+            "https://api.example.com/v1/items",
+            json={"name": "New Item", "price": 99.99},
+            reason="Creating new inventory item",
+        )
+        return response.json()
+```
+
+### Using Extra Headers
+
+Some APIs require version headers or custom metadata:
+
+```python
+async def query_notion(connection_id: str):
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        response = await vault.request(
+            connection_id,
+            HttpMethod.POST,
+            "https://api.notion.com/v1/databases/{db_id}/query",
+            path_params={"db_id": "abc123"},
+            extra_headers={"Notion-Version": "2022-06-28"},
+            json={"page_size": 10},
+        )
+        return response.json()
+```
+
+## Using Managed Secrets
+
+For your own APIs where **you** already have the credentials (API keys, service tokens), use Managed Secrets. The `connection_id` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
+
+```python
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    # Call your internal API — secret injected automatically
+    response = await vault.request(
+        "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal (not from a user)
+        HttpMethod.GET,
+        "https://api.internal.com/v1/loyalty/points",
+        query_params={"user_id": "alice"},
+        reason="Checking loyalty points for rewards calculation",
+    )
+    data = response.json()
+```
+
+<Info>
+**OAuth vs Managed Secrets**: For OAuth, the `connection_id` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connection_id` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
+</Info>
+
+Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
+
+## Actor Tracking (AI Agents & MCP Servers)
+
+Every SDK instance requires actor identity — `actor_type` and `actor_identifier` are mandatory. This gives you full observability into **which agent** is making API calls and **why**.
+
+### Why Actor Tracking?
+
+When AI agents make OAuth-authenticated API calls on behalf of users, you need to know:
+- **Which agent** accessed a user's data?
+- **What was the context** (conversation thread, tool invocation)?
+- **When and how often** did each agent make requests?
+
+Actor tracking answers these questions automatically.
+
+### Registering an Actor
+
+Pass actor identity at SDK initialization (required):
+
+```python
+from alter_sdk import AlterVault, ActorType
+
+vault = AlterVault(
+    api_key="alter_key_...",
+    # Actor identity (required)
+    actor_type=ActorType.AI_AGENT,         # ActorType enum
+    actor_identifier="email-assistant-v2", # Unique ID for this agent
+    # Actor metadata (optional)
+    actor_name="Email Assistant",          # Human-readable name
+    actor_version="2.0.0",                # Version string
+    framework="langgraph",                # AI framework being used
+)
+```
+
+For MCP servers:
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.MCP_SERVER,
+    actor_identifier="calendar-mcp",
+    actor_name="Calendar MCP Server",
+    actor_version="1.0.0",
+    client_type="cursor",                 # MCP client type
+)
+```
+
+### How Registration Works
+
+1. **First request**: SDK sends `actor_type` + `actor_identifier` as HTTP headers
+2. **Backend registers**: Actor is upserted in the database and assigned a UUID
+3. **Backend responds**: UUID returned and cached automatically
+4. **Subsequent requests**: Cached identifier is sent (skips database lookup)
+
+This is fully automatic - you just configure the actor at initialization and the SDK handles the rest.
+
+### Per-Request Tracking
+
+Add execution-level context on each request:
+
+```python
+response = await vault.request(
+    "CONNECTION_ID",  # from Alter Connect
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    # Per-request tracking (all optional)
+    run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID (auto-generated UUID if omitted)
+    thread_id="thread-abc-123",                       # Conversation thread
+    tool_call_id="call_xyz_789",                      # Tool invocation ID
+)
+```
+
+These fields are sent as headers to the backend and included in audit logs, giving you a complete trace from conversation → tool call → API request.
+
+<Note>
+`run_id` is auto-generated as a UUID v4 if not provided. All sub-actions within a single `request()` call share the same `run_id` for audit log grouping.
+</Note>
+
+### Complete Agent Example
+
+```python
+import asyncio
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async def run_email_agent(connection_id: str):
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="email-assistant-v2",
+        actor_name="Email Assistant",
+        actor_version="2.0.0",
+        framework="langgraph",
+    )
+
+    # Each tool call in the agent can be tracked
+    response = await vault.request(
+        connection_id,
+        HttpMethod.GET,
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        query_params={"maxResults": "5"},
+        run_id="run-001",
+        thread_id="thread-daily-digest",
+        tool_call_id="call_read_emails",
+        reason="Reading emails for daily digest",
+    )
+
+    messages = response.json()
+    print(f"Found {len(messages.get('messages', []))} emails")
+
+    await vault.close()
+
+asyncio.run(run_email_agent("CONNECTION_ID"))  # from Alter Connect
+```
+
+### Multi-Agent Deployments
+
+Each agent must create its own `AlterVault` instance with a unique actor identity. Do not share a single instance across agents -- audit logs, policies, and actor registration are tied to each instance.
+
+```python
+# Each agent gets its own vault instance
+email_agent = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="email-assistant-v2",
+    actor_name="Email Assistant",
+)
+
+calendar_agent = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="calendar-agent-v1",
+    actor_name="Calendar Agent",
+)
+
+# Audit logs and policies are tracked per agent
+await email_agent.request(
+    gmail_connection_id,  # from Alter Connect
+    HttpMethod.GET,
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+)
+await calendar_agent.request(
+    calendar_connection_id,  # from Alter Connect
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+)
+
+# Clean up each instance
+await email_agent.close()
+await calendar_agent.close()
+```
+
+<Note>
+  All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
+</Note>
+
+### Actor Tracking Parameters Reference
+
+**Initialization (set once per SDK instance):**
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `actor_type` | `ActorType` | `ActorType.AI_AGENT`, `.MCP_SERVER`, or `.BACKEND_SERVICE` (required) | `ActorType.AI_AGENT` |
+| `actor_identifier` | `str` | Unique identifier for the actor (required) | `"email-assistant-v2"` |
+| `actor_name` | `str` | Human-readable display name | `"Email Assistant"` |
+| `actor_version` | `str` | Version of the actor | `"2.0.0"` |
+| `framework` | `str` | AI framework name | `"langgraph"`, `"crewai"` |
+| `client_type` | `str` | MCP client type | `"cursor"`, `"claude-desktop"` |
+
+**Per-request (set on each `vault.request()` call):**
+
+| Parameter | Type | Description | Example |
+|-----------|------|-------------|---------|
+| `run_id` | `str` | Execution run ID (UUID, auto-generated if omitted) | `"550e8400-..."` |
+| `thread_id` | `str` | Conversation thread ID | `"thread-abc-123"` |
+| `tool_call_id` | `str` | Tool invocation ID | `"call_xyz_789"` |
+
+## Connection Management
+
+### List Connections
+
+Retrieve OAuth connections for your app:
+
+```python
+result = await vault.list_connections()
+for conn in result.connections:
+    print(f"{conn.provider_id}: {conn.account_display_name} ({conn.status})")
+
+# Filter by provider with pagination
+result = await vault.list_connections(provider_id="google", limit=10)
+```
+
+Returns `ConnectionListResult` with `connections` (`list[ConnectionInfo]`), `total`, `limit`, `offset`, `has_more`.
+
+### Create Connect Session
+
+Generate a URL for end-users to connect OAuth providers:
+
+```python
+session = await vault.create_connect_session(
+    allowed_providers=["google", "github"],
+    return_url="https://myapp.com/callback",
+)
+print(f"Connect URL: {session.connect_url}")
+```
+
+Returns `ConnectSession` with `session_token`, `connect_url`, `expires_in`, `expires_at`.
+
+### Headless Connect (from code)
+
+For CLI tools, Jupyter notebooks, and backend scripts, use `connect()` to open the browser, wait for the user to complete OAuth, and get the result back:
+
+```python
+results = await vault.connect(
+    providers=["google"],
+    timeout=300,         # max wait in seconds (default: 5 min)
+    open_browser=True,   # set False to print URL instead
+)
+for result in results:
+    print(f"Connected: {result.connection_id} ({result.provider_id})")
+
+# Now use the connection_id with vault.request()
+response = await vault.request(
+    results[0].connection_id,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+)
+```
+
+Returns `list[ConnectResult]` -- one per connected provider. Each has `connection_id`, `provider_id`, `account_identifier`, `scopes`, and optionally `connection_policy` (with `expires_at` if a TTL was set).
+
+Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
+
+### Connection Policy (TTL)
+
+Use `connection_policy` to control how long a connection stays active. When set, the Connect UI shows an expiry picker and the connection automatically expires after the chosen duration.
+
+```python
+# Restrict connections to a maximum of 7 days
+results = await vault.connect(
+    providers=["google"],
+    connection_policy={
+        "max_ttl_seconds": 604800,     # longest duration the user can pick
+        "default_ttl_seconds": 86400,  # pre-selected in the dropdown
+    },
+)
+```
+
+The Connect UI offers these expiry options: **1 hour**, **1 day**, **7 days**, **30 days**, **90 days**. Setting `max_ttl_seconds` hides any option that exceeds it.
+
+| Parameter | Description |
+|-----------|-------------|
+| `max_ttl_seconds` | Maximum TTL the end user can select. Options above this are hidden from the picker. |
+| `default_ttl_seconds` | Pre-selected option in the dropdown. Falls back to 1 day if not set. |
+
+<Note>
+  The expiry picker **only appears** when `connection_policy` is passed. Without it, connections have no automatic expiry. After a connection expires, token retrieval **raises** `ConnectionExpiredError` and the user must re-authorize via Alter Connect.
+</Note>
+
+The same parameter works with `create_connect_session()`:
+
+```python
+session = await vault.create_connect_session(
+    allowed_providers=["google"],
+    connection_policy={
+        "max_ttl_seconds": 2592000,    # max 30 days
+        "default_ttl_seconds": 604800, # default 7 days
+    },
+)
+```
+
+## Error Handling
+
+<Warning>
+  **Always handle errors explicitly.** Policy enforcement happens on EVERY token retrieval and can deny access based on configured rules.
+</Warning>
+
+### Exception Hierarchy
+
+All internal invariants raise typed exceptions (never bare `AssertionError`), so errors are always catchable with the hierarchy below.
+
+```
+AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)
+├── BackendError (backend errors)
+│   ├── ReAuthRequiredError (user must re-authorize via Alter Connect)
+│   │   ├── ConnectionExpiredError (403 — TTL elapsed)
+│   │   ├── ConnectionRevokedError (400 — auth permanently broken)
+│   │   └── ConnectionDeletedError (410 — user disconnected via Wallet)
+│   ├── ConnectionNotFoundError (404 — wrong connection_id)
+│   └── PolicyViolationError (403 — policy denied access)
+├── ConnectFlowError (headless connect() failed)
+│   ├── ConnectDeniedError (user denied authorization)
+│   ├── ConnectConfigError (OAuth app misconfigured)
+│   └── ConnectTimeoutError (user didn't complete OAuth in time)
+├── ProviderAPIError (provider returned 4xx/5xx)
+│   └── ScopeReauthRequiredError (403 + scope mismatch - user must re-authorize)
+└── NetworkError (connection/timeout failures)
+    └── TimeoutError (request timed out — safe to retry)
+```
+
+### Complete Error Handling Example
+
+```python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk.exceptions import (
+    ReAuthRequiredError,
+    PolicyViolationError,
+    ConnectionNotFoundError,
+    BackendError,
+    ScopeReauthRequiredError,
+    NetworkError,
+    ProviderAPIError,
+)
+
+async def safe_api_call(connection_id: str):
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        try:
+            response = await vault.request(
+                connection_id,
+                HttpMethod.GET,
+                "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            )
+            return response.json()
+
+        except ReAuthRequiredError:
+            # Connection expired, revoked, or deleted — user must re-authorize
+            print("User must re-authorize via Alter Connect")
+            # Resolution: Redirect user to Alter Connect OAuth flow
+
+        except PolicyViolationError as e:
+            # Policy denied access (403) — check the reason
+            print(f"Access denied by policy: {e.message}")
+            print(f"Details: {e.details}")
+            # Resolution: Check policy configuration in dashboard
+
+        except ConnectionNotFoundError:
+            # No OAuth connection for this user/provider (404)
+            print("User hasn't connected Google yet")
+            # Resolution: Redirect user to Alter Connect OAuth flow
+
+        except BackendError as e:
+            # Other backend errors (401 invalid API key, 500/503 backend down)
+            print(f"Backend error: {e.message}")
+
+        except NetworkError as e:
+            # Connection failure or timeout (TimeoutError is a subclass)
+            print(f"Network issue: {e.message}")
+            # Resolution: Check network, retry with backoff
+
+        except ScopeReauthRequiredError as e:
+            # Provider returned 403 and connection has outdated scopes
+            print(f"Scope mismatch on {e.connection_id}: re-auth needed")
+            # Resolution: Create a new Connect session for the user
+
+        except ProviderAPIError as e:
+            # Provider API returned an error (4xx/5xx from Google, Slack, etc.)
+            print(f"Provider error {e.status_code}: {e.response_body}")
+            # Resolution: Check the provider's API docs
+```
+
+### Common Error Scenarios
+
+| Exception | HTTP Status | Cause | Resolution |
+|-----------|:-----------:|-------|------------|
+| `ReAuthRequiredError` | 400/403/410 | Connection expired/revoked/deleted | Redirect to Alter Connect |
+| `PolicyViolationError` | 403 | Policy denied access | Check policy rules in dashboard |
+| `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
+| `BackendError` | 401 | Invalid API key | Check your `api_key` |
+| `BackendError` | 400 | Provider not configured | Add provider in dashboard |
+| `BackendError` | 500/503 | Backend unavailable | Retry with backoff |
+| `ScopeReauthRequiredError` | 403 | Provider 403 + scope mismatch | User must re-authorize via Connect |
+| `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
+| `TimeoutError` | - | Request timed out | Retry with backoff |
+| `NetworkError` | - | Connection refused | Check network, retry |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Always Use Context Managers" icon="code">
+    ```python
+    # GOOD - Automatic cleanup
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        response = await vault.request(...)
+    # Clients automatically closed
+
+    # BAD - Manual cleanup required
+    vault = AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    )
+    response = await vault.request(...)
+    # Forgot to call vault.close()!
+    ```
+
+    After `close()` is called, any further `request()` calls raise `AlterSDKError`. `close()` is idempotent — calling it multiple times is safe.
+  </Accordion>
+
+  <Accordion title="Handle Errors Explicitly" icon="shield-exclamation">
+    ```python
+    # GOOD - Explicit error handling
+    try:
+        response = await vault.request(...)
+    except PolicyViolationError as e:
+        logger.warning(f"Policy violation: {e.message}")
+        return {"error": "Access denied by policy"}
+    except ConnectionNotFoundError:
+        return {"error": "Please connect your account first"}
+
+    # BAD - Swallows all errors
+    try:
+        response = await vault.request(...)
+    except Exception:
+        pass
+    ```
+  </Accordion>
+
+  <Accordion title="Store and Use Connection IDs" icon="users">
+    Store the `connection_id` from Alter Connect in your database, mapped to your users.
+
+    ```python
+    # Your app stores connection_id when the user completes Alter Connect
+    connection_id = db.get_connection(user_id=user_id, provider="google")
+    await vault.request(connection_id, HttpMethod.GET, url)
+
+    result = await vault.list_connections(provider_id="google")
+    for conn in result.connections:
+        print(f"{conn.connection_id}: {conn.account_display_name}")
+    ```
+  </Accordion>
+
+  <Accordion title="Use Enums for Type Safety" icon="list">
+    ```python
+    from alter_sdk import HttpMethod
+
+    # GOOD - Type-safe with autocomplete
+    await vault.request(connection_id, HttpMethod.GET, url)
+
+    # Also works - string methods
+    await vault.request(connection_id, "GET", url)
+    ```
+  </Accordion>
+
+  <Accordion title="Include Reasons for Audit" icon="clipboard-list">
+    ```python
+    # GOOD - Reason shows up in audit logs
+    response = await vault.request(
+        connection_id, HttpMethod.GET, url,
+        reason="Fetching calendar events for weekly digest",
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Full integration walkthrough with frontend + backend
+  </Card>
+  <Card title="Architecture" icon="building" href="/reference/architecture">
+    Understand the security architecture
+  </Card>
+  <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
+    Compliance and observability features
+  </Card>
+  <Card title="OpenClaw Plugin" icon="robot" href="/integrations/openclaw">
+    AI agent OAuth integration
+  </Card>
+</CardGroup>

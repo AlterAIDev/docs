@@ -1,0 +1,439 @@
+---
+title: 'Overview'
+description: 'Complete guide to the Alter TypeScript SDK — core concepts, examples, and API reference'
+icon: 'book'
+---
+
+## Core Concepts
+
+### vault.request() — Your Authenticated HTTP Client
+
+`vault.request()` acts as your HTTP client. Instead of calling `fetch` directly and managing auth headers, you pass a `connectionId` and URL — the SDK makes the request with the correct credential injected automatically. Your code never sees tokens or secrets.
+
+```typescript
+const response = await vault.request(
+  connectionId,      // Connection ID (UUID string) from Alter Connect
+  method,           // HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
+  url,              // Full URL of the provider API endpoint
+  {
+    json: {...},       // Optional: JSON request body
+    queryParams: {},   // Optional: URL query parameters
+    pathParams: {},    // Optional: URL path template substitutions
+    extraHeaders: {},  // Optional: Additional headers (Authorization is auto-injected)
+    reason: "...",     // Optional: Reason for audit trail
+  }
+);
+```
+
+### Type-Safe Enums
+
+Use enums for autocomplete and type safety:
+
+```typescript
+import { HttpMethod } from "@alter-ai/alter-sdk";
+
+// HTTP method enums
+HttpMethod.GET        // "GET"
+HttpMethod.POST       // "POST"
+HttpMethod.PUT        // "PUT"
+HttpMethod.PATCH      // "PATCH"
+HttpMethod.DELETE     // "DELETE"
+HttpMethod.HEAD       // "HEAD"
+HttpMethod.OPTIONS    // "OPTIONS"
+```
+
+Strings also work for forward compatibility:
+
+```typescript
+// These are equivalent
+await vault.request(connectionId, HttpMethod.GET, url);
+await vault.request(connectionId, "GET", url);
+```
+
+## Complete Examples
+
+### Google Calendar Events
+
+```typescript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+async function listCalendarEvents(connectionId: string) {
+  const vault = new AlterVault({
+    apiKey: "alter_key_...",
+    actorType: ActorType.AI_AGENT,
+    actorIdentifier: "my-agent",
+  });
+
+  const response = await vault.request(
+    connectionId,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    {
+      queryParams: {
+        maxResults: "10",
+        singleEvents: "true",
+        orderBy: "startTime",
+      },
+    }
+  );
+
+  const events = await response.json();
+  for (const event of events.items ?? []) {
+    const start = event.start?.dateTime ?? event.start?.date;
+    console.log(`${start}: ${event.summary ?? "No title"}`);
+  }
+
+  await vault.close();
+}
+```
+
+### GitHub Repositories
+
+```typescript
+async function listRepos(connectionId: string) {
+  const vault = new AlterVault({
+    apiKey: "alter_key_...",
+    actorType: ActorType.AI_AGENT,
+    actorIdentifier: "my-agent",
+  });
+
+  const response = await vault.request(
+    connectionId,
+    HttpMethod.GET,
+    "https://api.github.com/user/repos",
+    {
+      queryParams: { sort: "updated", per_page: "10" },
+    }
+  );
+
+  const repos = await response.json();
+  for (const repo of repos) {
+    console.log(`${repo.name} — ${repo.description ?? "No description"}`);
+  }
+
+  await vault.close();
+}
+```
+
+## Using Managed Secrets
+
+For your own APIs where **you** already have the credentials (API keys, service tokens), use Managed Secrets. The `connectionId` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
+
+```typescript
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+// Call your internal API — secret injected automatically
+const response = await vault.request(
+  "MANAGED_SECRET_CONNECTION_ID",  // from Developer Portal (not from a user)
+  HttpMethod.GET,
+  "https://api.internal.com/v1/loyalty/points",
+  {
+    queryParams: { user_id: "alice" },
+    reason: "Checking loyalty points for rewards calculation",
+  }
+);
+const data = await response.json();
+await vault.close();
+```
+
+<Info>
+**OAuth vs Managed Secrets**: For OAuth, the `connectionId` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connectionId` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
+</Info>
+
+Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
+
+## Actor Tracking (AI Agents & MCP Servers)
+
+### Registering an Actor
+
+Pass actor identity at SDK initialization using the `ActorType` enum:
+
+```typescript
+import { AlterVault, ActorType } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,         // Required: ActorType enum
+  actorIdentifier: "email-assistant-v2", // Required: Unique identifier
+  actorName: "Email Assistant",          // Optional: Human-readable name
+  actorVersion: "2.0.0",                // Optional: Version string
+  framework: "langgraph",               // Optional: AI framework
+});
+```
+
+Available actor types:
+
+```typescript
+ActorType.AI_AGENT          // "ai_agent"
+ActorType.MCP_SERVER        // "mcp_server"
+ActorType.BACKEND_SERVICE   // "backend_service"
+```
+
+### Per-Request Tracking
+
+Add execution-level context on each request:
+
+```typescript
+const response = await vault.request(
+  "CONNECTION_ID",  // from Alter Connect
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  {
+    runId: "550e8400-e29b-41d4-a716-446655440000",  // auto-generated UUID if omitted
+    threadId: "thread-abc-123",
+    toolCallId: "call_xyz_789",
+  }
+);
+```
+
+<Note>
+`runId` is auto-generated as a UUID v4 if not provided. All sub-actions within a single `request()` call share the same `runId` for audit log grouping.
+</Note>
+
+### Multi-Agent Deployments
+
+Each agent must create its own `AlterVault` instance with a unique actor identity. Do not share a single instance across agents -- audit logs, policies, and actor registration are tied to each instance.
+
+```typescript
+// Each agent gets its own vault instance
+const emailAgent = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "email-assistant-v2",
+  actorName: "Email Assistant",
+});
+
+const calendarAgent = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "calendar-agent-v1",
+  actorName: "Calendar Agent",
+});
+
+// Audit logs and policies are tracked per agent
+await emailAgent.request(
+  gmailConnectionId,  // from Alter Connect
+  HttpMethod.GET,
+  "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+);
+await calendarAgent.request(
+  calendarConnectionId,  // from Alter Connect
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+);
+
+// Clean up each instance
+await emailAgent.close();
+await calendarAgent.close();
+```
+
+<Note>
+  All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
+</Note>
+
+## Connection Management
+
+### List Connections
+
+Retrieve OAuth connections for your app:
+
+```typescript
+const result = await vault.listConnections();
+for (const conn of result.connections) {
+  console.log(`${conn.providerId}: ${conn.accountDisplayName} (${conn.status})`);
+}
+
+// Filter by provider with pagination
+const googleConns = await vault.listConnections({ providerId: "google", limit: 10 });
+```
+
+Returns `ConnectionListResult` with `connections` (`ConnectionInfo[]`), `total`, `limit`, `offset`, `hasMore`.
+
+### Create Connect Session
+
+Generate a URL for end-users to connect OAuth providers:
+
+```typescript
+const session = await vault.createConnectSession({
+  allowedProviders: ["google", "github"],
+  returnUrl: "https://myapp.com/callback",
+});
+console.log(`Connect URL: ${session.connectUrl}`);
+```
+
+Returns `ConnectSession` with `sessionToken`, `connectUrl`, `expiresIn`, `expiresAt`.
+
+### Headless Connect (from code)
+
+For CLI tools, scripts, and server-side applications, use `connect()` to open the browser, wait for the user to complete OAuth, and get the result back:
+
+```typescript
+const results = await vault.connect({
+  providers: ["google"],
+  timeout: 300,        // max wait in seconds (default: 5 min)
+  openBrowser: true,   // set false to print URL instead
+});
+for (const result of results) {
+  console.log(`Connected: ${result.connectionId} (${result.providerId})`);
+}
+
+// Now use the connectionId with vault.request()
+const response = await vault.request(
+  results[0].connectionId,
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+);
+```
+
+Returns `ConnectResult[]` -- one per connected provider. Each has `connectionId`, `providerId`, `accountIdentifier`, `scopes`, and optionally `connectionPolicy` (with `expiresAt` if a TTL was set).
+
+Throws `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
+
+### Connection Policy (TTL)
+
+Use `connectionPolicy` to control how long a connection stays active. When set, the Connect UI shows an expiry picker and the connection automatically expires after the chosen duration.
+
+```typescript
+const results = await vault.connect({
+  providers: ["google"],
+  connectionPolicy: {
+    maxTtlSeconds: 604800,     // longest duration the user can pick
+    defaultTtlSeconds: 86400,  // pre-selected in the dropdown
+  },
+});
+```
+
+The Connect UI offers these expiry options: **1 hour**, **1 day**, **7 days**, **30 days**, **90 days**. Setting `maxTtlSeconds` hides any option that exceeds it.
+
+| Parameter | Description |
+|-----------|-------------|
+| `maxTtlSeconds` | Maximum TTL the end user can select. Options above this are hidden from the picker. |
+| `defaultTtlSeconds` | Pre-selected option in the dropdown. Falls back to 1 day if not set. |
+
+<Note>
+  The expiry picker **only appears** when `connectionPolicy` is passed. Without it, connections have no automatic expiry. After a connection expires, token retrieval throws `ConnectionExpiredError` and the user must re-authorize via Alter Connect.
+</Note>
+
+The same parameter works with `createConnectSession()`:
+
+```typescript
+const session = await vault.createConnectSession({
+  allowedProviders: ["google"],
+  connectionPolicy: {
+    maxTtlSeconds: 2592000,    // max 30 days
+    defaultTtlSeconds: 604800, // default 7 days
+  },
+});
+```
+
+## Error Handling
+
+<Warning>
+  **Always handle errors explicitly.** Policy enforcement happens on EVERY token retrieval and can deny access based on configured rules.
+</Warning>
+
+### Exception Hierarchy
+
+```
+AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
+├── BackendError (backend errors)
+│   ├── ReAuthRequiredError (user must re-authorize via Alter Connect)
+│   │   ├── ConnectionExpiredError (403 — TTL elapsed)
+│   │   ├── ConnectionRevokedError (400 — auth permanently broken)
+│   │   └── ConnectionDeletedError (410 — user disconnected via Wallet)
+│   ├── ConnectionNotFoundError (404 — wrong connection_id)
+│   └── PolicyViolationError (403 — policy denied access)
+├── ConnectFlowError (headless connect() failed)
+│   ├── ConnectDeniedError (user denied authorization)
+│   ├── ConnectConfigError (OAuth app misconfigured)
+│   └── ConnectTimeoutError (user didn't complete OAuth in time)
+├── ProviderAPIError (provider returned 4xx/5xx)
+│   └── ScopeReauthRequiredError (403 + scope mismatch — user must re-authorize)
+└── NetworkError (connection failures)
+    └── TimeoutError (request timed out)
+```
+
+### Complete Error Handling Example
+
+```typescript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import {
+  ReAuthRequiredError,
+  PolicyViolationError,
+  ConnectionNotFoundError,
+  ScopeReauthRequiredError,
+  NetworkError,
+  ProviderAPIError,
+} from "@alter-ai/alter-sdk";
+
+async function safeApiCall(connectionId: string) {
+  const vault = new AlterVault({
+    apiKey: "alter_key_...",
+    actorType: ActorType.AI_AGENT,
+    actorIdentifier: "my-agent",
+  });
+
+  try {
+    const response = await vault.request(
+      connectionId,
+      HttpMethod.GET,
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    );
+    return await response.json();
+
+  } catch (e) {
+    if (e instanceof ReAuthRequiredError) {
+      // Catches ConnectionExpiredError, ConnectionRevokedError, ConnectionDeletedError
+      console.log("User must re-authorize via Alter Connect");
+    } else if (e instanceof PolicyViolationError) {
+      console.log(`Access denied by policy: ${e.message}`);
+    } else if (e instanceof ConnectionNotFoundError) {
+      console.log("User hasn't connected Google yet");
+    } else if (e instanceof NetworkError) {
+      // TimeoutError is a subclass, so this catches both
+      console.log(`Network issue: ${e.message}`);
+    } else if (e instanceof ScopeReauthRequiredError) {
+      console.log(`Scope mismatch on ${e.connectionId}: re-auth needed`);
+      // Create a new Connect session so the user can grant updated scopes
+    } else if (e instanceof ProviderAPIError) {
+      console.log(`Provider error ${e.statusCode}: ${e.responseBody}`);
+    }
+  } finally {
+    await vault.close();
+  }
+}
+```
+
+### Common Error Scenarios
+
+| Exception | HTTP Status | Cause | Resolution |
+|-----------|:-----------:|-------|------------|
+| `ReAuthRequiredError` | 400/403/410 | Connection expired/revoked/deleted | Redirect to Alter Connect |
+| `PolicyViolationError` | 403 | Policy denied access | Check policy rules in dashboard |
+| `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
+| `BackendError` | 401 | Invalid API key | Check your `apiKey` |
+| `ScopeReauthRequiredError` | 403 | Provider 403 + scope mismatch | User must re-authorize via Connect |
+| `ProviderAPIError` | 4xx/5xx | Provider API error | Check provider docs |
+| `TimeoutError` | - | Request timed out | Retry with backoff |
+| `NetworkError` | - | Connection refused | Check network |
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Full integration walkthrough with frontend + backend
+  </Card>
+  <Card title="Architecture" icon="building" href="/reference/architecture">
+    Understand the security architecture
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdks/python/quickstart">
+    Python SDK equivalent
+  </Card>
+  <Card title="OpenClaw Plugin" icon="robot" href="/integrations/openclaw">
+    AI agent OAuth integration
+  </Card>
+</CardGroup>

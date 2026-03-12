@@ -53,7 +53,10 @@
       "group": "Getting Started",
       "pages": [
         "index",
-        "quickstart"
+        "quickstart",
+        "oauth-overview",
+        "managed-secrets-overview",
+        "choosing-credential-type"
       ]
     },
     {
@@ -63,14 +66,16 @@
           "group": "Python SDK",
           "pages": [
             "sdks/python/installation",
-            "sdks/python/quickstart"
+            "sdks/python/quickstart",
+            "sdks/python/overview"
           ]
         },
         {
           "group": "TypeScript SDK",
           "pages": [
             "sdks/typescript/installation",
-            "sdks/typescript/quickstart"
+            "sdks/typescript/quickstart",
+            "sdks/typescript/overview"
           ]
         },
         {
@@ -78,6 +83,7 @@
           "pages": [
             "sdks/javascript/installation",
             "sdks/javascript/quickstart",
+            "sdks/javascript/overview",
             "sdks/javascript/reference"
           ]
         }
@@ -212,7 +218,6 @@
         {
           "group": "Cloud & Infrastructure",
           "pages": [
-            "providers/aws",
             "providers/digitalocean"
           ]
         },

@@ -1,0 +1,125 @@
+---
+title: 'OAuth Connections'
+description: 'How OAuth connections work in Alter Vault — end-user authorization for third-party services'
+icon: 'link'
+---
+
+## What Are OAuth Connections?
+
+OAuth connections let your **end users** authorize access to their accounts on third-party services like Google, Slack, GitHub, and more. When a user completes the OAuth flow, Alter Vault stores their tokens securely and gives you a `connection_id` to make API calls on their behalf.
+
+Your code never sees or handles OAuth tokens. You call `vault.request(connection_id, ...)` and the SDK injects the right credential automatically, refreshing expired tokens transparently.
+
+## When to Use OAuth
+
+Use OAuth connections when:
+
+- **End users** need to authorize access to **their** accounts (e.g., a user's Google Calendar, a user's Slack workspace)
+- You need **per-user** credentials (each user gets their own `connection_id`)
+- The service supports OAuth 2.0 and you want automatic token refresh
+- Users should be able to see and revoke their connections via the [Wallet Dashboard](https://wallet.alterai.dev)
+
+## How It Works
+
+<Steps>
+  <Step title="User Authorizes">
+    Your end user completes the OAuth flow via Alter Connect (popup, redirect, or headless). They log into their account and grant permissions.
+  </Step>
+
+  <Step title="You Get a connection_id">
+    The `onSuccess` callback (or `connect()` return value) gives you a `connection_id` (UUID) for the user's connected account. Store this in your database mapped to the user.
+  </Step>
+
+  <Step title="Tokens Stored Securely">
+    Access tokens, refresh tokens, and expiry data are encrypted (AES-256-GCM) and stored in Alter Vault -- never in your database.
+  </Step>
+
+  <Step title="Make API Calls">
+    Call `vault.request(connection_id, method, url)` -- the SDK retrieves the token, refreshes it if needed, and injects it as the correct auth header.
+  </Step>
+</Steps>
+
+## Quick Example
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    # connection_id from Alter Connect (stored in your DB)
+    response = await vault.request(
+        connection_id,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        query_params={"maxResults": "10"},
+    )
+    events = response.json()
+```
+
+```typescript TypeScript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+// connectionId from Alter Connect (stored in your DB)
+const response = await vault.request(
+  connectionId,
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { queryParams: { maxResults: "10" } },
+);
+const events = await response.json();
+await vault.close();
+```
+
+</CodeGroup>
+
+## Three Ways to Trigger OAuth
+
+| Method | Best for | How it works |
+|--------|----------|--------------|
+| **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, AI agents | SDK opens the browser, polls until complete. Everything in Python/TypeScript. |
+| **Redirect** (`connect_url`) | Server-rendered apps, email links | Backend creates session, redirects user to hosted OAuth page. No JS SDK needed. |
+| **Popup** (`@alter-ai/connect`) | SPAs (React, Vue, etc.) | Frontend SDK opens hosted page in a popup with `onSuccess`/`onError` callbacks. |
+
+See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for full examples of each method.
+
+## Key Features
+
+- **Automatic token refresh** -- tokens are refreshed transparently before they expire
+- **Connection policy (TTL)** -- set maximum connection lifetimes with `connection_policy`
+- **Per-user connections** -- each user who authorizes gets their own `connection_id`
+- **Multi-account support** -- users can connect multiple accounts to the same provider (e.g., personal + work Gmail)
+- **Wallet visibility** -- users can see and revoke their connections via the Wallet Dashboard
+- **Policy enforcement** -- time-based and IP-based access rules on every token retrieval
+- **Full audit trail** -- every token access is logged with actor identity, method, URL, and reason
+
+## Supported OAuth Providers
+
+Alter Vault supports 50+ OAuth providers across categories including productivity, CRM, design, marketing, communication, social, storage, finance, payments, and more. See the [OAuth Providers](/providers/google) section in the sidebar for the full list and setup guides.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Full integration walkthrough
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdks/python/quickstart">
+    Python SDK quickstart
+  </Card>
+  <Card title="Alter Connect" icon="window" href="/sdks/javascript/quickstart">
+    Frontend popup SDK
+  </Card>
+  <Card title="Managed Secrets" icon="key" href="/managed-secrets-overview">
+    For your own API keys and service tokens
+  </Card>
+</CardGroup>
