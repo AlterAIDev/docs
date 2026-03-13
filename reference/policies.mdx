@@ -1,0 +1,291 @@
+---
+title: 'Security Policies'
+description: 'Control when and how credentials can be accessed with time-based, IP-based, and TTL policies'
+---
+
+## Overview
+
+Security policies let you restrict when and how OAuth tokens and managed secrets can be accessed. Policies are enforced in real-time on every credential retrieval — if any rule fails, access is denied.
+
+<CardGroup cols={3}>
+  <Card title="Time-Based" icon="clock">
+    Restrict access to business hours and/or weekdays only
+  </Card>
+
+  <Card title="IP Allowlist" icon="shield">
+    Only allow access from specific IPs or CIDR ranges
+  </Card>
+
+  <Card title="Connection TTL" icon="hourglass">
+    Set expiration dates on individual connections
+  </Card>
+</CardGroup>
+
+<Info>
+Policies apply to **both OAuth connections and managed secrets**. The same rules protect all credential types.
+</Info>
+
+## App-Level Policies
+
+App-level policies apply to **all connections** for a given provider within your app. Configure them in the Developer Portal under **Policies**.
+
+### Time-Based Access
+
+Restrict credential access to specific time windows:
+
+| Rule | Description |
+|------|-------------|
+| **Business hours only** | 9:00 AM – 5:00 PM in your configured timezone |
+| **Weekdays only** | Monday through Friday |
+| **Timezone** | Any IANA timezone (e.g., `America/New_York`, `Europe/London`). Defaults to UTC. |
+
+Rules combine with **AND logic** — if you enable both business hours and weekdays, access is only allowed during business hours on weekdays.
+
+### IP Allowlist
+
+Restrict credential access to specific IP addresses or ranges:
+
+- IPv4 addresses (e.g., `203.0.113.50`)
+- IPv6 addresses (e.g., `2001:db8::1`)
+- CIDR ranges (e.g., `203.0.113.0/24`, `10.0.0.0/8`)
+
+<Tip>
+Use CIDR ranges for office networks or VPNs rather than listing individual IPs.
+</Tip>
+
+### Configuring Policies
+
+<Steps>
+  <Step title="Open your app in the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and select your app
+  </Step>
+
+  <Step title="Go to Policies">
+    Click **Policies** in the app sidebar. Only providers you've already configured (OAuth or managed secret) appear here.
+  </Step>
+
+  <Step title="Add or edit a policy">
+    Click **Add Policy** (or edit an existing one) next to a provider:
+
+    - **Time restrictions**: Enable business hours and/or weekdays, select timezone
+    - **IP allowlist**: Add IPv4/IPv6 addresses or CIDR ranges
+  </Step>
+
+  <Step title="Save">
+    Click **Save Policy**. Changes take effect immediately for new credential retrievals.
+  </Step>
+</Steps>
+
+### Policy Examples
+
+**Business hours + office IP only:**
+
+```json
+{
+  "time_restrictions": {
+    "business_hours_only": true,
+    "weekdays_only": true,
+    "timezone": "America/New_York"
+  },
+  "ip_allowlist": ["203.0.113.0/24"]
+}
+```
+
+**Weekdays only (any IP, any hour):**
+
+```json
+{
+  "time_restrictions": {
+    "weekdays_only": true,
+    "timezone": "UTC"
+  }
+}
+```
+
+**IP-restricted only (any time):**
+
+```json
+{
+  "ip_allowlist": [
+    "203.0.113.0/24",
+    "10.0.0.0/8",
+    "2001:db8::/32"
+  ]
+}
+```
+
+## Connection-Level Policies (TTL)
+
+Connection-level policies set an expiration date on **individual connections**, independent of app-level policies.
+
+### Setting TTL During OAuth Flow
+
+Pass a `connection_policy` when creating a Connect session to set TTL on new connections:
+
+<CodeGroup>
+
+```python Python
+session = await vault.create_connect_session(
+    allowed_providers=["google", "slack"],
+    connection_policy={
+        "max_ttl_seconds": 2592000,      # 30-day upper bound
+        "default_ttl_seconds": 604800,   # 7-day default shown in UI
+    },
+)
+```
+
+```typescript TypeScript
+const session = await vault.createConnectSession({
+  allowedProviders: ["google", "slack"],
+  connectionPolicy: {
+    maxTtlSeconds: 2592000,      // 30-day upper bound
+    defaultTtlSeconds: 604800,   // 7-day default shown in UI
+  },
+});
+```
+
+</CodeGroup>
+
+| Parameter | Description |
+|-----------|-------------|
+| `max_ttl_seconds` | Maximum lifetime a connection can have. Users cannot extend beyond this. |
+| `default_ttl_seconds` | Default duration shown in the Alter Connect UI. Users can adjust within bounds. |
+
+### How TTL Works
+
+- When a connection expires (`expires_at < now`), any `vault.request()` call raises (Python) / throws (TypeScript) a `ConnectionExpiredError`
+- End users can view and extend TTL in the [Wallet Dashboard](https://wallet.alterai.dev), up to the developer-set `max_ttl_seconds` bound
+
+### Handling Policy Errors
+
+When a policy denies access, the SDK raises a specific error depending on the cause. Handle all three policy-related errors:
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import HttpMethod
+from alter_sdk.exceptions import (
+    ConnectionExpiredError,
+    PolicyViolationError,
+    ReAuthRequiredError,
+)
+
+try:
+    response = await vault.request(
+        connection_id,
+        HttpMethod.GET,
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    )
+except ConnectionExpiredError:
+    # Connection TTL expired — prompt user to reconnect
+    print("Connection expired. Please reconnect via Alter Connect.")
+except PolicyViolationError as e:
+    # Time-based or IP allowlist denial
+    print(f"Access denied by policy: {e.message} (rule: {e.policy_error})")
+except ReAuthRequiredError:
+    # OAuth token invalid — prompt user to re-authorize
+    print("Re-authorization required.")
+```
+
+```typescript TypeScript
+import {
+  ConnectionExpiredError,
+  PolicyViolationError,
+  ReAuthRequiredError,
+  HttpMethod,
+} from "@alter-ai/alter-sdk";
+
+try {
+  const response = await vault.request(
+    connectionId,
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  );
+} catch (e) {
+  if (e instanceof ConnectionExpiredError) {
+    // Connection TTL expired — prompt user to reconnect
+    console.log("Connection expired. Please reconnect via Alter Connect.");
+  } else if (e instanceof PolicyViolationError) {
+    // Time-based or IP allowlist denial
+    console.log(`Access denied by policy: ${e.message} (rule: ${e.policyError})`);
+  } else if (e instanceof ReAuthRequiredError) {
+    // OAuth token invalid — prompt user to re-authorize
+    console.log("Re-authorization required.");
+  } else {
+    throw e;
+  }
+}
+```
+
+</CodeGroup>
+
+| Error | When It's Raised | Action |
+|-------|-----------------|--------|
+| `ConnectionExpiredError` | Connection TTL has expired | Prompt user to reconnect via Alter Connect |
+| `PolicyViolationError` | Time-based restriction or IP allowlist denial | Check `policy_error` / `policyError` for the specific rule; adjust timing or IP |
+| `ReAuthRequiredError` | Connection requires re-authorization (revoked by provider, deleted by user, or otherwise invalidated) | Redirect user to re-authorize via Alter Connect |
+
+## Policy Evaluation Order
+
+When a credential is requested, policies are evaluated in this order:
+
+1. **Connection TTL** — is the connection expired?
+2. **Time restrictions** — is it within business hours / a weekday?
+3. **IP allowlist** — is the client IP in the allowed list?
+
+All rules use **AND logic** — every configured rule must pass for access to be granted.
+
+<Warning>
+If **no policy** is configured for a provider, all credential accesses are allowed (permissive default). We recommend configuring at least time-based or IP restrictions for production applications.
+</Warning>
+
+## Fail-Closed Security
+
+If the policy engine is temporarily unavailable, the system **denies all credential access** rather than bypassing policies. This ensures security is maintained even during outages.
+
+## Policy Violations in Audit Logs
+
+Every policy denial is logged with the specific reason:
+
+- Which rule failed (time restriction, IP allowlist, TTL)
+- The policy decision (`ALLOW` or `DENY`)
+- Full request context (who, what, when)
+
+View policy violations in the Developer Portal under **Audit Logs** — filter by event type to see denials.
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Start permissive, tighten gradually" icon="chart-line">
+    Enable audit logging first to understand your access patterns. Then add policies based on actual usage — this avoids accidentally blocking legitimate access.
+  </Accordion>
+
+  <Accordion title="Use CIDR ranges over individual IPs" icon="network-wired">
+    For office networks and VPNs, use CIDR notation (`203.0.113.0/24`) rather than listing individual IPs. This is easier to maintain and accommodates DHCP changes.
+  </Accordion>
+
+  <Accordion title="Set TTL for sensitive integrations" icon="hourglass">
+    For connections that access sensitive data (financial APIs, healthcare systems), set a connection TTL to limit exposure if credentials are compromised.
+  </Accordion>
+
+  <Accordion title="Match timezone to your team" icon="globe">
+    Set the policy timezone to match where your team operates. If you have distributed teams, consider using UTC and broader time windows.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
+    Monitor policy decisions and violations
+  </Card>
+  <Card title="Developer Portal" icon="browser" href="/reference/developer-portal#security-policies">
+    Configure policies in the portal
+  </Card>
+  <Card title="Architecture" icon="building" href="/reference/architecture">
+    Security model and encryption details
+  </Card>
+  <Card title="Python SDK" icon="python" href="/sdks/python/overview">
+    SDK error handling for policy violations
+  </Card>
+</CardGroup>

@@ -90,6 +90,24 @@ Alter Vault logs five categories of events automatically:
   </Accordion>
 </AccordionGroup>
 
+## Audit Log Fields
+
+Every audit log entry includes a standard set of fields:
+
+| Field | Description |
+|-------|-------------|
+| **Timestamp** | When the action occurred (ISO 8601, UTC) |
+| **Action** | Type of event (e.g., credential retrieved, connection authorized, access denied) |
+| **Action type** | Category: `read`, `write`, or `error` |
+| **Provider** | OAuth provider or managed secret service |
+| **Actor** | Who made the request — backend service, AI agent, MCP server, or end user |
+| **Reason** | Developer-provided explanation of why the action was taken |
+| **Policy decision** | `ALLOW` or `DENY`, with the specific rule that triggered a denial |
+| **HTTP method & URL** | The API call the credential was used for |
+| **Status code** | Response status from the target API |
+| **Latency** | Round-trip time for the API call (milliseconds) |
+| **Trace ID** | Correlation ID for distributed tracing (W3C traceparent) |
+
 ## Adding Context to Audit Logs
 
 Add a `reason` parameter to your API calls for richer audit context:
@@ -129,7 +147,42 @@ response = await vault.request(
 )
 ```
 
-In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. See the [Python SDK Actor Tracking guide](/sdks/python/quickstart#actor-tracking-ai-agents--mcp-servers) for setup details.
+In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. See the [Python SDK Overview](/sdks/python/overview#actor-tracking-ai-agents--mcp-servers) for setup details.
+
+### Actor Context Fields
+
+| Field | Description |
+|-------|-------------|
+| **Actor type** | `AI_AGENT`, `MCP_SERVER`, or `BACKEND_SERVICE` (set via `ActorType` enum in SDK) |
+| **Actor identifier** | Unique ID for the actor (e.g., `email-assistant-v2`) |
+| **Actor name** | Human-readable display name |
+| **Run ID** | Execution run identifier (e.g., LangGraph run ID) |
+| **Thread ID** | Conversation thread identifier |
+| **Tool call ID** | Specific tool invocation within a run |
+
+These fields let you trace exactly which AI agent, in which run, made each credential access.
+
+## Managed Secret Audit Logging
+
+Managed secret access is logged with the same detail as OAuth token access:
+
+- **Credential retrieved** — a managed secret was used via `vault.request()`
+- **Access denied** — access was blocked by a policy violation (time, IP, or TTL)
+- **Secret stored** — a new secret was stored in the Developer Portal
+- **Secret rotated** — a secret value was replaced
+- **Secret revoked** — a secret was deleted
+
+All the same filtering, export, and actor tracking features apply. In the Developer Portal, filter by provider to see all activity for a specific managed secret.
+
+## Policy Decisions in Audit Logs
+
+Every credential access logs the policy evaluation result:
+
+- **Allowed** — which policies were checked and passed
+- **Denied** — which specific rule failed (time restriction, IP allowlist, or connection TTL)
+- **Policy context** — the policy configuration that was evaluated
+
+This makes it easy to investigate access patterns, debug policy violations, and demonstrate compliance during audits. See the [Security Policies](/reference/policies) guide for configuring policies.
 
 ## Trace Context
 
@@ -143,7 +196,17 @@ Audit logs are designed for compliance out of the box:
 |----------|------------------------|
 | **SOC 2** | Evidence of access controls, change management, and monitoring |
 | **GDPR** | Complete data access records for right-of-access requests |
-| **HIPAA** | Full audit trail of PHI access through OAuth connections |
+| **HIPAA** | Full audit trail of PHI access through OAuth connections and managed secrets |
+
+### Common Compliance Queries
+
+| Question | How to Find It |
+|----------|---------------|
+| "Who accessed this user's data?" | Filter by connection ID or end user identifier |
+| "What did this AI agent do?" | Filter by actor name or actor identifier |
+| "Were there any policy violations?" | Filter by event type → policy denial |
+| "When was this credential last used?" | Filter by provider + sort by timestamp |
+| "What APIs were called with this secret?" | Filter by connection ID → view API call logs |
 
 ## Data Retention
 
@@ -157,10 +220,16 @@ Each audit log entry includes a `retention_until` field and an optional `legal_h
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Actor Tracking" icon="robot" href="/sdks/python/quickstart#actor-tracking-ai-agents--mcp-servers">
+  <Card title="Actor Tracking" icon="robot" href="/sdks/python/overview#actor-tracking-ai-agents--mcp-servers">
     Set up AI agent tracking in the Python SDK
   </Card>
-  <Card title="Security Policies" icon="shield" href="/reference/developer-portal#security-policies">
+  <Card title="Security Policies" icon="shield" href="/reference/policies">
     Configure access policies that are enforced and logged
+  </Card>
+  <Card title="Developer Portal" icon="browser" href="/reference/developer-portal#audit-logs">
+    View audit logs in the portal
+  </Card>
+  <Card title="Managed Secrets" icon="key" href="/reference/managed-secrets#audit-logging">
+    Managed secret audit logging details
   </Card>
 </CardGroup>

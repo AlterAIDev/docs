@@ -64,7 +64,7 @@ const alterConnect = AlterConnect.create({
 | `debug` | boolean | Enable console logs |
 
 <Note>
-Visual customization (colors, fonts, logo) is configured via the Developer Portal branding settings. The backend-served Connect UI applies your branding automatically.
+Visual customization (colors, fonts, logo) is configured via the Developer Portal branding settings. The backend-served Connect UI applies your branding automatically. See [Branding & Customization](#branding--customization) below for details.
 </Note>
 
 ## Open Options
@@ -220,6 +220,61 @@ alterConnect.on('error', (error) => {
   console.log('Connection error:', error);
 });
 ```
+
+## Branding & Customization
+
+Customize the Alter Connect UI to match your app's look and feel. Branding is configured in the Developer Portal and applied automatically when users open the Connect flow.
+
+### What You Can Customize
+
+| Property | Description | Requirements |
+|----------|-------------|--------------|
+| **Logo** | Your app's logo displayed in the Connect UI | HTTPS URL, max 500 characters |
+| **Primary color** | Buttons and interactive elements | Hex format (`#RRGGBB`) |
+| **Text color** | Text and labels | Hex format (`#RRGGBB`) |
+| **Background color** | Page background | Hex format (`#RRGGBB`) |
+| **Font family** | Typography throughout the UI | Any CSS font-family value (optional) |
+
+### Setting Up Branding
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and select your app
+  </Step>
+
+  <Step title="Go to Branding">
+    Click **Branding** in the app sidebar
+  </Step>
+
+  <Step title="Configure your brand">
+    - Upload or link to your logo (HTTPS URLs only)
+    - Set your brand colors (primary, text, background)
+    - Optionally set a custom font family
+  </Step>
+
+  <Step title="Save">
+    Your branding is applied immediately to all new Alter Connect sessions
+  </Step>
+</Steps>
+
+### How It Works
+
+When a user opens Alter Connect, the UI automatically renders with your configured branding:
+
+- Your **logo** appears at the top of the provider selection and authorization screens
+- Your **primary color** is used for buttons, links, and interactive elements
+- Your **text** and **background colors** ensure readable contrast
+- Your **font family** (if set) applies to all text in the UI
+
+No frontend code changes needed — branding is applied server-side.
+
+### Resetting to Defaults
+
+Delete your branding configuration in the Developer Portal to revert to the default Alter Connect appearance.
+
+<Tip>
+Use colors with good contrast between text and background. Test your branding by opening a Connect session after saving.
+</Tip>
 
 ## Troubleshooting
 

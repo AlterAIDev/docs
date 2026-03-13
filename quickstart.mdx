@@ -96,9 +96,9 @@ For production web apps, use the session-based flow. Your backend creates a sess
 
 | Method | When to use | How it works |
 |--------|------------|--------------|
-| **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, backend agents. No frontend at all. | SDK creates the session, opens the user's default browser, and polls until OAuth completes. Everything happens in Python/TypeScript. |
-| **Redirect** (`connect_url`) | Server-rendered apps (Django, Rails, etc.), email links, or any app that can redirect a browser. No JavaScript SDK needed. | Your backend creates a session, gets a `connect_url`, and redirects the user to it. After OAuth, the user is redirected back to your `return_url` with the results. |
-| **Popup** (`@alter-ai/connect` SDK) | Single-page apps (React, Vue, etc.) where you want a popup overlay with real-time `onSuccess`/`onError` callbacks without leaving the page. | Your backend creates a session and passes the `session_token` to the frontend SDK, which opens the hosted page in a popup. |
+| **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, backend agents. No frontend at all. | One SDK call does everything — creates a session, opens the user's default browser, and polls until OAuth completes. Everything happens in Python/TypeScript. |
+| **Redirect** | Server-rendered apps (Django, Rails, etc.), email links, or any app that can redirect a browser. No JavaScript SDK needed. | Your backend calls `create_connect_session()`, gets a `connect_url`, and redirects the user to it. After OAuth, the user is redirected back to your `return_url` with the results. |
+| **Popup** (`@alter-ai/connect` SDK) | Single-page apps (React, Vue, etc.) where you want a popup overlay with real-time `onSuccess`/`onError` callbacks without leaving the page. | Your backend calls `create_connect_session()` and passes the `session_token` to the frontend SDK, which opens the hosted page in a popup. |
 
 <Info>
 **The frontend JavaScript SDK (`@alter-ai/connect`) is optional.** The `connect_url` returned by `create_connect_session()` is a standard HTTPS URL that works in any browser. The frontend SDK just wraps it in a popup with callbacks for a smoother SPA experience.

@@ -348,6 +348,7 @@
       "pages": [
         "reference/architecture",
         "reference/managed-secrets",
+        "reference/policies",
         "reference/audit-logs",
         "reference/developer-portal"
       ]

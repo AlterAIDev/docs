@@ -87,9 +87,9 @@ await vault.close();
 
 | Method | Best for | How it works |
 |--------|----------|--------------|
-| **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, AI agents | SDK opens the browser, polls until complete. Everything in Python/TypeScript. |
-| **Redirect** (`connect_url`) | Server-rendered apps, email links | Backend creates session, redirects user to hosted OAuth page. No JS SDK needed. |
-| **Popup** (`@alter-ai/connect`) | SPAs (React, Vue, etc.) | Frontend SDK opens hosted page in a popup with `onSuccess`/`onError` callbacks. |
+| **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, AI agents | One SDK call does everything — creates a session, opens the browser, and polls until complete. No frontend needed. |
+| **Redirect** | Server-rendered apps, email links | Backend calls `create_connect_session()` and redirects the user to the returned `connect_url`. After OAuth, the user is sent back to your `return_url`. No JS SDK needed. |
+| **Popup** (`@alter-ai/connect`) | SPAs (React, Vue, etc.) | Backend calls `create_connect_session()` and passes the `session_token` to the frontend SDK, which opens a popup with `onSuccess`/`onError` callbacks. |
 
 See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for full examples of each method.
 
@@ -100,8 +100,8 @@ See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for full ex
 - **Per-user connections** -- each user who authorizes gets their own `connection_id`
 - **Multi-account support** -- users can connect multiple accounts to the same provider (e.g., personal + work Gmail)
 - **Wallet visibility** -- users can see and revoke their connections via the Wallet Dashboard
-- **Policy enforcement** -- time-based and IP-based access rules on every token retrieval
-- **Full audit trail** -- every token access is logged with actor identity, method, URL, and reason
+- **[Policy enforcement](/reference/policies)** -- time-based and IP-based access rules on every token retrieval
+- **[Full audit trail](/reference/audit-logs)** -- every token access is logged with actor identity, method, URL, and reason
 
 ## Supported OAuth Providers
 
