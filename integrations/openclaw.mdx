@@ -316,7 +316,7 @@ The plugin is built on the [Alter TypeScript SDK](/sdks/typescript/quickstart) (
 | **Token exposure to LLM** | Tokens are retrieved internally and never returned to the agent. Only the API response body is visible. |
 | **API key leakage** | Two separate HTTP clients: one for Alter backend (with `x-api-key`), one for external APIs (no `x-api-key`). The API key is never sent to third-party services. |
 | **Header injection** | The `Authorization: Bearer` header is always set last, so LLM-provided headers cannot override it. |
-| **Policy enforcement** | Every token retrieval is checked against your Cerbos policies (time-based access, IP allowlist). |
+| **Policy enforcement** | Every token retrieval is checked against your access policies (time-based access, IP allowlist). |
 | **Audit logging** | All API calls are logged with the `reason` field for compliance. |
 | **Tenant isolation** | Connections are scoped to your app ID. One app cannot access another app's connections. |
 
@@ -343,7 +343,7 @@ The plugin surfaces clear error messages to the agent:
   </Accordion>
 
   <Accordion title="Agent gets 'Policy violation'" icon="shield">
-    Your Cerbos policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alterai.dev) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, or IP allowlist.
+    Your access policies are blocking the request. Check the policy configuration in the [Developer Portal](https://portal.alterai.dev) under **App Details → Policies**. Common causes are scope restrictions, time-based access rules, or IP allowlist.
   </Accordion>
 
   <Accordion title="Plugin not loading in OpenClaw" icon="plug">

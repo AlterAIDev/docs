@@ -1,6 +1,7 @@
 ---
 title: 'Quickstart'
 description: 'Complete guide to integrating Alter Vault into your application'
+icon: 'lightbulb'
 ---
 
 ## Overview
@@ -475,7 +476,7 @@ try:
 except ReAuthRequiredError:
     print("User must re-authorize - redirect to Alter Connect")
 except PolicyViolationError as e:
-    print(f"Access denied by policy: {e.message}")
+    print(f"Access denied by policy: {e.message} (rule: {e.policy_error})")
 except ConnectionNotFoundError:
     print("User hasn't connected Google yet - redirect to Alter Connect")
 except NetworkError as e:
@@ -803,6 +804,6 @@ If you get `BackendError` with "not configured":
 
 ## Need Help?
 
+- Community: [Join our Slack](https://alterai.dev/slack)
 - Email: [founders@alterai.dev](mailto:founders@alterai.dev)
 - Documentation: [docs.alterai.dev](https://docs.alterai.dev)
-- Community: [Join our Community](mailto:founders@alterai.dev)

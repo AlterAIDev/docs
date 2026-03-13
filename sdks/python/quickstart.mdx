@@ -82,7 +82,7 @@ try:
 except ReAuthRequiredError:
     print("User must re-authorize via Alter Connect")
 except PolicyViolationError as e:
-    print(f"Access denied by policy: {e.message}")
+    print(f"Access denied by policy: {e.message} (rule: {e.policy_error})")
 except ConnectionNotFoundError:
     print("User hasn't connected Google yet")
 ```

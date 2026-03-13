@@ -229,7 +229,7 @@ Add structured data to any OAuth connection for enhanced functionality.
 
 ## Security Policies
 
-Control how and when OAuth tokens can be accessed. Policies are enforced in real-time by [Cerbos](https://cerbos.dev) before tokens are returned from the API.
+Control how and when OAuth tokens can be accessed. Policies are enforced in real-time before tokens are returned from the API.
 
 <Note>
   Policies can only be configured for OAuth providers that you've already set up in the **OAuth Providers** tab. Add a provider there first, then configure its policy.
@@ -295,7 +295,7 @@ If **any** rule fails, access is denied with a specific reason. If **no policy**
 
 ### Fail-Closed Security
 
-If the policy service (Cerbos) is unavailable, the system **denies all token access** rather than bypassing policies. This ensures security even during outages.
+If the policy service is unavailable, the system **denies all token access** rather than bypassing policies. This ensures security even during outages.
 
 ## API Keys
 

@@ -71,7 +71,7 @@ try {
   if (e instanceof ReAuthRequiredError) {
     console.log("User must re-authorize via Alter Connect");
   } else if (e instanceof PolicyViolationError) {
-    console.log(`Access denied by policy: ${e.message}`);
+    console.log(`Access denied by policy: ${e.message} (rule: ${e.policyError})`);
   } else if (e instanceof ConnectionNotFoundError) {
     console.log("User hasn't connected Google yet");
   }

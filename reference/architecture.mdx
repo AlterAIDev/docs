@@ -56,7 +56,7 @@ Your application **never sees or stores credentials**. Here's what happens inste
 ### Access Control
 - **API key authentication** for your backend
 - **Session tokens** for frontend (never expose API keys)
-- **Policy enforcement** via Cerbos (time-based access, IP allowlist; scopes enforced via provider configuration)
+- **Policy enforcement** (time-based access, IP allowlist; scopes enforced via provider configuration)
 - **Rate limiting** to prevent abuse
 - **Fail-closed design** — if the policy service is unavailable, all token access is denied
 

@@ -46,6 +46,11 @@
       "name": "Blog",
       "icon": "newspaper",
       "url": "https://alterai.dev/blog"
+    },
+    {
+      "name": "Community",
+      "icon": "slack",
+      "url": "https://alterai.dev/slack"
     }
   ],
   "navigation": [

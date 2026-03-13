@@ -551,7 +551,7 @@ async def safe_api_call(connection_id: str):
 
         except PolicyViolationError as e:
             # Policy denied access (403) — check the reason
-            print(f"Access denied by policy: {e.message}")
+            print(f"Access denied by policy: {e.message} (rule: {e.policy_error})")
             print(f"Details: {e.details}")
             # Resolution: Check policy configuration in dashboard
 
@@ -628,7 +628,7 @@ async def safe_api_call(connection_id: str):
     try:
         response = await vault.request(...)
     except PolicyViolationError as e:
-        logger.warning(f"Policy violation: {e.message}")
+        logger.warning(f"Policy violation: {e.message} (rule: {e.policy_error})")
         return {"error": "Access denied by policy"}
     except ConnectionNotFoundError:
         return {"error": "Please connect your account first"}
@@ -651,7 +651,7 @@ async def safe_api_call(connection_id: str):
 
     result = await vault.list_connections(provider_id="google")
     for conn in result.connections:
-        print(f"{conn.connection_id}: {conn.account_display_name}")
+        print(f"{conn.id}: {conn.account_display_name}")
     ```
   </Accordion>
 
