@@ -401,6 +401,8 @@ async function safeApiCall(connectionId: string) {
       // Create a new Connect session so the user can grant updated scopes
     } else if (e instanceof ProviderAPIError) {
       console.log(`Provider error ${e.statusCode}: ${e.responseBody}`);
+    } else {
+      throw e;
     }
   } finally {
     await vault.close();

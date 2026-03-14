@@ -239,24 +239,6 @@
       "group": "Managed Secret Providers",
       "pages": [
         {
-          "group": "AI Models",
-          "pages": [
-            "managed-secrets/anthropic",
-            "managed-secrets/cohere",
-            "managed-secrets/elevenlabs",
-            "managed-secrets/falai",
-            "managed-secrets/fireworks",
-            "managed-secrets/google-gemini",
-            "managed-secrets/groq",
-            "managed-secrets/mistral",
-            "managed-secrets/openai",
-            "managed-secrets/perplexity",
-            "managed-secrets/replicate",
-            "managed-secrets/together",
-            "managed-secrets/xai"
-          ]
-        },
-        {
           "group": "Monitoring & Observability",
           "pages": [
             "managed-secrets/axiom",

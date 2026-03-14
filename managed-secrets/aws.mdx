@@ -5,13 +5,15 @@ description: 'Connect AWS to Alter Vault using access keys for secure API access
 
 ## Overview
 
-Use AWS credentials to make authenticated API calls through Alter Vault without exposing your API keys in code.
+Use AWS credentials to make authenticated API calls through Alter Vault without exposing your API keys in code. The SDK computes the full AWS Signature Version 4 (SigV4) signature automatically -- no AWS SDK or boto3 required.
 
 | Property | Value |
 |----------|-------|
 | **Provider ID** | `aws` |
 | **Category** | Cloud |
 | **Credential Type** | AWS SigV4 |
+| **Required Credentials** | Access Key ID + Secret Access Key |
+| **Region / Service** | Auto-detected from request URL |
 
 ## Step 1: Get Your Credentials
 
@@ -19,8 +21,8 @@ Use AWS credentials to make authenticated API calls through Alter Vault without 
   <Step title="Log in to the AWS Console">
     Log in to the AWS Console at [console.aws.amazon.com](https://console.aws.amazon.com/).
   </Step>
-  <Step title="Go to IAM → Users">
-    Go to IAM → Users and select or create a user with least-privilege permissions at [console.aws.amazon.com/iam/home#/users](https://console.aws.amazon.com/iam/home#/users).
+  <Step title="Go to IAM and Users">
+    Go to IAM, then Users and select or create a user with least-privilege permissions at [console.aws.amazon.com/iam/home#/users](https://console.aws.amazon.com/iam/home#/users).
   </Step>
   <Step title="Create access key">
     Open the user's Security Credentials tab and click 'Create access key'.
@@ -30,9 +32,6 @@ Use AWS credentials to make authenticated API calls through Alter Vault without 
   </Step>
   <Step title="Copy the Secret Access Key">
     Copy the Secret Access Key for the Secret Access Key field.
-  </Step>
-  <Step title="Enter region and service">
-    Enter your AWS Region (e.g. us-east-1) and optionally the service name.
   </Step>
 </Steps>
 
@@ -52,7 +51,7 @@ Use AWS credentials to make authenticated API calls through Alter Vault without 
   </Step>
 
   <Step title="Enter your credentials">
-    Paste your Access Key ID, Secret Access Key, Region, and (optionally) service name into their respective fields.
+    Paste your Access Key ID and Secret Access Key. That's it -- no region or service configuration needed.
   </Step>
 
   <Step title="Save">
@@ -62,14 +61,99 @@ Use AWS credentials to make authenticated API calls through Alter Vault without 
 
 ## Using in Code
 
-```python
-response = await vault.request(
-    "YOUR_CONNECTION_ID",
-    HttpMethod.GET,
-    "https://s3.amazonaws.com/YOUR_BUCKET",
-)
+A single AWS credential works across any AWS service. Just pass the standard AWS endpoint URL -- the SDK detects the region and service from the hostname and signs the request automatically.
+
+<CodeGroup>
+
+```python Python
+from alter_sdk import AlterVault, ActorType, HttpMethod
+
+async with AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+) as vault:
+    # S3
+    response = await vault.request(
+        "YOUR_CONNECTION_ID",
+        HttpMethod.GET,
+        "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+    )
+
+    # Bedrock (same credential, different service and region)
+    response = await vault.request(
+        "YOUR_CONNECTION_ID",
+        HttpMethod.POST,
+        "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
+        json={"prompt": "Hello"},
+    )
+
+    # Lambda
+    response = await vault.request(
+        "YOUR_CONNECTION_ID",
+        HttpMethod.POST,
+        "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
+        json={"key": "value"},
+    )
 ```
+
+```typescript TypeScript
+import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+// S3
+const s3Response = await vault.request(
+  "YOUR_CONNECTION_ID",
+  HttpMethod.GET,
+  "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+);
+
+// Bedrock (same credential, different service and region)
+const bedrockResponse = await vault.request(
+  "YOUR_CONNECTION_ID",
+  HttpMethod.POST,
+  "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
+  { json: { prompt: "Hello" } },
+);
+
+// Lambda
+const lambdaResponse = await vault.request(
+  "YOUR_CONNECTION_ID",
+  HttpMethod.POST,
+  "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
+  { json: { key: "value" } },
+);
+
+await vault.close();
+```
+
+</CodeGroup>
+
+## Supported URL Patterns
+
+The SDK auto-detects region and service from these AWS hostname formats:
+
+| Pattern | Example | Detected |
+|---------|---------|----------|
+| Standard | `s3.us-east-1.amazonaws.com` | service=`s3`, region=`us-east-1` |
+| Hyphenated service | `bedrock-runtime.us-west-2.amazonaws.com` | service=`bedrock-runtime`, region=`us-west-2` |
+| S3 virtual-hosted | `my-bucket.s3.us-west-2.amazonaws.com` | service=`s3`, region=`us-west-2` |
+| PrivateLink (regional) | `vpce-xxx.monitoring.us-east-2.vpce.amazonaws.com` | service=`monitoring`, region=`us-east-2` |
+| PrivateLink (zonal) | `vpce-xxx-az1.monitoring.us-east-2.vpce.amazonaws.com` | service=`monitoring`, region=`us-east-2` |
+| GovCloud | `s3.us-gov-west-1.amazonaws.com` | service=`s3`, region=`us-gov-west-1` |
+
+<Note>
+  For non-AWS custom domains (e.g., a LocalStack endpoint or custom proxy), the SDK cannot auto-detect region and service. Contact support if you need to configure these explicitly.
+</Note>
 
 ## Notes
 
-- Always create credentials on an IAM user with least-privilege permissions — never use root account access keys.
+- **One credential, many services** -- a single IAM access key can call S3, Lambda, Bedrock, DynamoDB, CloudWatch, and any other AWS service. The SDK signs each request with the correct service and region from the URL.
+- **No AWS SDK dependency** -- the SDK computes SigV4 signatures using only standard cryptographic libraries. You do not need boto3 (Python) or the AWS SDK (Node.js).
+- **Least-privilege IAM** -- always create credentials on an IAM user or role with only the permissions your application needs. Never use root account access keys.
+- **Credential rotation** -- when you rotate your AWS access key, update it in the Developer Portal. All connections using that secret will immediately use the new key.

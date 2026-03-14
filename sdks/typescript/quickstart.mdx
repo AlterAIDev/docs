@@ -74,6 +74,8 @@ try {
     console.log(`Access denied by policy: ${e.message} (rule: ${e.policyError})`);
   } else if (e instanceof ConnectionNotFoundError) {
     console.log("User hasn't connected Google yet");
+  } else {
+    throw e;
   }
 } finally {
   await vault.close();
