@@ -1,0 +1,73 @@
+---
+title: 'Supported Identity Providers'
+description: 'Identity providers that work with Alter Vault'
+---
+
+## Auto-Detected Providers
+
+Alter Vault automatically detects the following identity providers from the OIDC issuer URL and configures claim mappings:
+
+| Provider | User ID Claim | Group Claim | SCIM | Webhooks |
+|---|---|---|---|---|
+| **Okta** | `sub` | `groups` | Yes | Yes |
+| **Microsoft Entra ID** | `oid` | `groups` | Yes | Coming soon |
+| **Auth0** | `sub` | Custom action | No | Yes |
+| **Clerk** | `sub` | `org_role` | No | Yes |
+| **Keycloak** | `sub` | `groups` | Via plugin | Coming soon |
+| **Amazon Cognito** | `sub` | `cognito:groups` | No | No |
+| **Firebase Auth** | `sub` | — | No | No |
+| **Supabase Auth** | `sub` | — | No | Coming soon |
+
+## Custom OIDC Providers
+
+Any OIDC-compliant identity provider works with Alter Vault. If your provider isn't auto-detected, Alter Vault defaults to:
+
+- **User ID claim**: `sub` (the OIDC standard subject identifier)
+- **Group claim**: None (configure manually in the Developer Portal)
+- **Sync**: JWT lazy sync only (no SCIM or webhooks)
+
+You can override the user ID claim, group claim, and role claim in the Developer Portal when adding the identity provider.
+
+<Info>
+**What gets auto-detected**: When you add an identity provider, Alter Vault performs OIDC discovery on your issuer URL and automatically detects the IDP type, recommended claims, and available sync capabilities. You can preview this with the **Discover** button before saving.
+</Info>
+
+## Provider Capabilities
+
+### SCIM 2.0 Support
+
+SCIM provisioning enables real-time user lifecycle management. Currently supported:
+
+- **Okta** — Built-in SCIM provisioning with user and group sync
+- **Microsoft Entra ID** — Built-in enterprise application provisioning
+- **Keycloak** — Via the [keycloak-scim](https://github.com/Captain-P-Goldfish/scim-for-keycloak) community plugin
+
+[Set up SCIM provisioning →](/identity-providers/scim)
+
+### JWT Lazy Sync
+
+All OIDC providers support JWT lazy sync automatically. When your application passes a JWT to Alter Vault:
+
+1. User identity is resolved from the configured claim (default: `sub`)
+2. Group memberships are synced from the group claim (if configured)
+3. User profile (email, display name) is updated from standard OIDC claims
+
+No additional configuration required beyond adding the identity provider.
+
+### Webhook Listeners
+
+Webhook support enables real-time event processing for user lifecycle management:
+
+- **Clerk** — `user.updated`, `user.deleted`, `organization.membership.deleted` events via Svix signatures
+- **Auth0** — Log Streams with `sdu` (user deleted), `limit_sul` (user suspended), and `sul` (user unblocked) events
+- **Okta** — Event Hooks with `user.lifecycle.deactivate`, `user.lifecycle.delete`, `user.lifecycle.suspend`, `user.lifecycle.reactivate`, `user.lifecycle.unsuspend`, and `group.user_membership.remove` events
+
+Enable webhooks in the Developer Portal to generate a signing secret, then configure your IDP to send events to the provided webhook URL.
+
+Planned support:
+- **Supabase Auth** — Database webhooks for auth events
+- **Keycloak** — Event listener SPI
+
+## Requesting a New Provider
+
+If your identity provider isn't listed or you need additional capabilities, contact us at [founders@alterai.dev](mailto:founders@alterai.dev).

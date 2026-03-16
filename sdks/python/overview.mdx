@@ -651,7 +651,7 @@ async def safe_api_call(connection_id: str):
 
     result = await vault.list_connections(provider_id="google")
     for conn in result.connections:
-        print(f"{conn.id}: {conn.account_display_name}")
+        print(f"{conn.connection_id}: {conn.account_display_name}")
     ```
   </Accordion>
 
@@ -689,8 +689,5 @@ async def safe_api_call(connection_id: str):
   </Card>
   <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
     Compliance and observability features
-  </Card>
-  <Card title="OpenClaw Plugin" icon="robot" href="/integrations/openclaw">
-    AI agent OAuth integration
   </Card>
 </CardGroup>

@@ -46,11 +46,6 @@
       "name": "Blog",
       "icon": "newspaper",
       "url": "https://alterai.dev/blog"
-    },
-    {
-      "name": "Community",
-      "icon": "slack",
-      "url": "https://alterai.dev/slack"
     }
   ],
   "navigation": [
@@ -92,6 +87,15 @@
             "sdks/javascript/reference"
           ]
         }
+      ]
+    },
+    {
+      "group": "Identity Providers",
+      "pages": [
+        "identity-providers/overview",
+        "identity-providers/quickstart",
+        "identity-providers/scim",
+        "identity-providers/supported-providers"
       ]
     },
     {
@@ -317,12 +321,6 @@
             "managed-secrets/aws"
           ]
         }
-      ]
-    },
-    {
-      "group": "Integrations",
-      "pages": [
-        "integrations/openclaw"
       ]
     },
     {

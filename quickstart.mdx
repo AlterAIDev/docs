@@ -306,7 +306,7 @@ function IntegrationsPage() {
             onSuccess: (connections) => {
                 // User completed OAuth! Store each connection_id in your database.
                 for (const conn of connections) {
-                    console.log('Connected!', conn.connection_id, conn.provider);
+                    console.log('Connected!', conn.connection_id, conn.provider_id);
                 }
                 loadIntegrations();
             },
@@ -352,7 +352,7 @@ async function connectProvider(provider) {
         onSuccess: function(connections) {
             // User completed OAuth! Store each connection_id in your database.
             for (const conn of connections) {
-                console.log('Connected!', conn.connection_id, conn.provider);
+                console.log('Connected!', conn.connection_id, conn.provider_id);
             }
             location.reload();
         },
@@ -676,7 +676,7 @@ onSuccess: async (connections) => {
         await saveToDatabase({
             user_id: currentUser.id,
             connection_id: conn.connection_id,
-            provider: conn.provider,
+            provider_id: conn.provider_id,
             account: conn.account_identifier  // e.g., "alice@gmail.com"
         });
     }
@@ -699,7 +699,7 @@ connections = db.get_connections(user_id=user_id, provider="google")
 ```python
 result = await vault.list_connections(provider_id="google")
 for conn in result.connections:
-    print(f"{conn.id}: {conn.account_display_name}")
+    print(f"{conn.connection_id}: {conn.account_display_name}")
 ```
 
 ### Provider Support
@@ -787,13 +787,6 @@ If you get `BackendError` with "not configured":
     Compliance and observability
   </Card>
   <Card
-    title="OpenClaw Plugin"
-    icon="robot"
-    href="/integrations/openclaw"
-  >
-    AI agent OAuth integration
-  </Card>
-  <Card
     title="Portal Guide"
     icon="browser"
     href="/reference/developer-portal"
@@ -804,6 +797,5 @@ If you get `BackendError` with "not configured":
 
 ## Need Help?
 
-- Community: [Join our Slack](https://alterai.dev/slack)
 - Email: [founders@alterai.dev](mailto:founders@alterai.dev)
 - Documentation: [docs.alterai.dev](https://docs.alterai.dev)

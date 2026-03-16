@@ -1,11 +1,11 @@
 ---
 title: 'Welcome to Alter Vault'
-description: 'Secure OAuth token management for modern applications'
+description: 'Authorization for AI agents. Enforce permissions across retrieval and tool use.'
 ---
 
-## Build Integrations in Minutes, Not Months
+## The access control layer for AI applications
 
-Alter Vault handles OAuth tokens and API credentials so you can focus on building your product. Connect your users to Google, Slack, GitHub, and dozens of other services without managing tokens, refresh logic, or security.
+Enforce permissions across chatbots, copilots, RAG, and agents without rebuilding access control in every workflow. Alter Vault is the authorization layer for AI applications, ensuring every response, retrieval, and action respects what each user and agent is allowed to access.
 
 <CardGroup cols={2}>
   <Card
@@ -34,33 +34,29 @@ Alter Vault handles OAuth tokens and API credentials so you can focus on buildin
     icon="key"
     href="/reference/managed-secrets"
   >
-    Store API keys & service tokens securely
-  </Card>
-  <Card
-    title="OpenClaw Plugin"
-    icon="robot"
-    href="/integrations/openclaw"
-  >
-    Give your AI agent OAuth access
+    Store API keys and service credentials securely
   </Card>
 </CardGroup>
 
-## Why Choose Alter Vault?
+## Why Alter Vault?
 
-### Never Store Tokens
-Your database stays clean. We handle all token storage, encryption, and management in our secure infrastructure.
+### Enforce, Don't Advise
+Not best-effort filtering. Alter Vault actually enforces permissions at every step: retrieval and tool use. Your agents cannot access data the user isn't allowed to see.
 
-### Automatic Token Refresh
-Tokens are refreshed automatically before they expire. Your API calls never fail due to expired credentials.
+### Policy at Every Level
+Set policy per end user, per connection, and per managed secret. Each managed secret can be extended with additional connection IDs, each carrying its own policy. Control exactly which agents can access which credentials, with what scopes, and under what conditions.
 
-### Enterprise Security
-Bank-grade encryption, SOC 2 compliance, and complete audit trails protect your users' data.
+### End-User Aware
+Not just app-level permissions. The system understands the actual user behind every AI request, propagating identity so access control is scoped to the individual, not the application.
 
-### Built for AI Agents
-First-class actor tracking for AI agents and MCP servers. Know exactly which agent accessed what data and when, with per-request context (run ID, thread ID, tool call ID).
+### Works Across the Agent Stack
+Retrieval and actions, not just search filtering. Whether your agent reads documents, calls APIs, or writes data, permissions are enforced consistently.
+
+### Ship Secure AI Without Custom Permission Logic
+Stop rebuilding access filters in every agent workflow. Alter Vault provides a drop-in enforcement layer so your team ships faster without sacrificing security.
 
 ### Complete Audit Trail
-Every token access, connection change, and API call is logged automatically. View, filter, and export logs from the dashboard for SOC 2, GDPR, and HIPAA compliance.
+Every token access, connection change, and API call is logged with full actor context (agent ID, run ID, tool call ID). View, filter, and export logs for SOC 2, GDPR, and HIPAA compliance.
 
 ### Universal Compatibility
 Works with your existing authentication system. Use JWT tokens from Auth0, Clerk, Supabase, or any provider.
@@ -181,7 +177,7 @@ session_token = session.session_token
 
 ## Supported Providers
 
-Connect to the services your users already use:
+Enforce permissions across the services your users already use:
 
 <CardGroup cols={4}>
   <Card title="Google" icon="google">
@@ -213,20 +209,20 @@ Connect to the services your users already use:
 ## Built for Developers
 
 <AccordionGroup>
-  <Accordion title="Simple Integration">
-    Drop-in SDK for Python and TypeScript with a single method (`vault.request()`) for any provider -OAuth or managed secrets. REST API for everything else. Get started in minutes.
+  <Accordion title="Drop-in Enforcement">
+    A single method (`vault.request()`) handles credential injection, permission checks, and audit logging. No custom auth logic in every agent workflow.
   </Accordion>
 
   <Accordion title="Your Auth System">
-    Works with Auth0, Clerk, Supabase, Firebase, or any JWT-based authentication.
+    Propagate user identity from Auth0, Clerk, Supabase, Firebase, or any JWT provider. Alter Vault enforces policy. Your IdP stays the source of truth.
   </Accordion>
 
-  <Accordion title="Complete Control">
-    Fine-grained policies, audit logs, and actor tracking give you full visibility and control over who accesses what.
+  <Accordion title="Full Visibility">
+    Fine-grained policies, audit logs, and actor tracking give you complete observability over which agents accessed what data, for which user, and when.
   </Accordion>
 
   <Accordion title="Scale Confidently">
-    Handle millions of tokens with our infrastructure. Redis-cached token retrieval under 10ms.
+    Handle millions of credentials with sub-10ms cached retrieval.
   </Accordion>
 </AccordionGroup>
 

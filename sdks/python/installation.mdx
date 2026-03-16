@@ -30,7 +30,7 @@ The Alter SDK for Python provides secure credential management with automatic to
 
 ```python
 import alter_sdk
-print(alter_sdk.__version__)  # v0.5.0+
+print(alter_sdk.__version__)  # v0.6.0+
 ```
 
 ## Key Features
@@ -54,6 +54,26 @@ print(alter_sdk.__version__)  # v0.5.0+
 
 </CardGroup>
 
+## Optional Extras
+
+For native boto3 integration with AWS services (Python only):
+
+<Tabs>
+  <Tab title="pip">
+    ```bash
+    pip install 'alter-sdk[aws]'
+    ```
+  </Tab>
+
+  <Tab title="Poetry">
+    ```bash
+    poetry add 'alter-sdk[aws]'
+    ```
+  </Tab>
+</Tabs>
+
+This installs `boto3` and enables `vault.boto3_client()`. See the [AWS provider guide](/managed-secrets/aws#option-b-vaultboto3_client-python-only) for usage.
+
 ## Dependencies
 
 The SDK has minimal dependencies:
@@ -61,7 +81,7 @@ The SDK has minimal dependencies:
 - `httpx` - Async HTTP client with HTTP/2 and connection pooling
 - `pydantic` - Data validation and settings management
 
-No provider-specific dependencies are needed. The SDK works with **any** OAuth provider through a single generic `vault.request()` method. All HTTP methods are supported: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS.
+No provider-specific dependencies are needed for `vault.request()`. The SDK works with **any** OAuth provider or managed secret through a single generic `vault.request()` method. All HTTP methods are supported: GET, POST, PUT, PATCH, DELETE, HEAD, and OPTIONS.
 
 ## Architecture Notes
 

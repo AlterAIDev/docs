@@ -5,7 +5,11 @@ description: 'Connect AWS to Alter Vault using access keys for secure API access
 
 ## Overview
 
-Use AWS credentials to make authenticated API calls through Alter Vault without exposing your API keys in code. The SDK computes the full AWS Signature Version 4 (SigV4) signature automatically -- no AWS SDK or boto3 required.
+Use AWS credentials to make authenticated API calls through Alter Vault without exposing your API keys in code. The SDK computes the full AWS Signature Version 4 (SigV4) signature automatically.
+
+Two ways to call AWS services:
+- **`vault.request()`** -- works in both Python and TypeScript. No AWS SDK dependency; the SDK handles SigV4 signing internally.
+- **`vault.boto3_client()`** -- Python only. Returns a native boto3 service client so you can use the familiar boto3 API (e.g., `client.list_objects_v2(Bucket="...")`), with every call routed through Alter Vault for credential management, policy enforcement, and audit logging.
 
 | Property | Value |
 |----------|-------|
@@ -63,6 +67,10 @@ Use AWS credentials to make authenticated API calls through Alter Vault without 
 
 A single AWS credential works across any AWS service. Just pass the standard AWS endpoint URL -- the SDK detects the region and service from the hostname and signs the request automatically.
 
+### Option A: vault.request() (Python & TypeScript)
+
+Use `vault.request()` when you want a lightweight approach with no AWS SDK dependency. The SDK computes SigV4 signatures internally using standard cryptographic libraries.
+
 <CodeGroup>
 
 ```python Python
@@ -106,33 +114,112 @@ const vault = new AlterVault({
   actorIdentifier: "my-agent",
 });
 
-// S3
-const s3Response = await vault.request(
-  "YOUR_CONNECTION_ID",
-  HttpMethod.GET,
-  "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
-);
+try {
+  // S3
+  const s3Response = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.GET,
+    "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+  );
 
-// Bedrock (same credential, different service and region)
-const bedrockResponse = await vault.request(
-  "YOUR_CONNECTION_ID",
-  HttpMethod.POST,
-  "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
-  { json: { prompt: "Hello" } },
-);
+  // Bedrock (same credential, different service and region)
+  const bedrockResponse = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
+    { json: { prompt: "Hello" } },
+  );
 
-// Lambda
-const lambdaResponse = await vault.request(
-  "YOUR_CONNECTION_ID",
-  HttpMethod.POST,
-  "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
-  { json: { key: "value" } },
-);
-
-await vault.close();
+  // Lambda
+  const lambdaResponse = await vault.request(
+    "YOUR_CONNECTION_ID",
+    HttpMethod.POST,
+    "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
+    { json: { key: "value" } },
+  );
+} finally {
+  await vault.close();
+}
 ```
 
 </CodeGroup>
+
+### Option B: vault.boto3_client() (Python only)
+
+<Info>
+  **Python only.** This feature is not available in the TypeScript SDK. TypeScript users should use `vault.request()` above.
+</Info>
+
+If you prefer the native boto3 API, `vault.boto3_client()` returns a standard boto3 service client. Every call made through that client is automatically routed through Alter Vault for credential retrieval, SigV4 signing, policy enforcement, and audit logging. You get the full boto3 experience (response parsing, pagination, error types like `ClientError`) without managing AWS credentials in your code.
+
+Install the optional AWS extra:
+
+```bash
+pip install 'alter-sdk[aws]'
+```
+
+```python
+import asyncio
+from alter_sdk import AlterVault, ActorType
+
+async def main():
+    async with AlterVault(
+        api_key="alter_key_...",
+        actor_type=ActorType.AI_AGENT,
+        actor_identifier="my-agent",
+    ) as vault:
+        # Create a boto3 S3 client routed through Alter Vault
+        s3 = await vault.boto3_client(
+            "s3",
+            connection_id="YOUR_CONNECTION_ID",
+            region_name="us-east-1",
+            reason="Listing objects for data pipeline",
+        )
+
+        # Use familiar boto3 methods -- must run in a thread
+        response = await asyncio.to_thread(
+            s3.list_objects_v2, Bucket="my-bucket", MaxKeys=10,
+        )
+        for obj in response.get("Contents", []):
+            print(f"{obj['Key']} ({obj['Size']} bytes)")
+
+        # Same credential, different service
+        dynamodb = await vault.boto3_client(
+            "dynamodb",
+            connection_id="YOUR_CONNECTION_ID",
+            region_name="us-east-1",
+        )
+        await asyncio.to_thread(
+            dynamodb.put_item,
+            TableName="MyTable",
+            Item={"pk": {"S": "key1"}, "data": {"S": "value1"}},
+        )
+
+asyncio.run(main())
+```
+
+<Note>
+  boto3 methods are synchronous, so you must call them via `asyncio.to_thread()` from async code. Each boto3 call triggers a full Alter Vault request cycle (token retrieval, SigV4 signing, audit log), so policy enforcement and audit logging happen on every AWS API call.
+</Note>
+
+**`boto3_client()` parameters:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `service_name` | `str` | (required) | AWS service (`"s3"`, `"dynamodb"`, `"bedrock-runtime"`, etc.) |
+| `connection_id` | `str` | (required) | Connection ID from the Developer Portal |
+| `region_name` | `str` | `"us-east-1"` | AWS region |
+| `timeout` | `float` | client timeout | Per-request timeout in seconds |
+| `reason` | `str` | `None` | Audit reason applied to all calls from this client |
+| `run_id` | `str` | auto-generated | AI agent run ID for audit correlation |
+| `thread_id` | `str` | `None` | Conversation thread ID for audit correlation |
+| `tool_call_id` | `str` | `None` | Tool call ID for audit correlation |
+
+**Error handling** works natively -- boto3 raises `botocore.exceptions.ClientError` for AWS errors (e.g., `NoSuchBucket`, `AccessDenied`), just like a regular boto3 client. Alter Vault-level errors (closed client, network issues) raise `AlterSDKError`.
+
+<Warning>
+  Responses are fully buffered in memory. For large payloads (e.g., `s3.get_object()` on multi-GB files), use `vault.request()` with httpx streaming instead.
+</Warning>
 
 ## Supported URL Patterns
 
@@ -144,7 +231,7 @@ The SDK auto-detects region and service from these AWS hostname formats:
 | Hyphenated service | `bedrock-runtime.us-west-2.amazonaws.com` | service=`bedrock-runtime`, region=`us-west-2` |
 | S3 virtual-hosted | `my-bucket.s3.us-west-2.amazonaws.com` | service=`s3`, region=`us-west-2` |
 | PrivateLink (regional) | `vpce-xxx.monitoring.us-east-2.vpce.amazonaws.com` | service=`monitoring`, region=`us-east-2` |
-| PrivateLink (zonal) | `vpce-xxx-az1.monitoring.us-east-2.vpce.amazonaws.com` | service=`monitoring`, region=`us-east-2` |
+| PrivateLink (zonal) | `vpce-xxx-us-east-2c.monitoring.us-east-2.vpce.amazonaws.com` | service=`monitoring`, region=`us-east-2` |
 | GovCloud | `s3.us-gov-west-1.amazonaws.com` | service=`s3`, region=`us-gov-west-1` |
 
 <Note>
@@ -154,6 +241,7 @@ The SDK auto-detects region and service from these AWS hostname formats:
 ## Notes
 
 - **One credential, many services** -- a single IAM access key can call S3, Lambda, Bedrock, DynamoDB, CloudWatch, and any other AWS service. The SDK signs each request with the correct service and region from the URL.
-- **No AWS SDK dependency** -- the SDK computes SigV4 signatures using only standard cryptographic libraries. You do not need boto3 (Python) or the AWS SDK (Node.js).
+- **No AWS SDK dependency for `vault.request()`** -- the SDK computes SigV4 signatures using only standard cryptographic libraries. You do not need boto3 (Python) or the AWS SDK (Node.js) to use `vault.request()`.
+- **Optional boto3 integration (Python only)** -- if you prefer native boto3 methods and response types, install `alter-sdk[aws]` and use `vault.boto3_client()`. See [Option B](#option-b-vaultboto3_client-python-only) above.
 - **Least-privilege IAM** -- always create credentials on an IAM user or role with only the permissions your application needs. Never use root account access keys.
 - **Credential rotation** -- when you rotate your AWS access key, update it in the Developer Portal. All connections using that secret will immediately use the new key.
