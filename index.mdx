@@ -3,9 +3,9 @@ title: 'Welcome to Alter Vault'
 description: 'Authorization for AI agents. Enforce permissions across retrieval and tool use.'
 ---
 
-## The access control layer for AI applications
+## Identity-aware access control for AI agents and applications
 
-Enforce permissions across chatbots, copilots, RAG, and agents without rebuilding access control in every workflow. Alter Vault is the authorization layer for AI applications, ensuring every response, retrieval, and action respects what each user and agent is allowed to access.
+Alter Vault securely stores OAuth tokens and API credentials on behalf of your users, and enforces fine-grained permissions so every retrieval, tool call, and action respects what each user and agent is allowed to access, without rebuilding auth in every workflow.
 
 <CardGroup cols={2}>
   <Card
@@ -40,26 +40,20 @@ Enforce permissions across chatbots, copilots, RAG, and agents without rebuildin
 
 ## Why Alter Vault?
 
-### Enforce, Don't Advise
-Not best-effort filtering. Alter Vault actually enforces permissions at every step: retrieval and tool use. Your agents cannot access data the user isn't allowed to see.
+### Token Storage You Don't Have to Build
+OAuth tokens and API keys are encrypted (AES-256-GCM) and stored in a dedicated vault. Your database never holds credentials. Token refresh happens automatically. You call `vault.request()` and the right credential is injected into the outgoing HTTP request.
 
-### Policy at Every Level
-Set policy per end user, per connection, and per managed secret. Each managed secret can be extended with additional connection IDs, each carrying its own policy. Control exactly which agents can access which credentials, with what scopes, and under what conditions.
+### Policies That Block, Not Filter
+Every `vault.request()` call is checked against policy before the credential is released. If the policy says no, the request is blocked. Policies take both identities into account: which agent is calling and which end user it is acting for. For example, you can allow an agent to read a user's Google Calendar but deny access to their Gmail. Scope rules further by HTTP method, URL pattern, and connection.
 
-### End-User Aware
-Not just app-level permissions. The system understands the actual user behind every AI request, propagating identity so access control is scoped to the individual, not the application.
+### End-User Identity Built In
+Alter Vault resolves the end user behind each agent request via JWT from Auth0, Clerk, Supabase, or any OIDC provider. Both identities (which agent and which user) are carried through every policy check and audit log, so access control is never just app-level.
 
-### Works Across the Agent Stack
-Retrieval and actions, not just search filtering. Whether your agent reads documents, calls APIs, or writes data, permissions are enforced consistently.
+### One Method for Retrieval and Actions
+`vault.request()` handles reads and writes. Whether your agent fetches Google Calendar events, posts a Slack message, or creates a GitHub issue, the same method injects credentials, enforces policy, and logs the call.
 
-### Ship Secure AI Without Custom Permission Logic
-Stop rebuilding access filters in every agent workflow. Alter Vault provides a drop-in enforcement layer so your team ships faster without sacrificing security.
-
-### Complete Audit Trail
-Every token access, connection change, and API call is logged with full actor context (agent ID, run ID, tool call ID). View, filter, and export logs for SOC 2, GDPR, and HIPAA compliance.
-
-### Universal Compatibility
-Works with your existing authentication system. Use JWT tokens from Auth0, Clerk, Supabase, or any provider.
+### Full Audit Trail with Actor Context
+Every token access, policy decision, and API call is logged with agent ID, run ID, tool call ID, and end-user identity. Filter and export logs for SOC 2, GDPR, and HIPAA compliance.
 
 ## How It Works
 
