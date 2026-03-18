@@ -17,7 +17,7 @@ When a user successfully connects, `onSuccess` receives an array of `Connection`
     provider_name: "Google",
     account_identifier: "user@gmail.com",
     timestamp: "2024-01-15T10:30:00Z",
-    operation: "creation",  // "creation", "reauth", or "grant"
+    operation: "creation",  // "creation" or "reauth"
     scopes: [
       "openid",
       "email",
@@ -201,9 +201,6 @@ await alterConnect.open({
       if (conn.operation === 'reauth') {
         console.log('Successfully reauthenticated', conn.provider);
         await updateConnection(conn);
-      } else if (conn.operation === 'grant') {
-        console.log('Existing connection granted', conn.provider);
-        await saveConnection(conn);
       } else {
         console.log('New connection created', conn.provider);
         await createConnection(conn);

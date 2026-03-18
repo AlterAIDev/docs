@@ -95,7 +95,7 @@ interface Connection {
   provider_name: string;       // Display name (e.g., 'Google')
   account_identifier: string;  // User's email/username
   timestamp: string;           // ISO 8601 timestamp
-  operation: 'creation' | 'reauth' | 'grant';  // How the connection was established
+  operation: 'creation' | 'reauth';  // How the connection was established
   scopes: string[];           // OAuth scopes granted
   status: 'active' | 'pending' | 'error';
   metadata?: {                // Optional provider-specific data
