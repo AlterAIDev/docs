@@ -3,7 +3,7 @@ title: 'Welcome to Alter Vault'
 description: 'The authorization layer for AI agents. Centralized credential management, identity-aware policies, and full audit trails across every downstream service.'
 ---
 
-## Identity-aware access control for AI agents and applications
+## Identity-aware access control for AI agents
 
 Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enforces authorization tied to both end-user and agent identity, and logs every access with full actor context.
 
@@ -43,14 +43,14 @@ Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enfor
 ### Token Vault for Downstream Providers
 OAuth tokens and API keys are encrypted and stored in a dedicated vault, never in the application database. Token refresh, lifecycle management, and credential injection happen automatically through `vault.request()`.
 
-### Centralized, Identity-Aware Authorization
-Every credential access is checked against two identities: the end user whose credentials are being used, and the agent or MCP server requesting them. Policies govern which actors get access to which users' credentials, down to the provider and action level. One policy layer across all providers. Built-in policies cover time-based access, IP allowlists, and connection TTL. [Custom policies](/reference/policies#custom-policies) support URL restrictions, HTTP method restrictions, rate limiting, and any logic tied to user or actor identity.
+### Identity-Aware Authorization
+Every credential access is checked against two identities: the end user whose credentials are being used, and the agent or MCP server requesting them. One [policy layer](/reference/policies) governs which actors get access to which credentials, down to the provider and action level.
 
-### Audit Logging with Dual-Identity Tracking
+### Dual-Identity Audit Logging
 Every access is logged with both the end-user identity and the actor identity: which agent, which MCP server, which tool. Answer "what was Alice's data used for?" and "what did Agent X access across all users?"
 
 ### Security and Compliance
-Credentials are encrypted at rest and never stored in the application database. Every access is logged for SOC 2, GDPR, and HIPAA compliance. The system is fail-closed: if authorization cannot be enforced, credential access is denied.
+Fail-closed by design: if authorization cannot be enforced, credential access is denied. Every access is logged for SOC 2, GDPR, and HIPAA compliance.
 
 ## How It Works
 
