@@ -1,0 +1,92 @@
+---
+title: 'Wallet Dashboard'
+description: 'End-user transparency and control over OAuth connections and agent activity'
+---
+
+## Overview
+
+The Wallet Dashboard is the end-user-facing interface where the people whose credentials are stored in Alter Vault can see and control how those credentials are being used. End users access the Wallet at [wallet.alterai.dev](https://wallet.alterai.dev).
+
+While the Developer Portal gives developers visibility into their applications, the Wallet gives **end users** visibility into their own data.
+
+## What End Users See
+
+### Connected Accounts
+
+End users can view all OAuth connections across every application that uses Alter Vault:
+
+- Which providers are connected (Google, Slack, GitHub, etc.)
+- Which applications have access to each connection
+- When each connection was created
+- Current connection status (active, expired, revoked)
+- Scopes granted to each connection
+
+### Agent Activity
+
+Every time an AI agent or MCP server accesses a credential on behalf of an end user, it is logged and visible in the Wallet:
+
+- **Which agent** accessed the credential (agent name, type, identifier)
+- **What API** was called (HTTP method, target URL)
+- **When** the access happened
+- **Why** the access was requested (the `reason` parameter from the SDK)
+- **Outcome** of the request (success, policy denial, error)
+
+This gives end users a complete picture of what agents are doing with their data, not just that access was granted, but exactly how it is being used.
+
+### Connection Management
+
+End users can take direct action on their connections:
+
+- **Revoke access** — immediately invalidate a connection. All future `vault.request()` calls for that connection will fail.
+- **Extend TTL** — if a connection has a time-to-live policy, extend it up to the developer-set maximum.
+- **View history** — see the full activity log for a specific connection.
+
+## End-User Policies (Coming Soon)
+
+Beyond revoking access, end users will be able to set their own policies on top of their connections:
+
+- **Time windows** — restrict when agents can use a connection (e.g., business hours only)
+- **Action restrictions** — limit what agents can do (e.g., allow reading calendar events but block sending emails)
+- **Agent allowlists** — specify which agents are permitted to use a connection
+- **Notification preferences** — get notified when specific types of access occur
+
+End-user policies layer on top of developer-set policies. Both must pass for access to be granted. This gives end users meaningful control over their data without requiring developer involvement.
+
+<Info>
+  Interested in end-user policies? [Contact the team](mailto:founders@alterai.dev) to discuss early access.
+</Info>
+
+## Why This Matters
+
+In the AI agent ecosystem, end users grant OAuth access and then have limited visibility into how that access is used. Agents act autonomously, making API calls on behalf of users across multiple services.
+
+The Wallet Dashboard closes this gap:
+
+<CardGroup cols={2}>
+  <Card title="Transparency" icon="eye">
+    End users see exactly which agents accessed their data, when, and why.
+  </Card>
+
+  <Card title="Control" icon="shield">
+    End users can revoke access or set policies without going through the developer.
+  </Card>
+
+  <Card title="Trust" icon="handshake">
+    Applications that offer Wallet access build more trust with their users around AI agent permissions.
+  </Card>
+
+  <Card title="Compliance" icon="clipboard-list">
+    End-user audit trails and self-service revocation support GDPR and data sovereignty requirements.
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Security Policies" icon="lock" href="/reference/policies">
+    Developer-set policies and custom policy options
+  </Card>
+  <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
+    Full audit log architecture and export options
+  </Card>
+</CardGroup>

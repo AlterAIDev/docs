@@ -18,14 +18,14 @@ Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enfor
   <Card
     title="Python SDK"
     icon="python"
-    href="/sdks/python/installation"
+    href="/sdks/python/quickstart"
   >
     Install and use our Python SDK
   </Card>
   <Card
     title="Alter Connect"
     icon="window"
-    href="/sdks/javascript/installation"
+    href="/sdks/javascript/quickstart"
   >
     Frontend SDK for OAuth connection UI
   </Card>
@@ -40,48 +40,45 @@ Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enfor
 
 ## Why Alter Vault?
 
-### Centralized Authorization Tied to End-User Identity
-Authorization is centralized across all providers, not scattered across each integration. Every credential access is governed by policies scoped to the actual end user, resolved via JWT from Auth0, Clerk, Supabase, or any OIDC provider. Your IdP stays the source of truth; Alter Vault enforces what each user's credentials can be used for.
-
 ### Token Vault for Downstream Providers
-OAuth tokens and API keys are encrypted (AES-256-GCM) and stored in a dedicated vault. Your database never holds credentials. Token refresh, lifecycle management, and credential injection all happen automatically through a single method: `vault.request()`.
+OAuth tokens and API keys are encrypted and stored in a dedicated vault, never in the application database. Token refresh, lifecycle management, and credential injection happen automatically through `vault.request()`.
+
+### Centralized, Identity-Aware Authorization
+Every credential access is checked against two identities: the end user whose credentials are being used, and the agent or MCP server requesting them. Policies govern which actors get access to which users' credentials, down to the provider and action level. One policy layer across all providers. Built-in policies cover time-based access, IP allowlists, and connection TTL. [Custom policies](/reference/policies#custom-policies) support URL restrictions, HTTP method restrictions, rate limiting, and any logic tied to user or actor identity.
 
 ### Audit Logging with Dual-Identity Tracking
-Every access is logged with both the end-user identity and the actor identity: which agent, which MCP server, which tool. Answer "what was Alice's data used for?" and "what did Agent X access across all users?" with full context including run ID, tool call ID, timestamps, and policy decisions.
-
-### Authorization Based on Agent Identity
-Control what each agent is allowed to do, independent of what the user's token permits. Allow one agent to read a user's Google Calendar but deny access to their Gmail. Restrict another to read-only across all providers. Policies are enforced per agent on every request.
+Every access is logged with both the end-user identity and the actor identity: which agent, which MCP server, which tool. Answer "what was Alice's data used for?" and "what did Agent X access across all users?"
 
 ### Security and Compliance
-Credentials are encrypted at rest (AES-256-GCM) with hardware-managed keys and never stored in your database. Every access is logged for SOC 2, GDPR, and HIPAA compliance. The system is designed to be fail-closed: if authorization cannot be enforced, credential access is denied.
+Credentials are encrypted at rest and never stored in the application database. Every access is logged for SOC 2, GDPR, and HIPAA compliance. The system is fail-closed: if authorization cannot be enforced, credential access is denied.
 
 ## How It Works
 
 Alter Vault manages two types of credentials -**OAuth connections** and **managed secrets** -both accessed through the same `vault.request()` method.
 
-`vault.request()` **is your HTTP client**. Instead of calling `fetch` or `httpx` directly (and constructing auth headers yourself), you call `vault.request()` with a `connection_id` and the target URL. The SDK makes the HTTP request on your behalf with the correct credential automatically injected -your code never sees, stores, or handles any tokens or secrets. This eliminates the risk of accidental token leakage through logs, error messages, or insecure storage.
+`vault.request()` **acts as the HTTP client**. Instead of calling `fetch` or `httpx` directly and constructing auth headers manually, call `vault.request()` with a `connection_id` and the target URL. The SDK makes the HTTP request with the correct credential automatically injected. Application code never sees, stores, or handles tokens or secrets, eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
 
 | | OAuth Connections | Managed Secrets |
 |---|---|---|
-| **Use case** | Third-party services (Google, Slack, GitHub) | Your own APIs (internal services, API keys) |
+| **Use case** | Third-party services (Google, Slack, GitHub) | Internal APIs and services (API keys, service tokens) |
 | **Who provides credentials** | **End user** authorizes via OAuth | **Developer** stores via portal |
-| **Where `connection_id` comes from** | `onSuccess` callback after user completes OAuth | Developer Portal when you store a secret |
+| **Where `connection_id` comes from** | `onSuccess` callback after user completes OAuth | Developer Portal when storing a secret |
 
 <Steps>
   <Step title="Get a connection_id">
-    **OAuth**: Your end user authorizes via Alter Connect UI → `onSuccess` returns a `connection_id`. **Managed Secrets**: You store credentials in the Developer Portal → portal returns a `connection_id`.
+    **OAuth**: The end user authorizes via Alter Connect UI → `onSuccess` returns a `connection_id`. **Managed Secrets**: Store credentials in the Developer Portal → portal returns a `connection_id`.
   </Step>
 
   <Step title="We Encrypt & Store">
-    All credentials are encrypted (AES-256-GCM) and stored in our secure vault -never in your database
+    All credentials are encrypted (AES-256-GCM) and stored in a secure vault, never in the application database
   </Step>
 
-  <Step title="You Call vault.request()">
-    `vault.request()` acts as your HTTP client -it makes the API call and injects the right credential automatically. You get back the API response. The token never touches your code.
+  <Step title="Call vault.request()">
+    `vault.request()` acts as the HTTP client, making the API call and injecting the right credential automatically. The token never touches application code.
   </Step>
 
-  <Step title="We Handle the Rest">
-    Token refresh, policy enforcement, audit logging -all automatic
+  <Step title="Alter Handles the Rest">
+    Token refresh, policy enforcement, audit logging, all automatic
   </Step>
 </Steps>
 
@@ -90,7 +87,7 @@ Alter Vault manages two types of credentials -**OAuth connections** and **manage
 <Info>
 **SDKs and tools:**
 - **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** - Backend SDK for creating OAuth sessions and making authenticated API calls via `vault.request()`. Works with both OAuth connections and managed secrets.
-- **Alter Connect UI** - Hosted page where users complete OAuth. Your backend creates a session and gets a `connect_url` that works in any browser. No frontend SDK required.
+- **Alter Connect UI** - Hosted page where users complete OAuth. The backend creates a session and gets a `connect_url` that works in any browser. No frontend SDK required.
 - **Connect SDK (`@alter-ai/connect`)** - **Optional** frontend SDK that opens the Alter Connect UI in a popup with `onSuccess`/`onError` callbacks. Useful for SPAs, but not required.
 </Info>
 
@@ -171,7 +168,7 @@ session_token = session.session_token
 
 ## Supported Providers
 
-Enforce permissions across the services your users already use:
+Enforce permissions across the services end users already rely on:
 
 <CardGroup cols={4}>
   <Card title="Google" icon="google">
@@ -207,8 +204,8 @@ Enforce permissions across the services your users already use:
     `vault.request()` handles credential injection, authorization checks, and audit logging in a single call. No custom auth logic in every agent workflow.
   </Accordion>
 
-  <Accordion title="Works with Your Identity Provider">
-    Propagate user identity from Auth0, Clerk, Supabase, Firebase, or any OIDC provider. Alter Vault enforces policy. Your IdP stays the source of truth.
+  <Accordion title="Works with Any Identity Provider">
+    Propagate user identity from Auth0, Clerk, Supabase, Firebase, or any OIDC provider. Alter Vault enforces policy. The IdP stays the source of truth.
   </Accordion>
 
   <Accordion title="Track Every Agent Action">
@@ -224,11 +221,11 @@ Enforce permissions across the services your users already use:
 
 <Steps>
   <Step title="Sign Up">
-    Create your free account at [portal.alterai.dev](https://portal.alterai.dev)
+    Create a free account at [portal.alterai.dev](https://portal.alterai.dev)
   </Step>
 
   <Step title="Create an App">
-    Set up your first application in the Developer Portal
+    Set up a new application in the Developer Portal
   </Step>
 
   <Step title="Configure Providers">

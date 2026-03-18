@@ -1,14 +1,48 @@
 ---
 title: 'Quickstart'
-description: 'Start using the Alter SDK for Python in minutes'
+description: 'Install and start using the Alter SDK for Python in minutes'
 icon: 'python'
 ---
 
-Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials — including multi-header and query param auth — all retrieved and injected automatically. You never touch them.
+Get started with the Alter SDK for Python to make authenticated API calls to any OAuth provider, manage connections, and initiate OAuth flows. The SDK supports OAuth tokens, API keys, and custom credentials, all retrieved and injected automatically.
+
+## Installation
+
+Requires Python 3.11 or higher.
+
+<Tabs>
+  <Tab title="pip">
+    ```bash
+    pip install alter-sdk
+    ```
+  </Tab>
+
+  <Tab title="Poetry">
+    ```bash
+    poetry add alter-sdk
+    ```
+  </Tab>
+</Tabs>
+
+For native boto3 integration with AWS services:
+
+<Tabs>
+  <Tab title="pip">
+    ```bash
+    pip install 'alter-sdk[aws]'
+    ```
+  </Tab>
+
+  <Tab title="Poetry">
+    ```bash
+    poetry add 'alter-sdk[aws]'
+    ```
+  </Tab>
+</Tabs>
 
 ## Basic Setup
 
-The fastest way to get started -- `connect()` opens a browser, the user authorizes, and you get back a connection you can use immediately:
+The fastest way to get started: `connect()` opens a browser, the user authorizes, and the SDK returns a connection to use immediately:
 
 ```python
 import asyncio

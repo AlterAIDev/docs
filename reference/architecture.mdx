@@ -1,18 +1,18 @@
 ---
 title: 'Architecture & Security'
-description: 'How Alter Vault works and keeps your data secure'
+description: 'How Alter Vault works: multi-tenant credential management, identity-aware authorization, and security architecture'
 ---
 
 ## How Alter Vault Works
 
-Alter Vault is a secure credential management service that handles OAuth tokens and API secrets so you don't have to. We store, refresh, and inject credentials automatically, while you focus on building your product.
+Alter Vault is the credential and authorization layer for AI agents that serve multiple users across multiple services. It stores OAuth tokens and API credentials in an encrypted vault, enforces identity-aware policies on every access, and logs every action with full actor context.
 
 ### Two Paths, One API
 
 Alter Vault supports two types of credentials, both accessed through the same `vault.request()` method:
 
 - **OAuth Connections** — for third-party services where users authorize access (Google, Slack, GitHub)
-- **Managed Secrets** — for your own APIs where you already have the credentials (API keys, service tokens)
+- **Managed Secrets** — for internal APIs where credentials are already available (API keys, service tokens)
 
 ```mermaid
 graph LR
@@ -26,18 +26,18 @@ graph LR
 
 ## Zero Credential Exposure
 
-Your application **never sees or stores credentials**. Here's what happens instead:
+Application code **never sees or stores credentials**. Here is what happens instead:
 
 <Steps>
   <Step title="Connect or Store">
     **OAuth**: User authorizes through Alter Connect UI. **Managed Secrets**: Developer stores credentials via the Developer Portal.
   </Step>
 
-  <Step title="We Encrypt & Store">
-    All credentials are encrypted (AES-256-GCM) and stored in our secure vault
+  <Step title="Encrypt & Store">
+    All credentials are encrypted (AES-256-GCM) and stored in a secure vault
   </Step>
 
-  <Step title="You Call vault.request()">
+  <Step title="Call vault.request()">
     The SDK retrieves and injects credentials into API calls automatically
   </Step>
 
@@ -54,10 +54,10 @@ Your application **never sees or stores credentials**. Here's what happens inste
 - **Hardware security modules** for key management
 
 ### Access Control
-- **API key authentication** for your backend
+- **API key authentication** for backend services
 - **Session tokens** for frontend (never expose API keys)
-- **Policy enforcement** (time-based access, IP allowlist; scopes enforced via provider configuration)
-- **Rate limiting** to prevent abuse
+- **Built-in policies** — time-based access, IP allowlist, connection TTL
+- **Custom policies** — URL restrictions, HTTP method restrictions, rate limiting, and rules tied to user or actor identity. See [Security Policies](/reference/policies#custom-policies).
 - **Fail-closed design** — if the policy service is unavailable, all token access is denied
 
 ### Compliance
@@ -68,12 +68,12 @@ Your application **never sees or stores credentials**. Here's what happens inste
 
 ## Connection ID: The Universal Handle
 
-Every credential in Alter Vault has a unique `connection_id` (UUID). Once you have one, usage is identical via `vault.request()`. The key difference is **where it comes from**:
+Every credential in Alter Vault has a unique `connection_id` (UUID). Usage is identical via `vault.request()` regardless of credential type. The key difference is **where the `connection_id` comes from**:
 
 | Credential Type | Where `connection_id` Comes From | Who Creates It |
 |---|---|---|
 | **OAuth** | `onSuccess` callback when end user completes OAuth via Alter Connect | **End user** (by logging into Google, Slack, etc.) |
-| **Managed Secret** | Developer Portal when you store a credential | **Developer** (via portal UI) |
+| **Managed Secret** | Developer Portal when storing a credential | **Developer** (via portal UI) |
 
 ```python
 # OAuth connection — connection_id from end user completing Alter Connect
@@ -95,12 +95,12 @@ response = await vault.request(
 ```
 
 <Note>
-**OAuth connections are per-user** — each end user who authorizes gets their own `connection_id`. **Managed secrets are per-service** — you store one credential and all your backend code shares the same `connection_id`.
+**OAuth connections are per-user** — each end user who authorizes gets their own `connection_id`. **Managed secrets are per-service** — one credential is stored and all backend code shares the same `connection_id`.
 </Note>
 
 ### Connection Deduplication
 
-Alter Vault automatically prevents duplicate OAuth connections for the same account. When a user re-authorizes, we **update** the existing connection instead of creating a duplicate.
+Alter Vault automatically prevents duplicate OAuth connections for the same account. When a user re-authorizes, the existing connection is **updated** instead of creating a duplicate.
 
 ```mermaid
 graph TD
@@ -142,7 +142,7 @@ Use cases:
 - **Sync settings** - Which data to sync, how often
 - **User preferences** - Per-connection configuration
 - **Metadata** - Labels, tags, categories
-- **Mapping** - Link to your internal records
+- **Mapping** - Link to internal records
 
 ## Audit Logs
 
@@ -168,9 +168,9 @@ See the [Audit Logs guide](/reference/audit-logs) for details on viewing and exp
 
 ## Credential Management
 
-We handle the entire credential lifecycle:
+Alter Vault handles the entire credential lifecycle:
 
-### What We Do Automatically
+### Automatic
 
 - ✅ **Store credentials securely** — Encrypted at rest (AES-256-GCM)
 - ✅ **Refresh OAuth tokens before expiry** — No failed API calls
@@ -179,9 +179,9 @@ We handle the entire credential lifecycle:
 - ✅ **Retry on failure** — Automatic error recovery
 - ✅ **Audit all access** — Complete compliance trail for both OAuth and managed secrets
 
-### What You Never Do
+### Eliminated
 
-- ❌ Store tokens or API keys in your database
+- ❌ Store tokens or API keys in the application database
 - ❌ Implement refresh logic
 - ❌ Construct auth headers manually
 - ❌ Manage encryption keys
@@ -191,25 +191,25 @@ We handle the entire credential lifecycle:
 
 <AccordionGroup>
   <Accordion title="Reduced Security Risk">
-    By never handling tokens directly, you eliminate the risk of token leaks, database breaches, or accidental exposure in logs.
+    Tokens are never handled directly by application code, eliminating the risk of token leaks, database breaches, or accidental exposure in logs.
   </Accordion>
 
   <Accordion title="Simplified Compliance">
-    We handle the security certifications (SOC 2, HIPAA) so you can inherit our compliance without the audit burden.
+    Alter Vault carries SOC 2 and HIPAA certifications, reducing the compliance burden for applications built on top of it.
   </Accordion>
 
   <Accordion title="Provider Agnostic">
-    One integration with Alter Vault gives you access to 100+ OAuth providers without learning each API.
+    One integration with Alter Vault provides access to 100+ OAuth providers without learning each API.
   </Accordion>
 
   <Accordion title="Maintenance Free">
-    When Google changes their OAuth flow or Slack updates their API, we handle it. Your code doesn't change.
+    When Google changes their OAuth flow or Slack updates their API, Alter Vault handles it. Application code does not change.
   </Accordion>
 </AccordionGroup>
 
 ## Integration Example
 
-Here's the complete flow in practice:
+The complete flow in practice:
 
 ### 1. Frontend: User Connects (OAuth)
 
@@ -262,7 +262,7 @@ That's it. No token handling, no refresh logic, no storage concerns.
 
 <CardGroup cols={2}>
   <Card title="Quick Start" icon="rocket" href="/quickstart">
-    Connect your first integration in 5 minutes
+    Connect a first integration in 5 minutes
   </Card>
 
   <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
@@ -270,7 +270,7 @@ That's it. No token handling, no refresh logic, no storage concerns.
   </Card>
 
   <Card title="Developer Portal" icon="browser" href="/reference/developer-portal">
-    Configure your OAuth providers
+    Configure OAuth providers
   </Card>
 
 </CardGroup>

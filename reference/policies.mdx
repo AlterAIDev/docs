@@ -27,7 +27,7 @@ Policies apply to **both OAuth connections and managed secrets**. The same rules
 
 ## App-Level Policies
 
-App-level policies apply to **all connections** for a given provider within your app. Configure them in the Developer Portal under **Policies**.
+App-level policies apply to **all connections** for a given provider within an app. Configure them in the Developer Portal under **Policies**.
 
 ### Time-Based Access
 
@@ -35,7 +35,7 @@ Restrict credential access to specific time windows:
 
 | Rule | Description |
 |------|-------------|
-| **Business hours only** | 9:00 AM – 5:00 PM in your configured timezone |
+| **Business hours only** | 9:00 AM – 5:00 PM in the configured timezone |
 | **Weekdays only** | Monday through Friday |
 | **Timezone** | Any IANA timezone (e.g., `America/New_York`, `Europe/London`). Defaults to UTC. |
 
@@ -56,8 +56,8 @@ Use CIDR ranges for office networks or VPNs rather than listing individual IPs.
 ### Configuring Policies
 
 <Steps>
-  <Step title="Open your app in the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and select your app
+  <Step title="Open the app in the Developer Portal">
+    Go to [portal.alterai.dev](https://portal.alterai.dev) and select the app
   </Step>
 
   <Step title="Go to Policies">
@@ -239,6 +239,34 @@ All rules use **AND logic** — every configured rule must pass for access to be
 If **no policy** is configured for a provider, all credential accesses are allowed (permissive default). We recommend configuring at least time-based or IP restrictions for production applications.
 </Warning>
 
+## Custom Policies
+
+The built-in policy types cover common access control patterns. For requirements beyond time-based, IP allowlist, and TTL policies, Alter Vault supports custom policies:
+
+<CardGroup cols={2}>
+  <Card title="URL Restrictions" icon="link">
+    Limit which API endpoints a credential can be used against
+  </Card>
+
+  <Card title="HTTP Method Restrictions" icon="lock">
+    Allow read-only access (GET only) for certain actors
+  </Card>
+
+  <Card title="Rate Limiting" icon="gauge">
+    Cap how many requests a credential can serve per time window
+  </Card>
+
+  <Card title="Custom Rules" icon="code">
+    Any logic tied to end-user identity, actor identity, or request context
+  </Card>
+</CardGroup>
+
+Custom policies are enforced at the same layer as built-in policies, with the same fail-closed guarantees, audit logging, and policy violation errors.
+
+<Card title="Set up custom policies" icon="envelope" href="mailto:founders@alterai.dev">
+  Contact the team to configure custom policies for a specific use case.
+</Card>
+
 ## Fail-Closed Security
 
 If the policy engine is temporarily unavailable, the system **denies all credential access** rather than bypassing policies. This ensures security is maintained even during outages.
@@ -257,7 +285,7 @@ View policy violations in the Developer Portal under **Audit Logs** — filter b
 
 <AccordionGroup>
   <Accordion title="Start permissive, tighten gradually" icon="chart-line">
-    Enable audit logging first to understand your access patterns. Then add policies based on actual usage — this avoids accidentally blocking legitimate access.
+    Enable audit logging first to understand access patterns. Then add policies based on actual usage — this avoids accidentally blocking legitimate access.
   </Accordion>
 
   <Accordion title="Use CIDR ranges over individual IPs" icon="network-wired">
@@ -268,8 +296,8 @@ View policy violations in the Developer Portal under **Audit Logs** — filter b
     For connections that access sensitive data (financial APIs, healthcare systems), set a connection TTL to limit exposure if credentials are compromised.
   </Accordion>
 
-  <Accordion title="Match timezone to your team" icon="globe">
-    Set the policy timezone to match where your team operates. If you have distributed teams, consider using UTC and broader time windows.
+  <Accordion title="Match timezone to the team" icon="globe">
+    Set the policy timezone to match where the team operates. For distributed teams, consider using UTC and broader time windows.
   </Accordion>
 </AccordionGroup>
 

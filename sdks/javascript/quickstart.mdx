@@ -1,16 +1,45 @@
 ---
 title: 'Quickstart'
-description: 'Connect your first OAuth integration in 5 minutes'
+description: 'Install Alter Connect and add OAuth popup flows in minutes'
+icon: 'window'
 ---
 
-Get started with the Alter Connect frontend SDK to add OAuth popup flows to your single-page application.
+Get started with the Alter Connect frontend SDK to add OAuth popup flows to a single-page application.
+
+## Installation
+
+<Tabs>
+  <Tab title="npm">
+    ```bash
+    npm install @alter-ai/connect
+    ```
+  </Tab>
+
+  <Tab title="pnpm">
+    ```bash
+    pnpm add @alter-ai/connect
+    ```
+  </Tab>
+
+  <Tab title="yarn">
+    ```bash
+    yarn add @alter-ai/connect
+    ```
+  </Tab>
+
+  <Tab title="CDN">
+    ```html
+    <script src="https://cdn.jsdelivr.net/npm/@alter-ai/connect@latest/dist/alter-connect.umd.js"></script>
+    ```
+  </Tab>
+</Tabs>
 
 <Note>
-**This frontend SDK is optional.** The Alter Connect UI is a hosted page - your backend can create a session and redirect users to the `connect_url` directly without any frontend SDK. This SDK is for SPAs (React, Vue, etc.) that want a popup overlay with real-time `onSuccess`/`onError` callbacks. See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for all three ways to trigger the OAuth flow.
+**This frontend SDK is optional.** The Alter Connect UI is a hosted page. The backend can create a session and redirect users to the `connect_url` directly without any frontend SDK. This SDK is for SPAs (React, Vue, etc.) that want a popup overlay with real-time `onSuccess`/`onError` callbacks. See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for all three ways to trigger the OAuth flow.
 </Note>
 
 <Note>
-**OAuth connections only.** For Managed Secrets (your own API keys/service tokens), use the [Developer Portal](/reference/managed-secrets) instead - no OAuth flow needed.
+**OAuth connections only.** For Managed Secrets (API keys and service tokens), use the [Developer Portal](/reference/managed-secrets) instead.
 </Note>
 
 ## Overview
@@ -19,7 +48,7 @@ The SDK follows a secure three-step process:
 
 <Steps>
   <Step title="Backend creates session">
-    Your backend uses your API key to create a session token (no user_id or connection_id needed)
+    The backend uses the API key to create a session token (no user_id or connection_id needed)
   </Step>
 
   <Step title="Frontend opens Connect UI">
@@ -34,14 +63,14 @@ The SDK follows a secure three-step process:
 ## Session Tokens
 
 <Warning>
-Session tokens are temporary credentials created by your backend. They allow Alter Connect to work without exposing your API keys in frontend code.
+Session tokens are temporary credentials created by the backend. They allow Alter Connect to work without exposing API keys in frontend code.
 </Warning>
 
 ## Complete Example
 
 ### Step 1: Backend Endpoint
 
-Create an endpoint in YOUR backend to generate session tokens:
+Create a backend endpoint to generate session tokens:
 
 <CodeGroup>
 
@@ -88,7 +117,7 @@ async def create_alter_session(current_user = Depends(get_current_user)):
 
 ### Step 2: Frontend Integration
 
-Use the SDK in your frontend to open the Connect UI:
+Use the SDK in the frontend to open the Connect UI:
 
 <CodeGroup>
 
