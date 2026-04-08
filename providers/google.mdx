@@ -13,7 +13,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 | **PKCE** | Supported |
 | **Token refresh** | Automatic (refresh token reused) |
 | **Access token lifetime** | ~1 hour |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a Google Cloud Project
 
@@ -56,7 +56,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
   <Step title="Create OAuth client ID">
     - **Application type**: Web application
     - **Name**: e.g., "Alter Vault Integration"
-    - **Authorized redirect URIs**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
+    - **Authorized redirect URIs**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com)
     - Click **Create**
   </Step>
 
@@ -75,7 +75,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Google provider">
@@ -98,7 +98,7 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 
 ## Step 4: Test It
 
-After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
 from alter_sdk import AlterVault, ActorType, HttpMethod
@@ -108,9 +108,9 @@ async with AlterVault(
     actor_type=ActorType.AI_AGENT,
     actor_identifier="my-agent",
 ) as vault:
-    # Use the connection_id returned by Alter Connect
+    # Use the grant_id returned by Alter Connect
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "5"},

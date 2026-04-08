@@ -5,7 +5,7 @@ description: 'Automatic user and group sync via SCIM 2.0 protocol'
 
 ## Overview
 
-SCIM (System for Cross-domain Identity Management) 2.0 enables your identity provider to automatically push user and group changes to Alter Vault. When a user is deprovisioned in your IDP, their OAuth connections are **immediately revoked** — no polling or delay.
+SCIM (System for Cross-domain Identity Management) 2.0 enables your identity provider to automatically push user and group changes to Alter Vault. When a user is deprovisioned in your IDP, their OAuth grants are **immediately revoked** — no polling or delay.
 
 <Info>
 **Security critical**: SCIM deprovisioning is the fastest way to revoke access when an employee leaves your organization. JWT-based sync only triggers on the next token request, while SCIM pushes the change in real time.
@@ -87,7 +87,7 @@ Authorization: Bearer <your_scim_token>
    - **Unique identifier field for users**: `userName`
    - **Authentication Mode**: HTTP Header
    - **Authorization**: Paste your bearer token
-5. Click **Test API Credentials** to verify the connection
+5. Click **Test API Credentials** to verify the grant
 6. Under **Provisioning** → **To App**:
    - Enable **Create Users**
    - Enable **Update User Attributes**
@@ -148,11 +148,11 @@ Keycloak requires a SCIM plugin (not built-in):
 When a user is deprovisioned via SCIM (either `PATCH active=false` or `DELETE`), the following happens immediately:
 
 <Warning>
-**Irreversible**: Deprovisioning permanently revokes all connections. If the user is re-provisioned later, they will need to re-authorize their OAuth connections.
+**Irreversible**: Deprovisioning permanently revokes all connections. If the user is re-provisioned later, they will need to re-authorize their OAuth grants.
 </Warning>
 
 1. **User status** is set to `deprovisioned`
-2. **All OAuth connections** linked to the user are immediately revoked
+2. **All OAuth grants** linked to the user are immediately revoked
 3. **All stored tokens** are permanently deleted
 4. **Subsequent token requests** for this user are denied
 
@@ -199,7 +199,7 @@ Monitor SCIM sync status in the **Developer Portal** under your IDP's **SCIM** t
 <Accordion title="Deprovisioning not working">
 - Ensure your IDP sends `PATCH` with `active: false` (Okta/Azure AD default behavior)
 - Check the SCIM sync status in Developer Portal for errors
-- Verify the user has OAuth connections linked to them in Alter Vault
+- Verify the user has OAuth grants linked to them in Alter Vault
 </Accordion>
 
 <Accordion title="Groups not appearing">

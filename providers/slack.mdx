@@ -13,7 +13,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 | **PKCE** | Not supported |
 | **Token refresh** | Automatic (rolling - new token each refresh) |
 | **Access token lifetime** | 12 hours |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 <Note>
   Slack uses **rolling refresh tokens** - each refresh returns a new refresh token and the old one is revoked. Alter Vault handles this automatically.
@@ -42,7 +42,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
   <Step title="Configure OAuth redirect">
     Go to **OAuth & Permissions** in the sidebar:
     - Under **Redirect URLs**, click **Add New Redirect URL**
-    - Copy the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
+    - Copy the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com)
     - Click **Save URLs**
   </Step>
 
@@ -69,7 +69,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Slack provider">
@@ -92,7 +92,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
 
 ## Step 3: Test It
 
-After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
 from alter_sdk import AlterVault, ActorType, HttpMethod
@@ -103,7 +103,7 @@ async with AlterVault(
     actor_identifier="my-agent",
 ) as vault:
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.POST,
         "https://slack.com/api/chat.postMessage",
         json={"channel": "#general", "text": "Hello from Alter Vault!"},

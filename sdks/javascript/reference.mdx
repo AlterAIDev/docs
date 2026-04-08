@@ -39,10 +39,10 @@ The `allowed_origin` parameter controls postMessage security for desktop popup f
 | Single domain | Omit field (uses `website_url` from Developer Portal) | Configure in Portal |
 | Multiple environments | Pass specific origin | `'https://staging.myapp.com'` |
 | Local development | Pass localhost | `'http://localhost:3000'` |
-| Server-to-server | Omit field | No validation needed |
+| Headless / CLI / server-to-server | Omit field | Flow completes; user closes tab manually |
 
 <Warning>
-**Wildcard `*` is NOT supported.** To allow any origin, omit the field or pass `null` - the system will use your `website_url` configured in the Developer Portal as a fallback.
+**Wildcard `*` is NOT supported.** To allow any origin, omit the field or pass `null` — the system uses `website_url` from the Developer Portal as a fallback. If neither is set, the OAuth flow still completes but the popup will not auto-close or notify the parent window.
 </Warning>
 
 **Valid origin formats:**
@@ -91,12 +91,12 @@ await alterConnect.open({
 
 ```typescript
 interface Connection {
-  connection_id: string;      // Unique ID for this connection
+  grant_id: string;           // Unique ID for this grant
   provider: string;            // Provider ID (e.g., 'google')
   provider_name: string;       // Display name (e.g., 'Google')
   account_identifier: string;  // User's email/username
   timestamp: string;           // ISO 8601 timestamp
-  operation: 'creation' | 'reauth';  // How the connection was established
+  operation: 'creation' | 'reauth';  // How the grant was established
   scopes: string[];           // OAuth scopes granted
   status: 'active' | 'pending' | 'error';
   metadata?: {                // Optional provider-specific data
@@ -114,9 +114,9 @@ Handle errors gracefully:
 await alterConnect.open({
   token: sessionToken,
   onSuccess: (connections) => {
-    // User completed OAuth! Save each connection_id to your database, mapped to your user.
+    // User completed OAuth! Save each grant_id to your database, mapped to your user.
     for (const conn of connections) {
-      saveConnection(currentUser.id, conn.connection_id, conn.provider);
+      saveConnection(currentUser.id, conn.grant_id, conn.provider);
     }
   },
   onError: (error) => {
@@ -240,7 +240,7 @@ Customize the Alter Connect UI to match your app's look and feel. Branding is co
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and select your app
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and select your app
   </Step>
 
   <Step title="Go to Branding">
@@ -293,7 +293,7 @@ Use colors with good contrast between text and background. Test your branding by
 
 ### Tokens Not Working
 
-- Confirm the `connection_id` is correct and belongs to your app
+- Confirm the `grant_id` is correct and belongs to your app
 - Verify connection was completed successfully
 - Check token hasn't expired (auto-refresh should handle this)
 

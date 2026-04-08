@@ -66,41 +66,41 @@ Application code **never sees or stores credentials**. Here is what happens inst
 - **GDPR** compliant with data residency options
 - **PCI DSS** Level 1 for payment integrations
 
-## Connection ID: The Universal Handle
+## Grant ID: The Universal Handle
 
-Every credential in Alter Vault has a unique `connection_id` (UUID). Usage is identical via `vault.request()` regardless of credential type. The key difference is **where the `connection_id` comes from**:
+Every credential in Alter Vault has a unique `grant_id` (UUID). Usage is identical via `vault.request()` regardless of credential type. The key difference is **where the `grant_id` comes from**:
 
-| Credential Type | Where `connection_id` Comes From | Who Creates It |
+| Credential Type | Where `grant_id` Comes From | Who Creates It |
 |---|---|---|
 | **OAuth** | `onSuccess` callback when end user completes OAuth via Alter Connect | **End user** (by logging into Google, Slack, etc.) |
 | **Managed Secret** | Developer Portal when storing a credential | **Developer** (via portal UI) |
 
 ```python
-# OAuth connection — connection_id from end user completing Alter Connect
+# OAuth grant — grant_id from end user completing Alter Connect
 # (stored in your DB, mapped to your user)
-oauth_conn_id = db.get_connection(user_id="alice", provider="google")
+oauth_grant_id = db.get_grant(user_id="alice", provider="google")
 response = await vault.request(
-    oauth_conn_id,
+    oauth_grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 
-# Managed secret — connection_id from Developer Portal
+# Managed secret — grant_id from Developer Portal
 # (stored in your config/env vars, same for all users)
 response = await vault.request(
-    os.environ["LOYALTY_API_CONNECTION_ID"],
+    os.environ["LOYALTY_API_GRANT_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
 )
 ```
 
 <Note>
-**OAuth connections are per-user** — each end user who authorizes gets their own `connection_id`. **Managed secrets are per-service** — one credential is stored and all backend code shares the same `connection_id`.
+**OAuth grants are per-user** — each end user who authorizes gets their own `grant_id`. **Managed secrets are per-service** — one credential is stored and all backend code shares the same `grant_id`.
 </Note>
 
 ### Connection Deduplication
 
-Alter Vault automatically prevents duplicate OAuth connections for the same account. When a user re-authorizes, the existing connection is **updated** instead of creating a duplicate.
+Alter Vault automatically prevents duplicate OAuth grants for the same account. When a user re-authorizes, the existing connection is **updated** instead of creating a duplicate.
 
 ```mermaid
 graph TD
@@ -108,16 +108,16 @@ graph TD
     B -->|Found| C[Update Tokens on Existing Connection]
     B -->|Not Found| D[Create New Connection]
 
-    C --> E[Return connection_id]
+    C --> E[Return grant_id]
     D --> E
 ```
 
 - Search by the OAuth account identifier (email, sub, or ID from the provider)
 - If found, update the existing connection with fresh tokens
-- If not found, create a new connection and return the new `connection_id`
+- If not found, create a new connection and return the new `grant_id`
 
 <Note>
-If a user re-authorizes with the same OAuth account, the existing connection is updated. The `connection_id` remains the same.
+If a user re-authorizes with the same OAuth account, the existing connection is updated. The `grant_id` remains the same.
 </Note>
 
 ## Custom Schemas
@@ -146,7 +146,7 @@ Use cases:
 
 ## Audit Logs
 
-All activity is logged automatically, including token access, connection changes, API calls, and admin actions. View, filter, and export logs from the Developer Portal. AI agents and MCP servers are tracked with full context (actor name, run ID, thread ID).
+All activity is logged automatically, including token access, connection changes, API calls, and admin actions. View, filter, and export logs from the Developer Portal. AI agents are tracked with full context (actor name, run ID, thread ID).
 
 See the [Audit Logs guide](/reference/audit-logs) for details on viewing and exporting logs.
 
@@ -219,10 +219,10 @@ const { session_token } = await fetch('/api/session').then(r => r.json());
 await alterConnect.open({
   token: session_token,
   onSuccess: (connections) => {
-    // User completed OAuth! Each connection has a connection_id.
+    // User completed OAuth! Each connection has a grant_id.
     // Store these in your database, mapped to your user.
     for (const conn of connections) {
-      saveToDb(currentUser.id, conn.connection_id, conn.provider);
+      saveToDb(currentUser.id, conn.grant_id, conn.provider);
     }
   }
 });
@@ -239,18 +239,18 @@ vault = AlterVault(
     actor_identifier="my-service",
 )
 
-# OAuth: connection_id from your DB (stored when user completed Alter Connect)
-connection_id = db.get_connection(user_id="alice", provider="google")
+# OAuth: grant_id from your DB (stored when user completed Alter Connect)
+grant_id = db.get_grant(user_id="alice", provider="google")
 response = await vault.request(
-    connection_id,
+    grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 events = response.json()
 
-# Managed secret: connection_id from Developer Portal (stored in your config)
+# Managed secret: grant_id from Developer Portal (stored in your config)
 response = await vault.request(
-    os.environ["LOYALTY_API_CONNECTION_ID"],
+    os.environ["LOYALTY_API_GRANT_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
 )

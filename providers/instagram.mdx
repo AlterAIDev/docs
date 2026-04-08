@@ -11,9 +11,9 @@ Connect your users to Instagram for business account data, media publishing, com
 |----------|-------|
 | **Provider ID** | `instagram` |
 | **Category** | Social |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create an Instagram OAuth App
 
@@ -23,11 +23,11 @@ Connect your users to Instagram for business account data, media publishing, com
   </Step>
 
   <Step title="Create a new app">
-    Click **Create App**, select **Business** type, and fill in the app details.
+    Click **Create App**, select the **Business** use case or app type, and fill in the app details.
   </Step>
 
-  <Step title="Add Instagram Login">
-    In the app dashboard, add the **Instagram** product. Under **Instagram** > **Instagram Login** > **Settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to **Valid OAuth Redirect URIs**.
+  <Step title="Configure OAuth redirect URIs">
+    Under **Use Cases**, find **Authentication and Account Creation**, click **Customize**, then **Go to Settings**. Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to **Valid OAuth Redirect URIs**.
   </Step>
 
   <Step title="Get your credentials">
@@ -43,7 +43,7 @@ Connect your users to Instagram for business account data, media publishing, com
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Instagram provider">

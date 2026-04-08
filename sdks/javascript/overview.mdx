@@ -12,7 +12,7 @@ When a user successfully connects, `onSuccess` receives an array of `Connection`
 // onSuccess receives Connection[]
 [
   {
-    connection_id: "550e8400-e29b-41d4-a716-446655440000",  // Store this!
+    grant_id: "550e8400-e29b-41d4-a716-446655440000",  // Store this!
     provider: "google",
     provider_name: "Google",
     account_identifier: "user@gmail.com",
@@ -33,7 +33,7 @@ When a user successfully connects, `onSuccess` receives an array of `Connection`
 ```
 
 <Note>
-  **Important**: Store each `connection_id` in your database, mapped to your user. This is how you'll make API calls later via `vault.request(connection_id, ...)`. The `connection_id` is generated when your **end user** completes the OAuth flow — it's not something you create yourself.
+  **Important**: Store each `grant_id` in your database, mapped to your user. This is how you'll make API calls later via `vault.request(grant_id, ...)`. The `grant_id` is generated when your **end user** completes the OAuth flow — it's not something you create yourself.
 </Note>
 
 <Tip>
@@ -269,7 +269,7 @@ await alterConnect.open({
   onSuccess: (connections: Connection[]) => {
     // TypeScript knows all properties
     for (const conn of connections) {
-      const id: string = conn.connection_id;
+      const id: string = conn.grant_id;
       const provider: string = conn.provider;
       const scopes: string[] = conn.scopes;
     }

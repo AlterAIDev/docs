@@ -1,23 +1,23 @@
 ---
 title: 'OAuth Connections'
-description: 'How OAuth connections work in Alter Vault — end-user authorization for third-party services'
+description: 'How OAuth grants work in Alter Vault — end-user authorization for third-party services'
 icon: 'link'
 ---
 
 ## What Are OAuth Connections?
 
-OAuth connections let your **end users** authorize access to their accounts on third-party services like Google, Slack, GitHub, and more. When a user completes the OAuth flow, Alter Vault stores their tokens securely and gives you a `connection_id` to make API calls on their behalf.
+OAuth grants let your **end users** authorize access to their accounts on third-party services like Google, Slack, GitHub, and more. When a user completes the OAuth flow, Alter Vault stores their tokens securely and gives you a `grant_id` to make API calls on their behalf.
 
-Your code never sees or handles OAuth tokens. You call `vault.request(connection_id, ...)` and the SDK injects the right credential automatically, refreshing expired tokens transparently.
+Your code never sees or handles OAuth tokens. You call `vault.request(grant_id, ...)` and the SDK injects the right credential automatically, refreshing expired tokens transparently.
 
 ## When to Use OAuth
 
-Use OAuth connections when:
+Use OAuth grants when:
 
 - **End users** need to authorize access to **their** accounts (e.g., a user's Google Calendar, a user's Slack workspace)
-- You need **per-user** credentials (each user gets their own `connection_id`)
+- You need **per-user** credentials (each user gets their own `grant_id`)
 - The service supports OAuth 2.0 and you want automatic token refresh
-- Users should be able to see and revoke their connections via the [Wallet Dashboard](https://wallet.alterai.dev)
+- Users should be able to see and revoke their connections via the [Wallet Dashboard](https://wallet.alterauth.com)
 
 ## How It Works
 
@@ -26,8 +26,8 @@ Use OAuth connections when:
     Your end user completes the OAuth flow via Alter Connect (popup, redirect, or headless). They log into their account and grant permissions.
   </Step>
 
-  <Step title="You Get a connection_id">
-    The `onSuccess` callback (or `connect()` return value) gives you a `connection_id` (UUID) for the user's connected account. Store this in your database mapped to the user.
+  <Step title="You Get a grant_id">
+    The `onSuccess` callback (or `connect()` return value) gives you a `grant_id` (UUID) for the user's connected account. Store this in your database mapped to the user.
   </Step>
 
   <Step title="Tokens Stored Securely">
@@ -35,7 +35,7 @@ Use OAuth connections when:
   </Step>
 
   <Step title="Make API Calls">
-    Call `vault.request(connection_id, method, url)` -- the SDK retrieves the token, refreshes it if needed, and injects it as the correct auth header.
+    Call `vault.request(grant_id, method, url)` -- the SDK retrieves the token, refreshes it if needed, and injects it as the correct auth header.
   </Step>
 </Steps>
 
@@ -51,9 +51,9 @@ async with AlterVault(
     actor_type=ActorType.AI_AGENT,
     actor_identifier="my-agent",
 ) as vault:
-    # connection_id from Alter Connect (stored in your DB)
+    # grant_id from Alter Connect (stored in your DB)
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -70,9 +70,9 @@ const vault = new AlterVault({
   actorIdentifier: "my-agent",
 });
 
-// connectionId from Alter Connect (stored in your DB)
+// grantId from Alter Connect (stored in your DB)
 const response = await vault.request(
-  connectionId,
+  grantId,
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   { queryParams: { maxResults: "10" } },
@@ -96,8 +96,8 @@ See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for full ex
 ## Key Features
 
 - **Automatic token refresh** -- tokens are refreshed transparently before they expire
-- **Connection policy (TTL)** -- set maximum connection lifetimes with `connection_policy`
-- **Per-user connections** -- each user who authorizes gets their own `connection_id`
+- **Grant policy (TTL)** -- set maximum grant lifetimes with `grant_policy`
+- **Per-user grants** -- each user who authorizes gets their own `grant_id`
 - **Multi-account support** -- users can connect multiple accounts to the same provider (e.g., personal + work Gmail)
 - **Wallet visibility** -- users can see and revoke their connections via the Wallet Dashboard
 - **[Policy enforcement](/reference/policies)** -- time-based and IP-based access rules on every token retrieval

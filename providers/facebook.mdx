@@ -11,9 +11,9 @@ Connect your users to Facebook for profile data, Page management, and social int
 |----------|-------|
 | **Provider ID** | `facebook` |
 | **Category** | Social |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a Facebook OAuth App
 
@@ -23,11 +23,11 @@ Connect your users to Facebook for profile data, Page management, and social int
   </Step>
 
   <Step title="Create a new app">
-    Click **Create App**, select the app type (e.g., **Consumer** or **Business**), and fill in the details.
+    Click **Create App** and select the appropriate use case or app type, then fill in the details.
   </Step>
 
-  <Step title="Add Facebook Login">
-    In the app dashboard, click **Add a Product** and set up **Facebook Login**. Under **Facebook Login** > **Settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to **Valid OAuth Redirect URIs**.
+  <Step title="Configure OAuth redirect URIs">
+    Under **Use Cases**, find **Authentication and Account Creation**, click **Customize**, then **Go to Settings**. Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to **Valid OAuth Redirect URIs**.
   </Step>
 
   <Step title="Get your credentials">
@@ -43,7 +43,7 @@ Connect your users to Facebook for profile data, Page management, and social int
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Facebook provider">

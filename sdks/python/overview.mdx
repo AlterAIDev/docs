@@ -6,13 +6,13 @@ icon: 'book'
 
 ## Core Concepts
 
-### vault.request() — Your Authenticated HTTP Client
+### vault.request() — The Authenticated HTTP Client
 
-`vault.request()` acts as your HTTP client. Instead of calling `httpx` directly and managing auth headers, you pass a `connection_id` and URL — the SDK makes the request with the correct credential injected automatically. Your code never sees tokens or secrets.
+`vault.request()` acts as the authenticated HTTP client. Instead of calling `httpx` directly and managing auth headers, pass a `grant_id` and URL — the SDK makes the request with the correct credential injected automatically. Application code never sees tokens or secrets.
 
 ```python
 response = await vault.request(
-    connection_id,    # Connection ID (UUID string) from Alter Connect
+    grant_id,         # Grant ID (UUID string) from Alter Connect
     method,           # HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
     url,              # Full URL of the provider API endpoint
     json={...},       # Optional: JSON request body
@@ -44,8 +44,8 @@ Strings also work for forward compatibility:
 
 ```python
 # These are equivalent
-await vault.request(connection_id, HttpMethod.GET, url)
-await vault.request(connection_id, "GET", url)
+await vault.request(grant_id, HttpMethod.GET, url)
+await vault.request(grant_id, "GET", url)
 ```
 
 ### URL Path Templating
@@ -54,7 +54,7 @@ Use `{placeholder}` syntax for dynamic URL segments (values are automatically UR
 
 ```python
 response = await vault.request(
-    connection_id,
+    grant_id,
     HttpMethod.GET,
     "https://api.example.com/v1/accounts/{account_id}/contacts/{contact_id}",
     path_params={"account_id": "acc-123", "contact_id": "ct-456"},
@@ -64,7 +64,7 @@ response = await vault.request(
 
 ## Complete Examples
 
-### Google Calendar Events
+### List Tasks
 
 ```python
 import asyncio
@@ -76,32 +76,31 @@ async def main():
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     ) as vault:
-        # Connect Google account (opens browser)
+        # Connect provider account (opens browser)
         results = await vault.connect(
-            providers=["google"],
+            providers=["example-provider"],
         )
 
-        # Fetch calendar events
+        # Fetch tasks
         response = await vault.request(
-            results[0].connection_id,
+            results[0].grant_id,
             HttpMethod.GET,
-            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            "https://api.example.com/v1/tasks",
             query_params={
-                "maxResults": "10",
-                "singleEvents": "true",
-                "orderBy": "startTime",
+                "limit": "10",
+                "status": "active",
+                "sort": "created_at",
             },
         )
-        events = response.json()
+        data = response.json()
 
-        for event in events.get("items", []):
-            start = event["start"].get("dateTime", event["start"].get("date"))
-            print(f"{start}: {event.get('summary', 'No title')}")
+        for task in data.get("items", []):
+            print(f"{task['id']}: {task.get('title', 'Untitled')}")
 
 asyncio.run(main())
 ```
 
-### GitHub Repositories
+### List Users
 
 ```python
 async def main():
@@ -111,57 +110,57 @@ async def main():
         actor_identifier="my-agent",
     ) as vault:
         results = await vault.connect(
-            providers=["github"],
+            providers=["example-provider"],
         )
 
         response = await vault.request(
-            results[0].connection_id,
+            results[0].grant_id,
             HttpMethod.GET,
-            "https://api.github.com/user/repos",
-            query_params={"sort": "updated", "per_page": "10"},
+            "https://api.example.com/v1/users",
+            query_params={"limit": "10", "sort": "name"},
         )
-        repos = response.json()
+        users = response.json()
 
-        for repo in repos:
-            print(f"{repo['name']} - {repo.get('description', 'No description')}")
+        for user in users.get("items", []):
+            print(f"{user['name']} - {user.get('email', 'No email')}")
 ```
 
-### Slack Message Posting
+### Create a Resource
 
 ```python
-async def post_slack_message(connection_id: str, channel: str, text: str):
-    """Use an existing connection_id (e.g., from your database) to post a message."""
+async def create_resource(grant_id: str, name: str, description: str):
+    """Use an existing grant_id (e.g., from a database) to create a resource."""
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     ) as vault:
         response = await vault.request(
-            connection_id,
+            grant_id,
             HttpMethod.POST,
-            "https://slack.com/api/chat.postMessage",
-            json={"channel": channel, "text": text},
-            reason="Posting message to Slack",
+            "https://api.example.com/v1/resources",
+            json={"name": name, "description": description},
+            reason="Creating a new resource",
         )
         data = response.json()
 
-        if data.get("ok"):
-            print(f"Message posted: {data['ts']}")
+        if data.get("id"):
+            print(f"Resource created: {data['id']}")
         else:
-            print(f"Slack error: {data.get('error')}")
+            print(f"Error: {data.get('error')}")
 ```
 
 ### POST with JSON Body
 
 ```python
-async def create_item(connection_id: str):
+async def create_item(grant_id: str):
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     ) as vault:
         response = await vault.request(
-            connection_id,
+            grant_id,
             HttpMethod.POST,
             "https://api.example.com/v1/items",
             json={"name": "New Item", "price": 99.99},
@@ -175,14 +174,14 @@ async def create_item(connection_id: str):
 Some APIs require version headers or custom metadata:
 
 ```python
-async def query_notion(connection_id: str):
+async def query_notion(grant_id: str):
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
         actor_identifier="my-agent",
     ) as vault:
         response = await vault.request(
-            connection_id,
+            grant_id,
             HttpMethod.POST,
             "https://api.notion.com/v1/databases/{db_id}/query",
             path_params={"db_id": "abc123"},
@@ -194,7 +193,7 @@ async def query_notion(connection_id: str):
 
 ## Using Managed Secrets
 
-For your own APIs where **you** already have the credentials (API keys, service tokens), use Managed Secrets. The `connection_id` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
+For APIs where the credentials are already available (API keys, service tokens), use Managed Secrets. The `grant_id` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
 
 ```python
 async with AlterVault(
@@ -204,7 +203,7 @@ async with AlterVault(
 ) as vault:
     # Call your internal API — secret injected automatically
     response = await vault.request(
-        "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal (not from a user)
+        "MANAGED_SECRET_GRANT_ID",  # from Developer Portal (not from a user)
         HttpMethod.GET,
         "https://api.internal.com/v1/loyalty/points",
         query_params={"user_id": "alice"},
@@ -214,12 +213,12 @@ async with AlterVault(
 ```
 
 <Info>
-**OAuth vs Managed Secrets**: For OAuth, the `connection_id` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `connection_id` comes from the **Developer Portal** when you store a credential (per-service, shared across your backend). The SDK auto-detects the connection type and injects the credential as the correct header.
+**OAuth vs Managed Secrets**: For OAuth, the `grant_id` comes from an **end user** completing Alter Connect (per-user). For Managed Secrets, the `grant_id` comes from the **Developer Portal** when a credential is stored (per-service, shared across the backend). The SDK auto-detects the credential type and injects it as the correct header.
 </Info>
 
 Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
 
-## Actor Tracking (AI Agents & MCP Servers)
+## Actor Tracking (AI Agents)
 
 Every SDK instance requires actor identity — `actor_type` and `actor_identifier` are mandatory. This gives you full observability into **which agent** is making API calls and **why**.
 
@@ -244,23 +243,12 @@ vault = AlterVault(
     # Actor identity (required)
     actor_type=ActorType.AI_AGENT,         # ActorType enum
     actor_identifier="email-assistant-v2", # Unique ID for this agent
-    # Actor metadata (optional)
+    # Actor metadata (optional — stored on the actor record)
     actor_name="Email Assistant",          # Human-readable name
-    actor_version="2.0.0",                # Version string
+    actor_version="2.1.0",                # Version string
     framework="langgraph",                # AI framework being used
-)
-```
-
-For MCP servers:
-
-```python
-vault = AlterVault(
-    api_key="alter_key_...",
-    actor_type=ActorType.MCP_SERVER,
-    actor_identifier="calendar-mcp",
-    actor_name="Calendar MCP Server",
-    actor_version="1.0.0",
-    client_type="cursor",                 # MCP client type
+    client_type="cursor",                 # Transport client
+    tool_bundle_id="google-calendar-mcp", # Tool collection identifier
 )
 ```
 
@@ -279,13 +267,14 @@ Add execution-level context on each request:
 
 ```python
 response = await vault.request(
-    "CONNECTION_ID",  # from Alter Connect
+    "GRANT_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     # Per-request tracking (all optional)
     run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID (auto-generated UUID if omitted)
     thread_id="thread-abc-123",                       # Conversation thread
-    tool_call_id="call_xyz_789",                      # Tool invocation ID
+    tool_id="read_calendar",                           # Tool name — which tool is being invoked
+    tool_call_id="call_xyz_789",                       # Framework invocation correlation ID
 )
 ```
 
@@ -301,7 +290,7 @@ These fields are sent as headers to the backend and included in audit logs, givi
 import asyncio
 from alter_sdk import AlterVault, ActorType, HttpMethod
 
-async def run_email_agent(connection_id: str):
+async def run_email_agent(grant_id: str):
     vault = AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
@@ -313,7 +302,7 @@ async def run_email_agent(connection_id: str):
 
     # Each tool call in the agent can be tracked
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.GET,
         "https://gmail.googleapis.com/gmail/v1/users/me/messages",
         query_params={"maxResults": "5"},
@@ -328,7 +317,7 @@ async def run_email_agent(connection_id: str):
 
     await vault.close()
 
-asyncio.run(run_email_agent("CONNECTION_ID"))  # from Alter Connect
+asyncio.run(run_email_agent("GRANT_ID"))  # from Alter Connect
 ```
 
 ### Multi-Agent Deployments
@@ -353,12 +342,12 @@ calendar_agent = AlterVault(
 
 # Audit logs and policies are tracked per agent
 await email_agent.request(
-    gmail_connection_id,  # from Alter Connect
+    gmail_grant_id,  # from Alter Connect
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
 )
 await calendar_agent.request(
-    calendar_connection_id,  # from Alter Connect
+    calendar_grant_id,  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
@@ -378,12 +367,13 @@ await calendar_agent.close()
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `actor_type` | `ActorType` | `ActorType.AI_AGENT`, `.MCP_SERVER`, or `.BACKEND_SERVICE` (required) | `ActorType.AI_AGENT` |
+| `actor_type` | `ActorType` | `ActorType.AI_AGENT` or `.BACKEND_SERVICE` (required) | `ActorType.AI_AGENT` |
 | `actor_identifier` | `str` | Unique identifier for the actor (required) | `"email-assistant-v2"` |
 | `actor_name` | `str` | Human-readable display name | `"Email Assistant"` |
-| `actor_version` | `str` | Version of the actor | `"2.0.0"` |
+| `actor_version` | `str` | Version of the actor; updating triggers metadata refresh | `"2.1.0"` |
 | `framework` | `str` | AI framework name | `"langgraph"`, `"crewai"` |
-| `client_type` | `str` | MCP client type | `"cursor"`, `"claude-desktop"` |
+| `client_type` | `str` | Client type (e.g., MCP client identifier) | `"cursor"`, `"claude-desktop"` |
+| `tool_bundle_id` | `str` | Tool collection identifier (also overridable per-request) | `"google-calendar-mcp"` |
 
 **Per-request (set on each `vault.request()` call):**
 
@@ -391,24 +381,41 @@ await calendar_agent.close()
 |-----------|------|-------------|---------|
 | `run_id` | `str` | Execution run ID (UUID, auto-generated if omitted) | `"550e8400-..."` |
 | `thread_id` | `str` | Conversation thread ID | `"thread-abc-123"` |
-| `tool_call_id` | `str` | Tool invocation ID | `"call_xyz_789"` |
+| `tool_id` | `str` | Tool name — which tool is being invoked | `"read_calendar"` |
+| `tool_call_id` | `str` | Framework invocation correlation ID (e.g., LangGraph call ID) | `"call_xyz_789"` |
+| `tool_bundle_id` | `str` | Per-request override of the default tool bundle | `"slack-mcp"` |
 
-## Connection Management
+## Grant Management
 
-### List Connections
+### List Grants
 
-Retrieve OAuth connections for your app:
+Retrieve OAuth grants for the application:
 
 ```python
-result = await vault.list_connections()
-for conn in result.connections:
-    print(f"{conn.provider_id}: {conn.account_display_name} ({conn.status})")
+result = await vault.list_grants()
+for grant in result.grants:
+    print(f"{grant.provider_id}: {grant.account_display_name} ({grant.status})")
 
 # Filter by provider with pagination
-result = await vault.list_connections(provider_id="google", limit=10)
+result = await vault.list_grants(provider_id="google", limit=10)
 ```
 
-Returns `ConnectionListResult` with `connections` (`list[ConnectionInfo]`), `total`, `limit`, `offset`, `has_more`.
+Returns `GrantListResult` with `grants` (`list[GrantInfo]`), `total`, `limit`, `offset`, `has_more`.
+
+Each `GrantInfo` has:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `grant_id` | `str` | Unique grant identifier (UUID). **Not `.id`** — always use `.grant_id` |
+| `provider_id` | `str` | Provider slug (e.g., `"google"`, `"slack"`) |
+| `scopes` | `list[str]` | Granted OAuth scopes |
+| `account_identifier` | `str \| None` | Provider account email or username |
+| `account_display_name` | `str \| None` | Human-readable account name |
+| `status` | `str` | Connection status (e.g., `"active"`) |
+| `scope_mismatch` | `bool` | `True` if granted scopes don't match requested scopes |
+| `expires_at` | `str \| None` | Expiry timestamp (if a grant policy TTL was set) |
+| `created_at` | `str` | When the grant was created |
+| `last_used_at` | `str \| None` | When the grant was last used for an API call |
 
 ### Create Connect Session
 
@@ -435,29 +442,29 @@ results = await vault.connect(
     open_browser=True,   # set False to print URL instead
 )
 for result in results:
-    print(f"Connected: {result.connection_id} ({result.provider_id})")
+    print(f"Connected: {result.grant_id} ({result.provider_id})")
 
-# Now use the connection_id with vault.request()
+# Now use the grant_id with vault.request()
 response = await vault.request(
-    results[0].connection_id,
+    results[0].grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 ```
 
-Returns `list[ConnectResult]` -- one per connected provider. Each has `connection_id`, `provider_id`, `account_identifier`, `scopes`, and optionally `connection_policy` (with `expires_at` if a TTL was set).
+Returns `list[ConnectResult]` -- one per connected provider. Each has `grant_id`, `provider_id`, `account_identifier`, `scopes`, and optionally `grant_policy` (with `expires_at` if a TTL was set).
 
 Raises `ConnectTimeoutError` if the user doesn't complete in time, `ConnectFlowError` if denied.
 
-### Connection Policy (TTL)
+### Grant Policy (TTL)
 
-Use `connection_policy` to control how long a connection stays active. When set, the Connect UI shows an expiry picker and the connection automatically expires after the chosen duration.
+Use `grant_policy` to control how long a grant stays active. When set, the Connect UI shows an expiry picker and the grant automatically expires after the chosen duration.
 
 ```python
-# Restrict connections to a maximum of 7 days
+# Restrict grants to a maximum of 7 days
 results = await vault.connect(
     providers=["google"],
-    connection_policy={
+    grant_policy={
         "max_ttl_seconds": 604800,     # longest duration the user can pick
         "default_ttl_seconds": 86400,  # pre-selected in the dropdown
     },
@@ -472,7 +479,7 @@ The Connect UI offers these expiry options: **1 hour**, **1 day**, **7 days**, *
 | `default_ttl_seconds` | Pre-selected option in the dropdown. Falls back to 1 day if not set. |
 
 <Note>
-  The expiry picker **only appears** when `connection_policy` is passed. Without it, connections have no automatic expiry. After a connection expires, token retrieval **raises** `ConnectionExpiredError` and the user must re-authorize via Alter Connect.
+  The expiry picker **only appears** when `grant_policy` is passed. Without it, grants have no automatic expiry. After a grant expires, token retrieval **raises** `GrantExpiredError` and the user must re-authorize via Alter Connect.
 </Note>
 
 The same parameter works with `create_connect_session()`:
@@ -480,7 +487,7 @@ The same parameter works with `create_connect_session()`:
 ```python
 session = await vault.create_connect_session(
     allowed_providers=["google"],
-    connection_policy={
+    grant_policy={
         "max_ttl_seconds": 2592000,    # max 30 days
         "default_ttl_seconds": 604800, # default 7 days
     },
@@ -501,10 +508,11 @@ All internal invariants raise typed exceptions (never bare `AssertionError`), so
 AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)
 ├── BackendError (backend errors)
 │   ├── ReAuthRequiredError (user must re-authorize via Alter Connect)
-│   │   ├── ConnectionExpiredError (403 — TTL elapsed)
-│   │   ├── ConnectionRevokedError (400 — auth permanently broken)
-│   │   └── ConnectionDeletedError (410 — user disconnected via Wallet)
-│   ├── ConnectionNotFoundError (404 — wrong connection_id)
+│   │   ├── GrantExpiredError (403 — TTL elapsed)
+│   │   ├── CredentialRevokedError (400 — auth permanently broken)
+│   │   ├── GrantRevokedError (400 — grant revoked)
+│   │   └── GrantDeletedError (410 — user disconnected via Wallet)
+│   ├── GrantNotFoundError (404 — wrong grant_id)
 │   └── PolicyViolationError (403 — policy denied access)
 ├── ConnectFlowError (headless connect() failed)
 │   ├── ConnectDeniedError (user denied authorization)
@@ -523,14 +531,14 @@ from alter_sdk import AlterVault, ActorType, HttpMethod
 from alter_sdk.exceptions import (
     ReAuthRequiredError,
     PolicyViolationError,
-    ConnectionNotFoundError,
+    GrantNotFoundError,
     BackendError,
     ScopeReauthRequiredError,
     NetworkError,
     ProviderAPIError,
 )
 
-async def safe_api_call(connection_id: str):
+async def safe_api_call(grant_id: str):
     async with AlterVault(
         api_key="alter_key_...",
         actor_type=ActorType.AI_AGENT,
@@ -538,14 +546,14 @@ async def safe_api_call(connection_id: str):
     ) as vault:
         try:
             response = await vault.request(
-                connection_id,
+                grant_id,
                 HttpMethod.GET,
                 "https://www.googleapis.com/calendar/v3/calendars/primary/events",
             )
             return response.json()
 
         except ReAuthRequiredError:
-            # Connection expired, revoked, or deleted — user must re-authorize
+            # Grant expired, revoked, or deleted — user must re-authorize
             print("User must re-authorize via Alter Connect")
             # Resolution: Redirect user to Alter Connect OAuth flow
 
@@ -555,8 +563,8 @@ async def safe_api_call(connection_id: str):
             print(f"Details: {e.details}")
             # Resolution: Check policy configuration in dashboard
 
-        except ConnectionNotFoundError:
-            # No OAuth connection for this user/provider (404)
+        except GrantNotFoundError:
+            # No OAuth grant for this user/provider (404)
             print("User hasn't connected Google yet")
             # Resolution: Redirect user to Alter Connect OAuth flow
 
@@ -570,8 +578,8 @@ async def safe_api_call(connection_id: str):
             # Resolution: Check network, retry with backoff
 
         except ScopeReauthRequiredError as e:
-            # Provider returned 403 and connection has outdated scopes
-            print(f"Scope mismatch on {e.connection_id}: re-auth needed")
+            # Provider returned 403 and grant has outdated scopes
+            print(f"Scope mismatch on {e.grant_id}: re-auth needed")
             # Resolution: Create a new Connect session for the user
 
         except ProviderAPIError as e:
@@ -584,10 +592,10 @@ async def safe_api_call(connection_id: str):
 
 | Exception | HTTP Status | Cause | Resolution |
 |-----------|:-----------:|-------|------------|
-| `ReAuthRequiredError` | 400/403/410 | Connection expired/revoked/deleted | Redirect to Alter Connect |
+| `ReAuthRequiredError` | 400/403/410 | Grant expired/revoked/deleted | Redirect to Alter Connect |
 | `PolicyViolationError` | 403 | Policy denied access | Check policy rules in dashboard |
-| `ConnectionNotFoundError` | 404 | User has no OAuth connection | Redirect to Alter Connect UI |
-| `BackendError` | 401 | Invalid API key | Check your `api_key` |
+| `GrantNotFoundError` | 404 | User has no OAuth grant | Redirect to Alter Connect UI |
+| `BackendError` | 401 | Invalid API key | Check the `api_key` value |
 | `BackendError` | 400 | Provider not configured | Add provider in dashboard |
 | `BackendError` | 500/503 | Backend unavailable | Retry with backoff |
 | `ScopeReauthRequiredError` | 403 | Provider 403 + scope mismatch | User must re-authorize via Connect |
@@ -630,7 +638,7 @@ async def safe_api_call(connection_id: str):
     except PolicyViolationError as e:
         logger.warning(f"Policy violation: {e.message} (rule: {e.policy_error})")
         return {"error": "Access denied by policy"}
-    except ConnectionNotFoundError:
+    except GrantNotFoundError:
         return {"error": "Please connect your account first"}
 
     # BAD - Swallows all errors
@@ -641,17 +649,17 @@ async def safe_api_call(connection_id: str):
     ```
   </Accordion>
 
-  <Accordion title="Store and Use Connection IDs" icon="users">
-    Store the `connection_id` from Alter Connect in your database, mapped to your users.
+  <Accordion title="Store and Use Grant IDs" icon="users">
+    Store the `grant_id` from Alter Connect in the application database, mapped to application users.
 
     ```python
-    # Your app stores connection_id when the user completes Alter Connect
-    connection_id = db.get_connection(user_id=user_id, provider="google")
-    await vault.request(connection_id, HttpMethod.GET, url)
+    # The app stores grant_id when the user completes Alter Connect
+    grant_id = db.get_grant(user_id=user_id, provider="google")
+    await vault.request(grant_id, HttpMethod.GET, url)
 
-    result = await vault.list_connections(provider_id="google")
-    for conn in result.connections:
-        print(f"{conn.connection_id}: {conn.account_display_name}")
+    result = await vault.list_grants(provider_id="google")
+    for grant in result.grants:
+        print(f"{grant.grant_id}: {grant.account_display_name}")
     ```
   </Accordion>
 
@@ -660,10 +668,10 @@ async def safe_api_call(connection_id: str):
     from alter_sdk import HttpMethod
 
     # GOOD - Type-safe with autocomplete
-    await vault.request(connection_id, HttpMethod.GET, url)
+    await vault.request(grant_id, HttpMethod.GET, url)
 
     # Also works - string methods
-    await vault.request(connection_id, "GET", url)
+    await vault.request(grant_id, "GET", url)
     ```
   </Accordion>
 
@@ -671,7 +679,7 @@ async def safe_api_call(connection_id: str):
     ```python
     # GOOD - Reason shows up in audit logs
     response = await vault.request(
-        connection_id, HttpMethod.GET, url,
+        grant_id, HttpMethod.GET, url,
         reason="Fetching calendar events for weekly digest",
     )
     ```

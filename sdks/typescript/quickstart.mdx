@@ -42,7 +42,7 @@ const vault = new AlterVault({
 });
 
 const response = await vault.request(
-  "CONNECTION_ID",  // from Alter Connect (see below)
+  "GRANT_ID",  // from Alter Connect (see below)
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
@@ -80,23 +80,26 @@ Audit logging is always enabled and cannot be disabled — every API call is aut
 ```typescript
 import {
   ReAuthRequiredError,
+  ScopeReauthRequiredError,
   PolicyViolationError,
-  ConnectionNotFoundError,
+  GrantNotFoundError,
 } from "@alter-ai/alter-sdk";
 
 try {
   const response = await vault.request(
-    connectionId,
+    grantId,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   );
   return await response.json();
 } catch (e) {
-  if (e instanceof ReAuthRequiredError) {
+  if (e instanceof ScopeReauthRequiredError) {
+    console.log(`Scopes changed — user must re-authorize (provider: ${e.providerId}, connection: ${e.grantId})`);
+  } else if (e instanceof ReAuthRequiredError) {
     console.log("User must re-authorize via Alter Connect");
   } else if (e instanceof PolicyViolationError) {
     console.log(`Access denied by policy: ${e.message} (rule: ${e.policyError})`);
-  } else if (e instanceof ConnectionNotFoundError) {
+  } else if (e instanceof GrantNotFoundError) {
     console.log("User hasn't connected Google yet");
   } else {
     throw e;

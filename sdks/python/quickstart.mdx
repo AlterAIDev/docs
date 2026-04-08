@@ -42,7 +42,7 @@ For native boto3 integration with AWS services:
 
 ## Basic Setup
 
-The fastest way to get started: `connect()` opens a browser, the user authorizes, and the SDK returns a connection to use immediately:
+The fastest way to get started: `connect()` opens a browser, the user authorizes, and the SDK returns a grant to use immediately:
 
 ```python
 import asyncio
@@ -59,11 +59,11 @@ async def main():
     results = await vault.connect(
         providers=["google"],
     )
-    print(f"Connected: {results[0].connection_id}")
+    print(f"Connected: {results[0].grant_id}")
 
-    # Make API calls with the connection
+    # Make API calls with the grant
     response = await vault.request(
-        results[0].connection_id,
+        results[0].grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -83,7 +83,7 @@ asyncio.run(main())
 </Note>
 
 <Tip>
-  **Already have a `connection_id`?** Skip `connect()` and go straight to `vault.request(connection_id, ...)`. The `connect()` method is for when you need to initiate a new OAuth flow from code. For web apps with a frontend, use [Alter Connect](/sdks/javascript/quickstart) instead.
+  **Already have a `grant_id`?** Skip `connect()` and go straight to `vault.request(grant_id, ...)`. The `connect()` method is for when you need to initiate a new OAuth flow from code. For web apps with a frontend, use [Alter Connect](/sdks/javascript/quickstart) instead.
 </Tip>
 
 ## Configuration
@@ -104,20 +104,23 @@ Audit logging is always enabled — every token retrieval and API call is automa
 ```python
 from alter_sdk.exceptions import (
     ReAuthRequiredError,
+    ScopeReauthRequiredError,
     PolicyViolationError,
-    ConnectionNotFoundError,
+    GrantNotFoundError,
 )
 
 try:
     response = await vault.request(
-        connection_id, HttpMethod.GET,
+        grant_id, HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     )
+except ScopeReauthRequiredError as e:
+    print(f"Scopes changed — user must re-authorize (provider: {e.provider_id}, grant: {e.grant_id})")
 except ReAuthRequiredError:
     print("User must re-authorize via Alter Connect")
 except PolicyViolationError as e:
     print(f"Access denied by policy: {e.message} (rule: {e.policy_error})")
-except ConnectionNotFoundError:
+except GrantNotFoundError:
     print("User hasn't connected Google yet")
 ```
 

@@ -1,11 +1,11 @@
 ---
 title: 'Audit Logs'
-description: 'Monitor, search, and export all activity across your application'
+description: 'Monitor, search, and export all activity across the application'
 ---
 
 ## Overview
 
-Alter Vault automatically logs all activity across your application, including token access, connection changes, API calls, and admin actions. You can view, filter, and export these logs from the Developer Portal and Wallet Dashboard.
+Alter Vault automatically logs all activity across the application, including token access, connection changes, API calls, and admin actions. Logs can be viewed, filtered, and exported from the Developer Portal and Wallet Dashboard.
 
 <CardGroup cols={3}>
   <Card title="Automatic" icon="wand-magic-sparkles">
@@ -23,7 +23,7 @@ Alter Vault automatically logs all activity across your application, including t
 
 ## Viewing Audit Logs in the Developer Portal
 
-Go to **Audit Logs** in the Developer Portal sidebar to see all activity across your application.
+Go to **Audit Logs** in the Developer Portal sidebar to see all activity across the application.
 
 ### Filtering
 
@@ -32,7 +32,7 @@ Use the filter bar to narrow down results:
 - **Event type**: Token access, connection changes, API calls, admin actions
 - **Provider**: Google, Slack, GitHub, Sentry, etc.
 - **User**: Search by user ID or email
-- **Actor**: Filter by AI agent or MCP server name
+- **Actor**: Filter by AI agent name
 - **Date range**: Pick a custom time window
 
 ### Detail View
@@ -49,7 +49,7 @@ Click any audit log entry to see full details:
 
 Export filtered audit logs as CSV for compliance reporting:
 
-1. Apply your filters
+1. Apply the desired filters
 2. Click **Export**
 3. Download the CSV file
 
@@ -62,11 +62,11 @@ End users can view their own activity in the Wallet Dashboard under **Activity**
 - When connections were created or revoked
 - Recent token access history
 
-This gives your users transparency into how their connected accounts are being used.
+This gives end users transparency into how their connected accounts are being used.
 
 ## What Gets Logged
 
-Alter Vault logs five categories of events automatically:
+Alter Vault logs six categories of events automatically:
 
 <AccordionGroup>
   <Accordion title="Token & Secret Access" icon="key">
@@ -100,7 +100,7 @@ Every audit log entry includes a standard set of fields:
 | **Action** | Type of event (e.g., credential retrieved, connection authorized, access denied) |
 | **Action type** | Category: `read`, `write`, or `error` |
 | **Provider** | OAuth provider or managed secret service |
-| **Actor** | Who made the request — backend service, AI agent, MCP server, or end user |
+| **Actor** | Who made the request — backend service, AI agent (including MCP-connected agents), or end user |
 | **Reason** | Developer-provided explanation of why the action was taken |
 | **Policy decision** | `ALLOW` or `DENY`, with the specific rule that triggered a denial |
 | **HTTP method & URL** | The API call the credential was used for |
@@ -110,11 +110,11 @@ Every audit log entry includes a standard set of fields:
 
 ## Adding Context to Audit Logs
 
-Add a `reason` parameter to your API calls for richer audit context:
+Add a `reason` parameter to API calls for richer audit context:
 
 ```python
 response = await vault.request(
-    "CONNECTION_ID",  # connection_id (UUID)
+    "GRANT_ID",  # grant_id (UUID)
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     reason="Syncing calendar for weekly digest email",
@@ -125,40 +125,60 @@ The reason appears in the audit log detail view, making it easy to understand wh
 
 ## AI Agent Tracking
 
-When using AI agents or MCP servers, audit logs automatically capture actor context:
+When using AI agents, audit logs automatically capture actor context:
 
 ```python
 from alter_sdk import AlterVault, ActorType, HttpMethod
 
 vault = AlterVault(
     api_key="alter_key_...",
+    # Required: Agent identity
     actor_type=ActorType.AI_AGENT,
     actor_identifier="email-assistant-v2",
+    # Optional: Agent metadata (stored on the actor record)
     actor_name="Email Assistant",
+    actor_version="2.1.0",
+    framework="langgraph",
+    client_type="cursor",
+    tool_bundle_id="google-calendar-mcp",
 )
 
 response = await vault.request(
-    "CONNECTION_ID",  # connection_id (UUID)
+    "GRANT_ID",  # grant_id (UUID)
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
     run_id="run-001",
     thread_id="thread-daily-digest",
+    tool_id="read_emails",
     reason="Reading emails for daily digest",
 )
 ```
 
-In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. See the [Python SDK Overview](/sdks/python/overview#actor-tracking-ai-agents--mcp-servers) for setup details.
+In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. Registered agents also appear in the **Agents** tab. See the [Python SDK Overview](/sdks/python/overview#actor-tracking-ai-agents) for setup details.
 
 ### Actor Context Fields
 
-| Field | Description |
-|-------|-------------|
-| **Actor type** | `AI_AGENT`, `MCP_SERVER`, or `BACKEND_SERVICE` (set via `ActorType` enum in SDK) |
-| **Actor identifier** | Unique ID for the actor (e.g., `email-assistant-v2`) |
-| **Actor name** | Human-readable display name |
-| **Run ID** | Execution run identifier (e.g., LangGraph run ID) |
-| **Thread ID** | Conversation thread identifier |
-| **Tool call ID** | Specific tool invocation within a run |
+**Set once at SDK initialization (stored on the actor record):**
+
+| Field | Required | Description | Example |
+|-------|----------|-------------|---------|
+| **Actor type** | Yes | `AI_AGENT` or `BACKEND_SERVICE` (set via `ActorType` enum) | `ActorType.AI_AGENT` |
+| **Actor identifier** | Yes | Unique name for this agent type (per app) | `"email-assistant-v2"` |
+| **Actor name** | No | Human-readable display name (defaults to identifier) | `"Email Assistant"` |
+| **Actor version** | No | Version string; updating triggers a metadata refresh | `"2.1.0"` |
+| **Framework** | No | AI framework being used | `"langgraph"`, `"crewai"` |
+| **Client type** | No | Transport client identifier | `"cursor"`, `"claude-desktop"` |
+| **Tool bundle ID** | No | Tool collection the agent uses (also overridable per-request) | `"google-calendar-mcp"` |
+
+**Set per request (written to each audit log row):**
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Run ID** | Execution run identifier (auto-generated UUID if omitted) | LangGraph run ID |
+| **Thread ID** | Conversation thread identifier | `"thread-alice-001"` |
+| **Tool name** | Which tool is being invoked | `"read_calendar"`, `"send_email"` |
+| **Tool call ID** | Framework invocation correlation ID | LangGraph call ID |
+| **Tool bundle ID** | Per-request override of the default tool bundle | `"slack-mcp"` |
 
 These fields let you trace exactly which AI agent, in which run, made each credential access.
 
@@ -186,7 +206,7 @@ This makes it easy to investigate access patterns, debug policy violations, and 
 
 ## Trace Context
 
-Every audit log entry includes a `trace_id` field that correlates with your request's correlation ID. If you send a W3C `traceparent` header, the trace ID and span ID from your distributed tracing system (OpenTelemetry, Zipkin, AWS X-Ray) are automatically captured. This lets you link audit log entries directly to traces in your observability platform.
+Every audit log entry includes a `trace_id` field that correlates with the request's correlation ID. When a W3C `traceparent` header is sent, the trace ID and span ID from the distributed tracing system (OpenTelemetry, Zipkin, AWS X-Ray) are automatically captured. This enables linking audit log entries directly to traces in the observability platform.
 
 ## Compliance
 
@@ -196,7 +216,7 @@ Audit logs are designed for compliance out of the box:
 |----------|------------------------|
 | **SOC 2** | Evidence of access controls, change management, and monitoring |
 | **GDPR** | Complete data access records for right-of-access requests |
-| **HIPAA** | Full audit trail of PHI access through OAuth connections and managed secrets |
+| **HIPAA** | Full audit trail of PHI access through OAuth grants and managed secrets |
 
 ### Common Compliance Queries
 
@@ -210,17 +230,12 @@ Audit logs are designed for compliance out of the box:
 
 ## Data Retention
 
-| Environment | Default Retention |
-|-------------|------------------|
-| Production | 7 years (HIPAA-compliant) |
-| Development | 30 days |
-
-Each audit log entry includes a `retention_until` field and an optional `legal_hold` flag. Records under legal hold are never deleted regardless of retention policy. Contact support for custom archival policies.
+The default retention period is 12 months. Each audit log entry includes a `retention_until` field and an optional `legal_hold` flag. Records under legal hold are never deleted regardless of retention policy. Retention can be extended per-record for regulatory requirements (e.g., 6 years for HIPAA). A daily background job enforces the retention policy by deleting expired records. Contact support for custom archival policies.
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Actor Tracking" icon="robot" href="/sdks/python/overview#actor-tracking-ai-agents--mcp-servers">
+  <Card title="Actor Tracking" icon="robot" href="/sdks/python/overview#actor-tracking-ai-agents">
     Set up AI agent tracking in the Python SDK
   </Card>
   <Card title="Security Policies" icon="shield" href="/reference/policies">

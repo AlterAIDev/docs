@@ -13,7 +13,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 | **PKCE** | Supported |
 | **Token refresh** | Not needed (tokens don't expire) |
 | **Access token lifetime** | Never expires (revoked after 1 year of inactivity) |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 <Note>
   This guide covers **GitHub OAuth Apps**, not GitHub Apps. OAuth App tokens don't expire, so there's no refresh token flow.
@@ -31,7 +31,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
   <Step title="Fill in app details">
     - **Application name**: Your app name (e.g., "My App")
     - **Homepage URL**: Your app's URL (e.g., `https://myapp.com`)
-    - **Authorization callback URL**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
+    - **Authorization callback URL**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com)
     - Click **Register application**
   </Step>
 
@@ -52,7 +52,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add GitHub provider">
@@ -75,7 +75,7 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 
 ## Step 3: Test It
 
-After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
 from alter_sdk import AlterVault, ActorType, HttpMethod
@@ -86,7 +86,7 @@ async with AlterVault(
     actor_identifier="my-agent",
 ) as vault:
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.GET,
         "https://api.github.com/user/repos",
         query_params={"sort": "updated", "per_page": "5"},

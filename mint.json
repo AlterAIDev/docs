@@ -4,7 +4,7 @@
   "logo": {
     "dark": "/logo/alter-logo-dark.svg",
     "light": "/logo/alter-logo-light.svg",
-    "href": "https://alterai.dev"
+    "href": "https://alterauth.com"
   },
   "favicon": "/favicon.png",
   "colors": {
@@ -23,29 +23,29 @@
   "topbarLinks": [
     {
       "name": "Support",
-      "url": "mailto:founders@alterai.dev"
+      "url": "mailto:founders@alterauth.com"
     }
   ],
   "anchors": [
     {
       "name": "Developer Portal",
       "icon": "browser",
-      "url": "https://portal.alterai.dev"
+      "url": "https://portal.alterauth.com"
     },
     {
       "name": "Wallet",
       "icon": "wallet",
-      "url": "https://wallet.alterai.dev"
+      "url": "https://wallet.alterauth.com"
     },
     {
       "name": "API Status",
       "icon": "heart-pulse",
-      "url": "https://status.alterai.dev"
+      "url": "https://status.alterauth.com"
     },
     {
       "name": "Blog",
       "icon": "newspaper",
-      "url": "https://alterai.dev/blog"
+      "url": "https://alterauth.com/blog"
     }
   ],
   "navigation": [

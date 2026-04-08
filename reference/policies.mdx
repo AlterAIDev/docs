@@ -16,13 +16,13 @@ Security policies let you restrict when and how OAuth tokens and managed secrets
     Only allow access from specific IPs or CIDR ranges
   </Card>
 
-  <Card title="Connection TTL" icon="hourglass">
-    Set expiration dates on individual connections
+  <Card title="Grant TTL" icon="hourglass">
+    Set expiration dates on individual grants
   </Card>
 </CardGroup>
 
 <Info>
-Policies apply to **both OAuth connections and managed secrets**. The same rules protect all credential types.
+Policies apply to **both OAuth grants and managed secrets**. The same rules protect all credential types.
 </Info>
 
 ## App-Level Policies
@@ -57,7 +57,7 @@ Use CIDR ranges for office networks or VPNs rather than listing individual IPs.
 
 <Steps>
   <Step title="Open the app in the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and select the app
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and select the app
   </Step>
 
   <Step title="Go to Policies">
@@ -114,20 +114,20 @@ Use CIDR ranges for office networks or VPNs rather than listing individual IPs.
 }
 ```
 
-## Connection-Level Policies (TTL)
+## Grant-Level Policies (TTL)
 
-Connection-level policies set an expiration date on **individual connections**, independent of app-level policies.
+Grant-level policies set an expiration date on **individual grants**, independent of app-level policies.
 
 ### Setting TTL During OAuth Flow
 
-Pass a `connection_policy` when creating a Connect session to set TTL on new connections:
+Pass a `grant_policy` when creating a Connect session to set TTL on new grants:
 
 <CodeGroup>
 
 ```python Python
 session = await vault.create_connect_session(
     allowed_providers=["google", "slack"],
-    connection_policy={
+    grant_policy={
         "max_ttl_seconds": 2592000,      # 30-day upper bound
         "default_ttl_seconds": 604800,   # 7-day default shown in UI
     },
@@ -137,7 +137,7 @@ session = await vault.create_connect_session(
 ```typescript TypeScript
 const session = await vault.createConnectSession({
   allowedProviders: ["google", "slack"],
-  connectionPolicy: {
+  grantPolicy: {
     maxTtlSeconds: 2592000,      // 30-day upper bound
     defaultTtlSeconds: 604800,   // 7-day default shown in UI
   },
@@ -148,13 +148,13 @@ const session = await vault.createConnectSession({
 
 | Parameter | Description |
 |-----------|-------------|
-| `max_ttl_seconds` | Maximum lifetime a connection can have. Users cannot extend beyond this. |
+| `max_ttl_seconds` | Maximum lifetime a grant can have. Users cannot extend beyond this. |
 | `default_ttl_seconds` | Default duration shown in the Alter Connect UI. Users can adjust within bounds. |
 
 ### How TTL Works
 
-- When a connection expires (`expires_at < now`), any `vault.request()` call raises (Python) / throws (TypeScript) a `ConnectionExpiredError`
-- End users can view and extend TTL in the [Wallet Dashboard](https://wallet.alterai.dev), up to the developer-set `max_ttl_seconds` bound
+- When a grant expires (`expires_at < now`), any `vault.request()` call raises (Python) / throws (TypeScript) a `GrantExpiredError`
+- End users can view and extend TTL in the [Wallet Dashboard](https://wallet.alterauth.com), up to the developer-set `max_ttl_seconds` bound
 
 ### Handling Policy Errors
 
@@ -165,19 +165,19 @@ When a policy denies access, the SDK raises a specific error depending on the ca
 ```python Python
 from alter_sdk import HttpMethod
 from alter_sdk.exceptions import (
-    ConnectionExpiredError,
+    GrantExpiredError,
     PolicyViolationError,
     ReAuthRequiredError,
 )
 
 try:
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     )
-except ConnectionExpiredError:
-    # Connection TTL expired — prompt user to reconnect
+except GrantExpiredError:
+    # Grant TTL expired — prompt user to reconnect
     print("Connection expired. Please reconnect via Alter Connect.")
 except PolicyViolationError as e:
     # Time-based or IP allowlist denial
@@ -189,7 +189,7 @@ except ReAuthRequiredError:
 
 ```typescript TypeScript
 import {
-  ConnectionExpiredError,
+  GrantExpiredError,
   PolicyViolationError,
   ReAuthRequiredError,
   HttpMethod,
@@ -197,13 +197,13 @@ import {
 
 try {
   const response = await vault.request(
-    connectionId,
+    grantId,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   );
 } catch (e) {
-  if (e instanceof ConnectionExpiredError) {
-    // Connection TTL expired — prompt user to reconnect
+  if (e instanceof GrantExpiredError) {
+    // Grant TTL expired — prompt user to reconnect
     console.log("Connection expired. Please reconnect via Alter Connect.");
   } else if (e instanceof PolicyViolationError) {
     // Time-based or IP allowlist denial
@@ -221,7 +221,7 @@ try {
 
 | Error | When It's Raised | Action |
 |-------|-----------------|--------|
-| `ConnectionExpiredError` | Connection TTL has expired | Prompt user to reconnect via Alter Connect |
+| `GrantExpiredError` | Grant TTL has expired | Prompt user to reconnect via Alter Connect |
 | `PolicyViolationError` | Time-based restriction or IP allowlist denial | Check `policy_error` / `policyError` for the specific rule; adjust timing or IP |
 | `ReAuthRequiredError` | Connection requires re-authorization (revoked by provider, deleted by user, or otherwise invalidated) | Redirect user to re-authorize via Alter Connect |
 
@@ -229,7 +229,7 @@ try {
 
 When a credential is requested, policies are evaluated in this order:
 
-1. **Connection TTL** — is the connection expired?
+1. **Grant TTL** — is the grant expired?
 2. **Time restrictions** — is it within business hours / a weekday?
 3. **IP allowlist** — is the client IP in the allowed list?
 
@@ -263,7 +263,7 @@ The built-in policy types cover common access control patterns. For requirements
 
 Custom policies are enforced at the same layer as built-in policies, with the same fail-closed guarantees, audit logging, and policy violation errors.
 
-<Card title="Set up custom policies" icon="envelope" href="mailto:founders@alterai.dev">
+<Card title="Set up custom policies" icon="envelope" href="mailto:founders@alterauth.com">
   Contact the team to configure custom policies for a specific use case.
 </Card>
 
@@ -293,7 +293,7 @@ View policy violations in the Developer Portal under **Audit Logs** — filter b
   </Accordion>
 
   <Accordion title="Set TTL for sensitive integrations" icon="hourglass">
-    For connections that access sensitive data (financial APIs, healthcare systems), set a connection TTL to limit exposure if credentials are compromised.
+    For connections that access sensitive data (financial APIs, healthcare systems), set a grant TTL to limit exposure if credentials are compromised.
   </Accordion>
 
   <Accordion title="Match timezone to the team" icon="globe">

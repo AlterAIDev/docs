@@ -41,7 +41,7 @@ Use Sentry credentials to make authenticated API calls through Alter Vault witho
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Sentry">
@@ -53,7 +53,7 @@ Use Sentry credentials to make authenticated API calls through Alter Vault witho
   </Step>
 
   <Step title="Save">
-    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
   </Step>
 </Steps>
 
@@ -61,7 +61,7 @@ Use Sentry credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_CONNECTION_ID",
+    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://YOUR_SENTRY_HOST/api/0/projects/",  # Use sentry.io for cloud or your self-hosted hostname
 )

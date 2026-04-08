@@ -44,29 +44,29 @@ Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enfor
 OAuth tokens and API keys are encrypted and stored in a dedicated vault, never in the application database. Token refresh, lifecycle management, and credential injection happen automatically through `vault.request()`.
 
 ### Identity-Aware Authorization
-Every credential access is checked against two identities: the end user whose credentials are being used, and the agent or MCP server requesting them. One [policy layer](/reference/policies) governs which actors get access to which credentials, down to the provider and action level.
+Every credential access is checked against two identities: the end user whose credentials are being used, and the agent requesting them. One [policy layer](/reference/policies) governs which actors get access to which credentials, down to the provider and action level.
 
 ### Dual-Identity Audit Logging
-Every access is logged with both the end-user identity and the actor identity: which agent, which MCP server, which tool. Answer "what was Alice's data used for?" and "what did Agent X access across all users?"
+Every access is logged with both the end-user identity and the actor identity: which agent, which tool, which action. Answer "what was Alice's data used for?" and "what did Agent X access across all users?"
 
 ### Security and Compliance
 Fail-closed by design: if authorization cannot be enforced, credential access is denied. Every access is logged for SOC 2, GDPR, and HIPAA compliance.
 
 ## How It Works
 
-Alter Vault manages two types of credentials -**OAuth connections** and **managed secrets** -both accessed through the same `vault.request()` method.
+Alter Vault manages two types of credentials -**OAuth grants** and **managed secrets** -both accessed through the same `vault.request()` method.
 
-`vault.request()` **acts as the HTTP client**. Instead of calling `fetch` or `httpx` directly and constructing auth headers manually, call `vault.request()` with a `connection_id` and the target URL. The SDK makes the HTTP request with the correct credential automatically injected. Application code never sees, stores, or handles tokens or secrets, eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
+`vault.request()` **acts as the HTTP client**. Instead of calling `fetch` or `httpx` directly and constructing auth headers manually, call `vault.request()` with a `grant_id` and the target URL. The SDK makes the HTTP request with the correct credential automatically injected. Application code never sees, stores, or handles tokens or secrets, eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
 
 | | OAuth Connections | Managed Secrets |
 |---|---|---|
 | **Use case** | Third-party services (Google, Slack, GitHub) | Internal APIs and services (API keys, service tokens) |
 | **Who provides credentials** | **End user** authorizes via OAuth | **Developer** stores via portal |
-| **Where `connection_id` comes from** | `onSuccess` callback after user completes OAuth | Developer Portal when storing a secret |
+| **Where `grant_id` comes from** | `onSuccess` callback after user completes OAuth | Developer Portal when storing a secret |
 
 <Steps>
-  <Step title="Get a connection_id">
-    **OAuth**: The end user authorizes via Alter Connect UI → `onSuccess` returns a `connection_id`. **Managed Secrets**: Store credentials in the Developer Portal → portal returns a `connection_id`.
+  <Step title="Get a grant_id">
+    **OAuth**: The end user authorizes via Alter Connect UI → `onSuccess` returns a `grant_id`. **Managed Secrets**: Store credentials in the Developer Portal → portal returns a `grant_id`.
   </Step>
 
   <Step title="We Encrypt & Store">
@@ -86,7 +86,7 @@ Alter Vault manages two types of credentials -**OAuth connections** and **manage
 
 <Info>
 **SDKs and tools:**
-- **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** - Backend SDK for creating OAuth sessions and making authenticated API calls via `vault.request()`. Works with both OAuth connections and managed secrets.
+- **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** - Backend SDK for creating OAuth sessions and making authenticated API calls via `vault.request()`. Works with both OAuth grants and managed secrets.
 - **Alter Connect UI** - Hosted page where users complete OAuth. The backend creates a session and gets a `connect_url` that works in any browser. No frontend SDK required.
 - **Connect SDK (`@alter-ai/connect`)** - **Optional** frontend SDK that opens the Alter Connect UI in a popup with `onSuccess`/`onError` callbacks. Useful for SPAs, but not required.
 </Info>
@@ -111,9 +111,9 @@ async def main():
         providers=["google"],
     )
 
-    # Make API calls with the connection
+    # Make API calls with the grant
     response = await vault.request(
-        results[0].connection_id,
+        results[0].grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         query_params={"maxResults": "10"},
@@ -141,9 +141,9 @@ async function connectProvider() {
     await alterConnect.open({
         token: session_token,
         onSuccess: (connections) => {
-            // User completed OAuth! Store each connection_id in your DB.
+            // User completed OAuth! Store each grant_id in your DB.
             for (const conn of connections) {
-                console.log('Connected!', conn.connection_id, conn.provider);
+                console.log('Connected!', conn.grant_id, conn.provider);
             }
         }
     });
@@ -221,7 +221,7 @@ Enforce permissions across the services end users already rely on:
 
 <Steps>
   <Step title="Sign Up">
-    Create a free account at [portal.alterai.dev](https://portal.alterai.dev)
+    Create a free account at [portal.alterauth.com](https://portal.alterauth.com)
   </Step>
 
   <Step title="Create an App">
@@ -268,7 +268,7 @@ Enforce permissions across the services end users already rely on:
   <Card
     title="Email Support"
     icon="envelope"
-    href="mailto:founders@alterai.dev"
+    href="mailto:founders@alterauth.com"
   >
     Contact our support team
   </Card>

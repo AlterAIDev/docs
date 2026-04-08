@@ -7,17 +7,20 @@ description: 'Connect your identity provider to Alter Vault for automatic user l
 
 When your users authenticate through an identity provider like Okta, Azure AD, Auth0, or Clerk, Alter Vault can sync their identity for access control and lifecycle management.
 
-This means when a user is **removed from your organization** in your IDP, their OAuth connections in Alter Vault are **immediately revoked** — no manual cleanup required.
+This means when a user is **removed from your organization** in your IDP, their OAuth grants in Alter Vault are **immediately revoked** — no manual cleanup required.
 
 <CardGroup cols={3}>
   <Card title="Automatic Deprovisioning" icon="shield-check">
-    When users leave your org, their OAuth connections are immediately revoked and stored tokens deleted.
+    When users leave your org, their OAuth grants are immediately revoked and stored tokens deleted.
   </Card>
   <Card title="Group-Based Policies" icon="users">
     Control which groups can access which OAuth providers using your existing IDP groups.
   </Card>
   <Card title="Zero Configuration" icon="wand-magic-sparkles">
     Auto-detect IDP type and claim mappings from your OIDC issuer URL.
+  </Card>
+  <Card title="End-User Authentication" icon="key-round">
+    Enable browser-based sign-in for SDK and Wallet dashboard via OIDC.
   </Card>
 </CardGroup>
 
@@ -65,6 +68,15 @@ When your application passes a JWT to Alter Vault during a token request, Alter 
 ### Webhooks
 
 For IDPs that support webhook events (Clerk, Auth0, Okta), Alter Vault listens for user lifecycle events like `user.deleted` and triggers deprovisioning automatically. Enable webhooks in the Developer Portal to generate a signing secret, then configure your IDP to send events to the provided webhook URL.
+
+## User Authentication (OIDC)
+
+Beyond syncing identities, Alter Vault can use the IDP as a login provider. Configure OIDC client credentials in the Developer Portal to enable:
+
+- **SDK authentication** --- `vault.authenticate()` opens a browser-based login flow through the IDP
+- **Wallet dashboard sign-in** --- end users sign in to the Wallet dashboard with their IDP credentials
+
+Setup requires registering two redirect URIs with the IDP and entering the OAuth client ID and secret in the Developer Portal. See the [IDP Setup Guide](/identity-providers/quickstart) for step-by-step instructions.
 
 ## Supported Identity Providers
 

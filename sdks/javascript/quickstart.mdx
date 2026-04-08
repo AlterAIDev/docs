@@ -39,7 +39,7 @@ Get started with the Alter Connect frontend SDK to add OAuth popup flows to a si
 </Note>
 
 <Note>
-**OAuth connections only.** For Managed Secrets (API keys and service tokens), use the [Developer Portal](/reference/managed-secrets) instead.
+**OAuth grants only.** For Managed Secrets (API keys and service tokens), use the [Developer Portal](/reference/managed-secrets) instead.
 </Note>
 
 ## Overview
@@ -48,7 +48,7 @@ The SDK follows a secure three-step process:
 
 <Steps>
   <Step title="Backend creates session">
-    The backend uses the API key to create a session token (no user_id or connection_id needed)
+    The backend uses the API key to create a session token (no user_id or grant_id needed)
   </Step>
 
   <Step title="Frontend opens Connect UI">
@@ -56,7 +56,7 @@ The SDK follows a secure three-step process:
   </Step>
 
   <Step title="User completes OAuth">
-    User logs into their account (e.g., Google), authorizes access, and the `onSuccess` callback returns a `connection_id` (UUID) for each connected account
+    User logs into their account (e.g., Google), authorizes access, and the `onSuccess` callback returns a `grant_id` (UUID) for each connected account
   </Step>
 </Steps>
 
@@ -143,7 +143,7 @@ async function connectAccount() {
     token: session_token,
     onSuccess: (connections) => {
       console.log('Connected!', connections);
-      // Save each connection_id to your database
+      // Save each grant_id to your database
       for (const conn of connections) {
         saveConnection(conn);
       }
@@ -185,7 +185,7 @@ function ConnectButton() {
         onSuccess: async (connections) => {
           console.log('Connected!', connections);
 
-          // Save each connection to your database
+          // Save each grant to your database
           for (const conn of connections) {
             await fetch('/api/connections', {
               method: 'POST',
@@ -194,7 +194,7 @@ function ConnectButton() {
                 'Content-Type': 'application/json'
               },
               body: JSON.stringify({
-                connection_id: conn.connection_id,
+                grant_id: conn.grant_id,
                 provider: conn.provider,
                 account: conn.account_identifier
               })
@@ -262,7 +262,7 @@ async function handleConnect() {
       onSuccess: async (connections) => {
         console.log('Connected!', connections);
 
-        // Save each connection to your database
+        // Save each grant to your database
         for (const conn of connections) {
           await saveConnection(conn);
         }

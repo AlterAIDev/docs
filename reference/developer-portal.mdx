@@ -5,15 +5,15 @@ description: 'Configure OAuth providers, managed secrets, and manage your Alter 
 
 ## Getting Started
 
-The Developer Portal ([portal.alterai.dev](https://portal.alterai.dev)) is where you configure OAuth providers, set security policies, and manage your application.
+The Developer Portal ([portal.alterauth.com](https://portal.alterauth.com)) is where you configure OAuth providers, set security policies, and manage your application.
 
 <Steps>
   <Step title="Create Account">
-    Sign up at [portal.alterai.dev](https://portal.alterai.dev)
+    Sign up at [portal.alterauth.com](https://portal.alterauth.com)
   </Step>
 
   <Step title="Create Application">
-    Each app has its own OAuth connections and API keys
+    Each app has its own OAuth grants and API keys
   </Step>
 
   <Step title="Add OAuth Providers">
@@ -118,7 +118,7 @@ See each provider's documentation page in the **Providers** section of the sideb
 Managed Secrets let you store API keys, service tokens, and other credentials for your own APIs — no OAuth flow or end-user action needed.
 
 <Info>
-**How is this different from OAuth?** With OAuth connections, the `connection_id` comes from your **end user** completing an OAuth flow via Alter Connect. With Managed Secrets, the `connection_id` comes from **this portal** when you store a credential. No end user is involved — you store the secret, get a `connection_id`, and use it in your code.
+**How is this different from OAuth?** With OAuth grants, the `grant_id` comes from your **end user** completing an OAuth flow via Alter Connect. With Managed Secrets, the `grant_id` comes from **this portal** when you store a credential. No end user is involved — you store the secret, get a `grant_id`, and use it in your code.
 </Info>
 
 ### When to Use Managed Secrets
@@ -148,7 +148,7 @@ Managed Secrets let you store API keys, service tokens, and other credentials fo
   </Step>
 
   <Step title="Store a Secret">
-    Click **Store Secret** on your provider, enter the credential value, and save. You'll receive a `connection_id` (UUID) to use with the SDK.
+    Click **Store Secret** on your provider, enter the credential value, and save. You'll receive a `grant_id` (UUID) to use with the SDK.
   </Step>
 </Steps>
 
@@ -158,12 +158,12 @@ Managed Secrets let you store API keys, service tokens, and other credentials fo
 
 ### Using Managed Secrets
 
-Use the same `vault.request()` method as OAuth connections:
+Use the same `vault.request()` method as OAuth grants:
 
 ```python
-# Same method — just use the managed secret's connection_id
+# Same method — just use the managed secret's grant_id
 response = await vault.request(
-    "MANAGED_SECRET_CONNECTION_ID",  # from Developer Portal
+    "MANAGED_SECRET_GRANT_ID",  # from Developer Portal
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
 )
@@ -171,7 +171,7 @@ response = await vault.request(
 
 ### Managing Secrets
 
-- **Rotate**: Store a new secret value on the same provider — the `connection_id` stays the same
+- **Rotate**: Store a new secret value on the same provider — the `grant_id` stays the same
 - **Revoke**: Delete a stored secret when it's no longer needed
 - **Delete Provider**: Remove the provider and all its stored secrets
 
@@ -222,9 +222,9 @@ Add structured data to any OAuth connection for enhanced functionality.
 # via the Alter Connect session endpoint, then available
 # in the Alter Vault dashboard for filtering and management.
 #
-# The SDK's vault.request() uses a connection_id to look up
+# The SDK's vault.request() uses a grant_id to look up
 # the right connection. Custom schema data enriches
-# the connection metadata for your dashboard workflows.
+# the grant metadata for your dashboard workflows.
 ```
 
 ## Security Policies
@@ -315,7 +315,7 @@ If the policy service is unavailable, the system **denies all token access** rat
 
 ## Connection Management
 
-View and manage all OAuth connections:
+View and manage all OAuth grants:
 
 ### Connections Dashboard
 
@@ -326,16 +326,16 @@ View and manage all OAuth connections:
 
 ### Connection Details
 
-For each connection, view:
+For each grant, view:
 - Provider and account info
-- Connection ID
+- Grant ID
 - Custom schema data
 - Token status and refresh history
 - Audit logs of all access
 
 ### Revoke Access
 
-1. Find the connection
+1. Find the grant
 2. Click **Revoke**
 3. Choose:
    - **Soft Revoke**: Mark inactive (can reactivate)
@@ -402,17 +402,17 @@ vault = AlterVault(
     actor_identifier="my-service",
 )
 
-# OAuth: connection_id from your DB (stored when user completed Alter Connect)
-connection_id = db.get_connection(user_id="alice", provider="google")
+# OAuth: grant_id from your DB (stored when user completed Alter Connect)
+grant_id = db.get_grant(user_id="alice", provider="google")
 response = await vault.request(
-    connection_id,
+    grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
 )
 
-# Managed secret: connection_id from Developer Portal (stored in config/env)
+# Managed secret: grant_id from Developer Portal (stored in config/env)
 response = await vault.request(
-    os.environ["LOYALTY_API_CONNECTION_ID"],
+    os.environ["LOYALTY_API_GRANT_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
 )
@@ -427,9 +427,9 @@ const { session_token } = await fetch('/api/connect/session').then(r => r.json()
 await alterConnect.open({
     token: session_token,
     onSuccess: (connections) => {
-        // Each connection has a connection_id (UUID) — store it in your database
+        // Each connection has a grant_id (UUID) — store it in your database
         for (const conn of connections) {
-            console.log('Connected!', conn.connection_id, conn.provider);
+            console.log('Connected!', conn.grant_id, conn.provider);
         }
     }
 });
@@ -437,7 +437,7 @@ await alterConnect.open({
 
 ## Support
 
-- **Documentation**: [docs.alterai.dev](https://docs.alterai.dev)
-- **API Reference**: Available in the [Developer Portal](https://portal.alterai.dev)
-- **Email**: [founders@alterai.dev](mailto:founders@alterai.dev)
-- **Status**: [status.alterai.dev](https://status.alterai.dev)
+- **Documentation**: [docs.alterauth.com](https://docs.alterauth.com)
+- **API Reference**: Available in the [Developer Portal](https://portal.alterauth.com)
+- **Email**: [founders@alterauth.com](mailto:founders@alterauth.com)
+- **Status**: [status.alterauth.com](https://status.alterauth.com)

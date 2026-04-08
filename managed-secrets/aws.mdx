@@ -47,7 +47,7 @@ Two ways to call AWS services:
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add AWS">
@@ -59,7 +59,7 @@ Two ways to call AWS services:
   </Step>
 
   <Step title="Save">
-    Click **Save**. You'll receive a `connection_id` to use with the SDK.
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
   </Step>
 </Steps>
 
@@ -83,14 +83,14 @@ async with AlterVault(
 ) as vault:
     # S3
     response = await vault.request(
-        "YOUR_CONNECTION_ID",
+        "YOUR_GRANT_ID",
         HttpMethod.GET,
         "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
     )
 
     # Bedrock (same credential, different service and region)
     response = await vault.request(
-        "YOUR_CONNECTION_ID",
+        "YOUR_GRANT_ID",
         HttpMethod.POST,
         "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
         json={"prompt": "Hello"},
@@ -98,7 +98,7 @@ async with AlterVault(
 
     # Lambda
     response = await vault.request(
-        "YOUR_CONNECTION_ID",
+        "YOUR_GRANT_ID",
         HttpMethod.POST,
         "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
         json={"key": "value"},
@@ -117,14 +117,14 @@ const vault = new AlterVault({
 try {
   // S3
   const s3Response = await vault.request(
-    "YOUR_CONNECTION_ID",
+    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
   );
 
   // Bedrock (same credential, different service and region)
   const bedrockResponse = await vault.request(
-    "YOUR_CONNECTION_ID",
+    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
     { json: { prompt: "Hello" } },
@@ -132,7 +132,7 @@ try {
 
   // Lambda
   const lambdaResponse = await vault.request(
-    "YOUR_CONNECTION_ID",
+    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
     { json: { key: "value" } },
@@ -171,7 +171,7 @@ async def main():
         # Create a boto3 S3 client routed through Alter Vault
         s3 = await vault.boto3_client(
             "s3",
-            connection_id="YOUR_CONNECTION_ID",
+            grant_id="YOUR_GRANT_ID",
             region_name="us-east-1",
             reason="Listing objects for data pipeline",
         )
@@ -186,7 +186,7 @@ async def main():
         # Same credential, different service
         dynamodb = await vault.boto3_client(
             "dynamodb",
-            connection_id="YOUR_CONNECTION_ID",
+            grant_id="YOUR_GRANT_ID",
             region_name="us-east-1",
         )
         await asyncio.to_thread(
@@ -207,7 +207,7 @@ asyncio.run(main())
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `service_name` | `str` | (required) | AWS service (`"s3"`, `"dynamodb"`, `"bedrock-runtime"`, etc.) |
-| `connection_id` | `str` | (required) | Connection ID from the Developer Portal |
+| `grant_id` | `str` | (required) | Grant ID from the Developer Portal |
 | `region_name` | `str` | `"us-east-1"` | AWS region |
 | `timeout` | `float` | client timeout | Per-request timeout in seconds |
 | `reason` | `str` | `None` | Audit reason applied to all calls from this client |

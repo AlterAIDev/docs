@@ -11,9 +11,9 @@ Connect your users to Salesforce for CRM data, opportunity management, contact r
 |----------|-------|
 | **Provider ID** | `salesforce` |
 | **Category** | Popular |
-| **PKCE** | Not supported |
+| **PKCE** | Supported (required for new apps) |
 | **Token refresh** | Automatic |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a Salesforce OAuth App
 
@@ -22,18 +22,22 @@ Connect your users to Salesforce for CRM data, opportunity management, contact r
     Navigate to [login.salesforce.com](https://login.salesforce.com/) and sign in.
   </Step>
 
-  <Step title="Create a Connected App">
-    Go to **Setup** > **App Manager** > **New Connected App**. Fill in the app name, API name, and contact email.
+  <Step title="Create an External Client App">
+    Go to **Setup**, search for **External Client App Manager**, and click **New External Client App**. Enter the app name and contact email.
   </Step>
 
   <Step title="Enable OAuth settings">
-    Check **Enable OAuth Settings**. Add the Alter callback URL from the [Developer Portal](https://portal.alterai.dev) to the **Callback URL** field. Select the required OAuth scopes.
+    Enable **OAuth Settings**. Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Callback URL** field. Select the required OAuth scopes.
   </Step>
 
   <Step title="Get your credentials">
-    After saving, go to **Manage Connected Apps** > your app > **View Consumer Details** to find the **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret).
+    After saving, copy the **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret) from the app settings.
   </Step>
 </Steps>
+
+<Note>
+  As of Spring '26, Salesforce requires External Client Apps instead of Connected Apps for new integrations. Existing Connected Apps continue to function.
+</Note>
 
 <Warning>
   Never share your Consumer Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
@@ -43,7 +47,7 @@ Connect your users to Salesforce for CRM data, opportunity management, contact r
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Salesforce provider">

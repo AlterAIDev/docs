@@ -13,33 +13,31 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 | **PKCE** | Supported |
 | **Token refresh** | Automatic (refresh token reused) |
 | **Access token lifetime** | 30 days |
-| **Redirect URI** | Shown in [Developer Portal](https://portal.alterai.dev) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
-## Step 1: Create a Sentry Integration
+## Step 1: Create a Sentry OAuth Application
 
 <Steps>
-  <Step title="Go to Sentry Developer Settings">
-    Navigate to [sentry.io](https://sentry.io), open your organization, and go to **Settings** > **Developer Settings**.
+  <Step title="Go to Sentry API Applications">
+    Navigate to [sentry.io](https://sentry.io) and go to **Settings** > **Account** > **API** > **Applications**, or go directly to [sentry.io/settings/account/api/applications/](https://sentry.io/settings/account/api/applications/).
   </Step>
 
-  <Step title="Create a new integration">
-    Click **Create New Integration** and select **Public Integration**.
+  <Step title="Create a new application">
+    Click **Create New Application** and select **Confidential** as the application type.
 
     Fill in:
-    - **Name**: Your app name (e.g., "My App")
-    - **Author**: Your name or organization
-    - **Redirect URL**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterai.dev)
-    - **Verify Install**: Check this for production apps
+    - **Name**: The application name (e.g., "My App")
+    - **Redirect URIs**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com)
   </Step>
 
-  <Step title="Configure permissions">
-    Under **Permissions**, select the access levels your app needs for each resource. See [Available Scopes](#available-scopes) below.
+  <Step title="Configure scopes">
+    Select the required scopes for the application. See [Available Scopes](#available-scopes) below.
   </Step>
 
-  <Step title="Get your credentials">
+  <Step title="Get credentials">
     After saving:
-    - **Client ID**: Displayed on the integration page
-    - **Client Secret**: Displayed on the integration page
+    - **Client ID**: Displayed on the application page
+    - **Client Secret**: Displayed on the application page
 
     Copy both values.
   </Step>
@@ -49,7 +47,7 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterai.dev](https://portal.alterai.dev) and navigate to your app.
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to your app.
   </Step>
 
   <Step title="Add Sentry provider">
@@ -72,7 +70,7 @@ Connect your users to Sentry for error monitoring, performance tracking, and pro
 
 ## Step 3: Test It
 
-After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `connection_id` to make API calls:
+After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
 from alter_sdk import AlterVault, ActorType, HttpMethod
@@ -83,7 +81,7 @@ async with AlterVault(
     actor_identifier="my-agent",
 ) as vault:
     response = await vault.request(
-        connection_id,
+        grant_id,
         HttpMethod.GET,
         "https://sentry.io/api/0/organizations/",
     )
@@ -152,5 +150,5 @@ Sentry scopes follow a hierarchy: `admin` > `write` > `read`. Requesting a highe
 
 - Access tokens expire after 30 days. Alter Vault automatically refreshes them using the refresh token.
 - Sentry's refresh token is reused (same token persists across refreshes), similar to Google's pattern.
-- Sentry scope permissions in the integration settings must match the scopes you request. If you request a scope that your integration doesn't have permission for, the authorization will fail.
+- Sentry scope permissions in the application settings must match the scopes requested. If a scope that the application doesn't have permission for is requested, the authorization will fail.
 - The default scopes (`org:read`, `project:read`, `team:read`, `event:read`) provide read-only access, which is sufficient for most monitoring use cases.

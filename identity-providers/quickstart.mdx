@@ -47,7 +47,7 @@ vault = AlterVault(
 
 # JWT is automatically included by the SDK via user_token_getter
 response = await vault.request(
-    None,  # connectionId not needed with identity resolution
+    None,  # grantId not needed with identity resolution
     HttpMethod.GET,
     "https://api.example.com/data",
     provider="google",
@@ -66,7 +66,7 @@ const vault = new AlterVault({
 
 // JWT is automatically included by the SDK via userTokenGetter
 const response = await vault.request(
-  null, // connectionId not needed with identity resolution
+  null, // grantId not needed with identity resolution
   HttpMethod.GET,
   "https://api.example.com/data",
   { provider: "google" },
@@ -79,14 +79,58 @@ const response = await vault.request(
 **Automatic sync**: The first time Alter Vault sees a JWT for a new user, it automatically creates a user record and syncs group memberships from the JWT claims. Subsequent requests update the user's profile.
 </Info>
 
+### Enable User Authentication (OIDC)
+
+To let end users sign in through the IDP --- for `vault.authenticate()` in the SDK or the Wallet dashboard --- configure OIDC client credentials.
+
+1. In the **Developer Portal** → the app's **Identity** page, expand the **User Authentication (OIDC)** section
+2. **Step 1 --- Register redirect URIs**: Copy both redirect URIs (SDK callback and Wallet callback) and add them as allowed redirect/callback URIs in the OAuth application on the IDP
+3. **Step 2 --- Enter credentials**: Copy the **Client ID** and **Client Secret** from the IDP's OAuth application and paste them into the Developer Portal, then click **Save Credentials**
+
+<Info>
+**What this enables**: Once configured, the SDK's `vault.authenticate()` method opens a browser-based login flow through the IDP, and the Wallet dashboard gains a sign-in page for end users. User accounts are created automatically on first authentication.
+</Info>
+
+<CodeGroup>
+
+```python Python SDK
+from alter_sdk import AlterVault, ActorType
+
+vault = AlterVault(
+    api_key="alter_key_...",
+    actor_type=ActorType.AI_AGENT,
+    actor_identifier="my-agent",
+)
+
+# Opens a browser window for the user to sign in via the IDP
+auth_result = await vault.authenticate()
+print(auth_result.user_info)  # User profile from the IDP
+```
+
+```typescript TypeScript SDK
+import { AlterVault, ActorType } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  actorType: ActorType.AI_AGENT,
+  actorIdentifier: "my-agent",
+});
+
+// Opens a browser window for the user to sign in via the IDP
+const authResult = await vault.authenticate();
+console.log(authResult.userInfo); // User profile from the IDP
+```
+
+</CodeGroup>
+
 ### Enable SCIM (Recommended for Enterprise)
 
-For enterprise IDPs like Okta and Azure AD, enable SCIM for real-time user provisioning and immediate deprovisioning.
+For enterprise IDPs like Okta and Azure AD, enable SCIM for real-time user provisioning and immediate deprovisioning. SCIM is available on all plans.
 
-1. In **Developer Portal** → **Identity** → **SCIM** tab
+1. In **Developer Portal** → the app's **Identity** page → **SCIM** section
 2. Click **Enable SCIM**
 3. **Copy the bearer token** (shown only once!) and the SCIM endpoint URL
-4. Configure your IDP to push to this endpoint (see [SCIM Reference](/identity-providers/scim) for per-IDP instructions)
+4. Configure the IDP to push to this endpoint (see [SCIM Reference](/identity-providers/scim) for per-IDP instructions)
 
 <Warning>
 **Save the bearer token immediately!** The SCIM bearer token is displayed only once when you enable SCIM. If you lose it, you can rotate it from the Developer Portal, but the old token will be invalidated.
@@ -96,10 +140,10 @@ For enterprise IDPs like Okta and Azure AD, enable SCIM for real-time user provi
 
 To verify the integration works end-to-end:
 
-1. Assign a test user to your application in your IDP
+1. Assign a test user to the application in the IDP
 2. Verify the user appears in Alter Vault (check the SCIM sync status in Developer Portal)
-3. Remove the test user from your IDP
-4. Verify their OAuth connections are revoked in Alter Vault
+3. Remove the test user from the IDP
+4. Verify their OAuth grants are revoked in Alter Vault
 
 </Steps>
 
@@ -109,13 +153,13 @@ When you pass a JWT or when your IDP sends a SCIM event:
 
 1. **User identity is resolved** — Alter Vault maps the JWT `sub` claim (or SCIM `externalId`) to an internal user record
 2. **Groups are synced** — Group memberships from JWT claims or SCIM group operations are synced to Alter Vault
-3. **Connections are linked** — OAuth connections are associated with the user for lifecycle management
+3. **Connections are linked** — OAuth grants are associated with the user for lifecycle management
 4. **Policies are evaluated** — Group-based access policies can restrict which providers a user can access
 
 When a user is **deprovisioned**:
 
 1. User status is set to `deprovisioned`
-2. All linked OAuth connections are immediately revoked
+2. All linked OAuth grants are immediately revoked
 3. All stored tokens are permanently deleted
 4. Subsequent token requests for this user are denied
 
