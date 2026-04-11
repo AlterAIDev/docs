@@ -58,9 +58,9 @@ Use Twilio credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://api.twilio.com/2010-04-01/Accounts/YOUR_ACCOUNT_SID/Messages.json",
+    grant_id="YOUR_GRANT_ID",
 )
 ```
 

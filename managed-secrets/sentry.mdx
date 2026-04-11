@@ -61,8 +61,8 @@ Use Sentry credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
-    "https://YOUR_SENTRY_HOST/api/0/projects/",  # Use sentry.io for cloud or your self-hosted hostname
+    "https://YOUR_SENTRY_HOST/api/0/projects/",
+    grant_id="YOUR_GRANT_ID",  # Use sentry.io for cloud or your self-hosted hostname
 )
 ```

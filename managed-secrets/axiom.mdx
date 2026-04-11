@@ -58,8 +58,8 @@ Use Axiom credentials to make authenticated API calls through Alter Vault withou
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://api.axiom.co/v1/datasets/YOUR_DATASET/ingest",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

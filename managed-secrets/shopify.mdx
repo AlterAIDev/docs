@@ -61,8 +61,8 @@ Use Shopify credentials to make authenticated API calls through Alter Vault with
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://your-store.myshopify.com/admin/api/YOUR_API_VERSION/products.json",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

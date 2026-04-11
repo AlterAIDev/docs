@@ -33,19 +33,18 @@ Requires Node.js 18 or higher. TypeScript 5.0+ recommended.
 ## Basic Setup
 
 ```typescript
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
 });
 
 const response = await vault.request(
-  "GRANT_ID",  // from Alter Connect (see below)
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
+    grantId: "GRANT_ID",  // from Alter Connect (see below)
     queryParams: { maxResults: "10" },
   }
 );
@@ -65,13 +64,17 @@ await vault.close();
 ## Configuration
 
 ```typescript
+import { AlterVault, CallerType } from "@alter-ai/alter-sdk";
+
 const vault = new AlterVault({
   apiKey: "alter_key_...",              // Required: API key from dashboard
-  actorType: ActorType.AI_AGENT,       // Required: ActorType enum
-  actorIdentifier: "my-agent",         // Required: Unique identifier
+  caller: "my-agent",                  // Optional: Caller identity for audit logs
+  callerType: CallerType.AGENT,        // Optional: AGENT (default) or SERVICE
   timeout: 30000,                      // Optional: HTTP timeout in milliseconds
 });
 ```
+
+Use `CallerType.SERVICE` for backend infrastructure callers that should not appear in the Developer Portal Agents tab.
 
 Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
@@ -87,9 +90,9 @@ import {
 
 try {
   const response = await vault.request(
-    grantId,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    { grantId },
   );
   return await response.json();
 } catch (e) {

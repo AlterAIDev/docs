@@ -1,0 +1,205 @@
+---
+title: 'LangChain Integration'
+description: 'Build LangChain tools with automatic OAuth credential injection using Alter Vault'
+icon: 'link-simple'
+---
+
+## Overview
+
+The `alter-sdk[langchain]` extra integrates with [LangChain](https://python.langchain.com/) and [LangGraph](https://langchain-ai.github.io/langgraph/). The `@alter_tool()` decorator produces a real `langchain_core.tools.StructuredTool` that can be passed directly to agents, LangGraph nodes, or any `Runnable` pipeline.
+
+```bash
+pip install 'alter-sdk[langchain]'
+```
+
+## Quick Start
+
+```python
+from alter_sdk import AlterVault
+from alter_sdk.langchain import alter_tool
+
+vault = AlterVault(api_key="alter_key_...", caller="my-agent")
+
+
+@alter_tool(vault, provider="google")
+async def list_emails(query: str) -> str:
+    """Search emails by query string."""
+    response = await vault.request(
+        "GET",
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        provider="google",
+        query_params={"q": query, "maxResults": "10"},
+    )
+    messages = response.json().get("messages", [])
+    return f"Found {len(messages)} emails"
+
+
+# list_emails is a real StructuredTool -- pass it to any LangChain agent
+from langchain.agents import create_react_agent
+
+agent = create_react_agent(llm, tools=[list_emails])
+```
+
+## `@alter_tool()` Decorator
+
+The decorator wraps an async function as a `StructuredTool` with automatic credential injection, audit context, and error recovery.
+
+### Parameters
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `vault` | `AlterVault` | required | Alter Vault client instance |
+| `provider` | `str` | required | OAuth provider ID (e.g., `"google"`, `"github"`) |
+| `name` | `str` | function name | Custom tool name |
+| `description` | `str` | function docstring | Custom tool description |
+
+### How It Works
+
+1. The decorator creates a `StructuredTool` from the function's signature and docstring
+2. LangChain's `config` kwarg is automatically consumed -- the tool extracts `run_id` and `thread_id` from it
+3. An ambient audit `ContextVar` is set with `{"tool": "<name>", "framework": "langchain", "run_id": "...", "thread_id": "..."}` so every `vault.request()` call inside the tool is automatically tagged
+4. If no OAuth grant exists, the tool returns a human-readable message with a Connect URL
+5. If scopes are outdated, the tool returns a re-authorization message
+
+### Audit Context Flow
+
+LangChain populates the `config` dict with execution metadata. The decorator extracts:
+
+| Config Path | Audit Context Key | Description |
+|---|---|---|
+| `config["metadata"]["run_id"]` | `run_id` | Execution run identifier (LangChain-idiomatic path) |
+| `config["run_id"]` | `run_id` | Fallback for direct callers |
+| `config["configurable"]["thread_id"]` | `thread_id` | Conversation thread identifier |
+
+These appear automatically in audit logs for every API call made inside the tool.
+
+## Using with LangGraph
+
+`@alter_tool()` produces a standard `StructuredTool`, so it works directly with LangGraph:
+
+```python
+from langgraph.prebuilt import create_react_agent
+
+agent = create_react_agent(
+    model,
+    tools=[list_emails, create_event],
+)
+
+# Thread ID flows through to audit logs automatically
+result = await agent.ainvoke(
+    {"messages": [("user", "List my recent emails")]},
+    config={"configurable": {"thread_id": "conv-123"}},
+)
+```
+
+## `AlterMCPInterceptor`
+
+For LangChain applications that call remote MCP servers via [langchain-mcp-adapters](https://github.com/langchain-ai/langchain-mcp-adapters), `AlterMCPInterceptor` injects Alter auth headers on outbound MCP tool-call requests.
+
+```python
+from langchain_mcp_adapters import MCPToolkit
+from alter_sdk.langchain import AlterMCPInterceptor
+
+interceptor = AlterMCPInterceptor()
+
+toolkit = MCPToolkit(
+    server="https://mcp.example.com",
+    interceptor=interceptor,
+)
+```
+
+The interceptor reads `user_token` from LangChain's runtime context and attaches it as a `Bearer` header on the outbound request, provided:
+
+- The URL uses `https://` (no plain-text leakage)
+- The hostname does not resolve to a private/loopback/link-local IP (SSRF protection)
+- The token does not contain CR/LF characters (header injection protection)
+
+If any check fails, the request is forwarded without the bearer header (the downstream server will return 401, which the caller can handle normally).
+
+## Error Handling
+
+The decorator automatically handles two error types:
+
+```python
+@alter_tool(vault, provider="google")
+async def my_tool(query: str) -> str:
+    """Tool that makes an API call."""
+    response = await vault.request(
+        "GET",
+        "https://api.example.com/v1/data",
+        provider="google",
+        query_params={"q": query},
+    )
+    return response.text
+```
+
+- **No grant exists** (`GrantNotFoundError`): Returns `"Authorization required for google. Please visit: https://..."` with a fresh Connect URL.
+- **Scopes outdated** (`ScopeReauthRequiredError`): Returns `"Additional permissions needed for google. Please re-authorize with the required scopes."`
+
+All other exceptions (network errors, provider API errors, etc.) propagate normally to the agent.
+
+## Complete Example
+
+```python
+import asyncio
+from alter_sdk import AlterVault, HttpMethod
+from alter_sdk.langchain import alter_tool
+
+vault = AlterVault(api_key="alter_key_...", caller="email-agent")
+
+
+@alter_tool(vault, provider="google", name="search_emails")
+async def search_emails(query: str, max_results: int = 10) -> str:
+    """Search Gmail for emails matching a query."""
+    response = await vault.request(
+        HttpMethod.GET,
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        provider="google",
+        query_params={"q": query, "maxResults": str(max_results)},
+    )
+    messages = response.json().get("messages", [])
+    return f"Found {len(messages)} emails matching '{query}'"
+
+
+@alter_tool(vault, provider="github", name="list_repos")
+async def list_repos(org: str) -> str:
+    """List repositories for a GitHub organization."""
+    response = await vault.request(
+        HttpMethod.GET,
+        "https://api.github.com/orgs/{org}/repos",
+        provider="github",
+        path_params={"org": org},
+        query_params={"sort": "updated", "per_page": "10"},
+    )
+    repos = response.json()
+    return "\n".join(f"- {r['full_name']}: {r.get('description', 'No description')}" for r in repos)
+
+
+async def main():
+    # Use with any LangChain agent
+    from langchain_openai import ChatOpenAI
+    from langgraph.prebuilt import create_react_agent
+
+    llm = ChatOpenAI(model="gpt-4o")
+    agent = create_react_agent(llm, tools=[search_emails, list_repos])
+
+    result = await agent.ainvoke(
+        {"messages": [("user", "Search my emails for invoices and list repos in the acme org")]},
+        config={
+            "configurable": {"thread_id": "task-42"},
+            "metadata": {"run_id": "batch-morning-check"},
+        },
+    )
+    print(result["messages"][-1].content)
+
+    await vault.close()
+
+
+asyncio.run(main())
+```
+
+## Requirements
+
+- Python 3.11+
+- `alter-sdk[langchain]` (installs `langchain-core >= 0.3.0`)
+- An Alter Vault API key with configured OAuth providers in the Developer Portal

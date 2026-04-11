@@ -6,7 +6,7 @@ icon: 'code'
 
 ## Session Tokens
 
-Session tokens are temporary credentials that authorize Alter Connect without exposing your API keys.
+Session tokens are temporary credentials that authorize Alter Connect without exposing API keys.
 
 ### Token Properties
 
@@ -19,7 +19,7 @@ Session tokens are temporary credentials that authorize Alter Connect without ex
 
 ### Creating Secure Sessions
 
-Always create sessions on your backend:
+Always create sessions on the backend:
 
 ```javascript
 // YOUR backend - never expose API keys
@@ -65,7 +65,7 @@ const alterConnect = AlterConnect.create({
 | `debug` | boolean | Enable console logs |
 
 <Note>
-Visual customization (colors, fonts, logo) is configured via the Developer Portal branding settings. The backend-served Connect UI applies your branding automatically. See [Branding & Customization](#branding--customization) below for details.
+Visual customization (colors, fonts, logo) is configured via the Developer Portal branding settings. The backend-served Connect UI applies the branding automatically. See [Branding & Customization](#branding--customization) below for details.
 </Note>
 
 ## Open Options
@@ -158,7 +158,7 @@ await alterConnect.open({
 
 ## Content Security Policy
 
-If your application uses a Content Security Policy, you'll need to allow the Alter Connect domain. Check the **Developer Portal** for the exact domain to add to your `frame-src` and `connect-src` directives.
+If the application uses a Content Security Policy, the Alter Connect domain must be allowed. Check the **Developer Portal** for the exact domain to add to the `frame-src` and `connect-src` directives.
 
 ## TypeScript
 
@@ -224,13 +224,13 @@ alterConnect.on('error', (error) => {
 
 ## Branding & Customization
 
-Customize the Alter Connect UI to match your app's look and feel. Branding is configured in the Developer Portal and applied automatically when users open the Connect flow.
+Customize the Alter Connect UI to match the application's look and feel. Branding is configured in the Developer Portal and applied automatically when users open the Connect flow.
 
 ### What You Can Customize
 
 | Property | Description | Requirements |
 |----------|-------------|--------------|
-| **Logo** | Your app's logo displayed in the Connect UI | HTTPS URL, max 500 characters |
+| **Logo** | The application logo displayed in the Connect UI | HTTPS URL, max 500 characters |
 | **Primary color** | Buttons and interactive elements | Hex format (`#RRGGBB`) |
 | **Text color** | Text and labels | Hex format (`#RRGGBB`) |
 | **Background color** | Page background | Hex format (`#RRGGBB`) |
@@ -240,41 +240,41 @@ Customize the Alter Connect UI to match your app's look and feel. Branding is co
 
 <Steps>
   <Step title="Open the Developer Portal">
-    Go to [portal.alterauth.com](https://portal.alterauth.com) and select your app
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and select the application
   </Step>
 
   <Step title="Go to Branding">
     Click **Branding** in the app sidebar
   </Step>
 
-  <Step title="Configure your brand">
-    - Upload or link to your logo (HTTPS URLs only)
-    - Set your brand colors (primary, text, background)
+  <Step title="Configure the brand">
+    - Upload or link to a logo (HTTPS URLs only)
+    - Set the brand colors (primary, text, background)
     - Optionally set a custom font family
   </Step>
 
   <Step title="Save">
-    Your branding is applied immediately to all new Alter Connect sessions
+    The branding is applied immediately to all new Alter Connect sessions
   </Step>
 </Steps>
 
 ### How It Works
 
-When a user opens Alter Connect, the UI automatically renders with your configured branding:
+When a user opens Alter Connect, the UI automatically renders with the configured branding:
 
-- Your **logo** appears at the top of the provider selection and authorization screens
-- Your **primary color** is used for buttons, links, and interactive elements
-- Your **text** and **background colors** ensure readable contrast
-- Your **font family** (if set) applies to all text in the UI
+- The **logo** appears at the top of the provider selection and authorization screens
+- The **primary color** is used for buttons, links, and interactive elements
+- The **text** and **background colors** ensure readable contrast
+- The **font family** (if set) applies to all text in the UI
 
 No frontend code changes needed — branding is applied server-side.
 
 ### Resetting to Defaults
 
-Delete your branding configuration in the Developer Portal to revert to the default Alter Connect appearance.
+Delete the branding configuration in the Developer Portal to revert to the default Alter Connect appearance.
 
 <Tip>
-Use colors with good contrast between text and background. Test your branding by opening a Connect session after saving.
+Use colors with good contrast between text and background. Test the branding by opening a Connect session after saving.
 </Tip>
 
 ## Troubleshooting
@@ -293,7 +293,7 @@ Use colors with good contrast between text and background. Test your branding by
 
 ### Tokens Not Working
 
-- Confirm the `grant_id` is correct and belongs to your app
+- Confirm the `grant_id` is correct and belongs to the application
 - Verify connection was completed successfully
 - Check token hasn't expired (auto-refresh should handle this)
 
@@ -302,5 +302,5 @@ Use colors with good contrast between text and background. Test your branding by
 1. **Never expose API keys** - Always create sessions server-side
 2. **Use short-lived tokens** - 10 minutes or less
 3. **Implement IP restrictions** - Lock sessions to user's IP
-4. **Validate on backend** - Always verify connection on your server
+4. **Validate on backend** - Always verify the connection on the server
 5. **Use HTTPS** - Never use in production without HTTPS

@@ -1,0 +1,213 @@
+---
+title: 'FastMCP Integration'
+description: 'Build MCP tools with automatic OAuth credential injection using Alter Vault'
+icon: 'plug'
+---
+
+## Overview
+
+The `alter-sdk[mcp]` extra integrates with [FastMCP](https://github.com/jlowin/fastmcp) to give MCP tools automatic OAuth credential injection. Decorate a function with `@alter.tool()`, and the SDK handles token retrieval, audit logging, and error recovery behind the scenes.
+
+```bash
+pip install 'alter-sdk[mcp]'
+```
+
+## Quick Start
+
+```python
+from fastmcp import FastMCP
+from alter_sdk import AlterVault
+from alter_sdk.mcp import AlterMCP, AlterContext
+
+vault = AlterVault(api_key="alter_key_...", caller="my-mcp-server")
+alter = AlterMCP(vault)
+mcp = FastMCP("my-server")
+
+
+@mcp.tool()
+@alter.tool(provider="google")
+async def list_emails(ctx: AlterContext, query: str) -> list[dict]:
+    """Search emails by query string."""
+    response = await ctx.request(
+        "GET",
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        query_params={"q": query, "maxResults": "10"},
+    )
+    return response.json().get("messages", [])
+```
+
+The tool is now a standard MCP tool. When an LLM invokes it, the SDK:
+
+1. Retrieves a valid OAuth token from Alter Vault (never exposed to the tool code)
+2. Injects it as a `Bearer` header on the provider API request
+3. Logs the API call in the audit trail with tool name, caller, and execution context
+4. If no grant exists, returns a Connect URL so the user can authorize
+
+## How It Works
+
+### `AlterMCP` and `@alter.tool()`
+
+`AlterMCP` is the integration entry point. Its `.tool()` method is a decorator that:
+
+- Accepts a `provider` parameter specifying which OAuth provider the tool uses
+- Injects an `AlterContext` instance as the first parameter of the tool function
+- Hides the `AlterContext` parameter from the MCP tool schema (the LLM never sees it)
+- Sets an ambient audit context so any `vault.request()` call inside the tool body is automatically tagged with the tool name
+
+```python
+alter = AlterMCP(vault)
+
+@alter.tool(provider="github")
+async def create_issue(ctx: AlterContext, title: str, body: str) -> dict:
+    """Create a GitHub issue."""
+    response = await ctx.request(
+        "POST",
+        "https://api.github.com/repos/{owner}/{repo}/issues",
+        path_params={"owner": "acme", "repo": "app"},
+        json={"title": title, "body": body},
+    )
+    return response.json()
+```
+
+### `AlterContext`
+
+The `AlterContext` object injected into the tool has a `.request()` method that works like `vault.request()` but with the provider pre-configured:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `method` | `str` | HTTP method (`"GET"`, `"POST"`, etc.) |
+| `url` | `str` | Provider API URL (supports `{placeholder}` templates) |
+| `json` | `dict` | Optional JSON request body |
+| `query_params` | `dict` | Optional URL query parameters |
+| `path_params` | `dict` | Optional URL path template substitutions |
+| `extra_headers` | `dict` | Optional additional headers |
+| `reason` | `str` | Optional audit reason |
+| `account` | `str` | Optional account identifier for multi-account providers |
+
+The `provider` and audit `context` are already set by the decorator -- tool code only needs to specify the method and URL.
+
+### Error Recovery
+
+The decorator automatically handles two common errors:
+
+- **`GrantNotFoundError`**: No OAuth grant exists for this user/provider. The decorator creates a fresh Connect session and returns an MCP error containing the Connect URL, so the LLM can instruct the user to authorize.
+- **`ScopeReauthRequiredError`**: The grant exists but its scopes are outdated. The decorator returns an MCP error asking the user to re-authorize with updated permissions.
+
+All other exceptions propagate normally.
+
+## Authentication with `AlterAuthProvider`
+
+For MCP servers that need to authenticate end users via an identity provider (IDP), use `AlterAuthProvider`. It implements FastMCP's auth provider protocol to trigger Alter Connect when a user needs to log in.
+
+```python
+from alter_sdk.mcp.auth import AlterAuthProvider
+
+auth = AlterAuthProvider(
+    vault,
+    providers={
+        "google": ["gmail.readonly", "calendar.events"],
+        "github": ["repo"],
+    },
+)
+
+# Pass to FastMCP's auth configuration
+mcp = FastMCP("my-server", auth=auth)
+```
+
+When FastMCP calls `auth.create_auth_url()`, the provider creates an Alter Connect session with the declared scopes as the ceiling. When `auth.verify_token(token)` is called, it verifies the JWT against the app's configured identity provider via the backend's production `JWTValidationService`.
+
+### Multi-Provider Scopes
+
+All providers declared in the `providers` dict have their scopes forwarded to the Connect session -- non-primary providers are never silently dropped:
+
+```python
+# Both google AND github scopes are enforced
+auth = AlterAuthProvider(
+    vault,
+    providers={
+        "google": ["gmail.readonly"],
+        "github": ["repo", "read:org"],
+    },
+)
+```
+
+## Nested Tools
+
+When one `@alter.tool()` function calls another, the audit context preserves the call chain:
+
+```python
+@alter.tool(provider="google")
+async def summarize_inbox(ctx: AlterContext) -> str:
+    emails = await list_emails(ctx=ctx, query="is:unread")  # inner tool
+    # Audit log: {"tool": "list_emails", "parent_tool": "summarize_inbox"}
+    return f"Found {len(emails)} unread emails"
+```
+
+The inner tool's audit context includes a `parent_tool` key so the full call chain is recoverable from audit logs.
+
+## Registering with FastMCP
+
+The `@alter.tool()` decorator produces a standard async function that FastMCP's `@mcp.tool()` decorator can wrap. Stack the decorators with `@mcp.tool()` on the outside:
+
+```python
+@mcp.tool()              # outer: registers with FastMCP
+@alter.tool(provider="slack")  # inner: injects AlterContext + credentials
+async def send_message(ctx: AlterContext, channel: str, text: str) -> str:
+    """Send a Slack message."""
+    response = await ctx.request(
+        "POST",
+        "https://slack.com/api/chat.postMessage",
+        json={"channel": channel, "text": text},
+    )
+    return response.json()
+```
+
+## Complete Example
+
+```python
+import asyncio
+from fastmcp import FastMCP
+from alter_sdk import AlterVault
+from alter_sdk.mcp import AlterMCP, AlterContext
+from alter_sdk.mcp.auth import AlterAuthProvider
+
+vault = AlterVault(api_key="alter_key_...", caller="calendar-mcp")
+alter = AlterMCP(vault)
+
+auth = AlterAuthProvider(vault, providers={"google": ["calendar.events"]})
+mcp = FastMCP("calendar-server", auth=auth)
+
+
+@mcp.tool()
+@alter.tool(provider="google")
+async def list_events(ctx: AlterContext, max_results: int = 10) -> list[dict]:
+    """List upcoming calendar events."""
+    response = await ctx.request(
+        "GET",
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        query_params={"maxResults": str(max_results), "orderBy": "startTime", "singleEvents": "true"},
+    )
+    return response.json().get("items", [])
+
+
+@mcp.tool()
+@alter.tool(provider="google")
+async def create_event(ctx: AlterContext, summary: str, start: str, end: str) -> dict:
+    """Create a calendar event. Start and end are ISO 8601 datetime strings."""
+    response = await ctx.request(
+        "POST",
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        json={
+            "summary": summary,
+            "start": {"dateTime": start},
+            "end": {"dateTime": end},
+        },
+    )
+    return response.json()
+```
+
+## Requirements
+
+- Python 3.11+
+- `alter-sdk[mcp]` (installs `fastmcp >= 3.0.0`)
+- An Alter Vault API key with a configured OAuth provider in the Developer Portal

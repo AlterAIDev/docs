@@ -12,14 +12,15 @@ icon: 'book'
 
 ```python
 response = await vault.request(
-    grant_id,         # Grant ID (UUID string) from Alter Connect
     method,           # HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
     url,              # Full URL of the provider API endpoint
+    grant_id="...",   # Grant ID (UUID string) from Alter Connect
     json={...},       # Optional: JSON request body
     query_params={},  # Optional: URL query parameters
     path_params={},   # Optional: URL path template substitutions
     extra_headers={}, # Optional: Additional headers (Authorization is auto-injected)
     reason="...",     # Optional: Reason for audit trail
+    context={},       # Optional: Per-request identity context for audit
 )
 ```
 
@@ -28,7 +29,7 @@ response = await vault.request(
 Use enums for autocomplete and type safety:
 
 ```python
-from alter_sdk import ActorType, HttpMethod
+from alter_sdk import HttpMethod
 
 # HTTP method enums
 HttpMethod.GET        # "GET"
@@ -44,8 +45,8 @@ Strings also work for forward compatibility:
 
 ```python
 # These are equivalent
-await vault.request(grant_id, HttpMethod.GET, url)
-await vault.request(grant_id, "GET", url)
+await vault.request(HttpMethod.GET, url, grant_id=grant_id)
+await vault.request("GET", url, grant_id=grant_id)
 ```
 
 ### URL Path Templating
@@ -54,9 +55,9 @@ Use `{placeholder}` syntax for dynamic URL segments (values are automatically UR
 
 ```python
 response = await vault.request(
-    grant_id,
     HttpMethod.GET,
     "https://api.example.com/v1/accounts/{account_id}/contacts/{contact_id}",
+    grant_id=grant_id,
     path_params={"account_id": "acc-123", "contact_id": "ct-456"},
 )
 # → GET https://api.example.com/v1/accounts/acc-123/contacts/ct-456
@@ -68,13 +69,12 @@ response = await vault.request(
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def main():
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         # Connect provider account (opens browser)
         results = await vault.connect(
@@ -83,9 +83,9 @@ async def main():
 
         # Fetch tasks
         response = await vault.request(
-            results[0].grant_id,
             HttpMethod.GET,
             "https://api.example.com/v1/tasks",
+            grant_id=results[0].grant_id,
             query_params={
                 "limit": "10",
                 "status": "active",
@@ -106,17 +106,16 @@ asyncio.run(main())
 async def main():
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         results = await vault.connect(
             providers=["example-provider"],
         )
 
         response = await vault.request(
-            results[0].grant_id,
             HttpMethod.GET,
             "https://api.example.com/v1/users",
+            grant_id=results[0].grant_id,
             query_params={"limit": "10", "sort": "name"},
         )
         users = response.json()
@@ -132,13 +131,12 @@ async def create_resource(grant_id: str, name: str, description: str):
     """Use an existing grant_id (e.g., from a database) to create a resource."""
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         response = await vault.request(
-            grant_id,
             HttpMethod.POST,
             "https://api.example.com/v1/resources",
+            grant_id=grant_id,
             json={"name": name, "description": description},
             reason="Creating a new resource",
         )
@@ -156,13 +154,12 @@ async def create_resource(grant_id: str, name: str, description: str):
 async def create_item(grant_id: str):
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         response = await vault.request(
-            grant_id,
             HttpMethod.POST,
             "https://api.example.com/v1/items",
+            grant_id=grant_id,
             json={"name": "New Item", "price": 99.99},
             reason="Creating new inventory item",
         )
@@ -177,13 +174,12 @@ Some APIs require version headers or custom metadata:
 async def query_notion(grant_id: str):
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         response = await vault.request(
-            grant_id,
             HttpMethod.POST,
             "https://api.notion.com/v1/databases/{db_id}/query",
+            grant_id=grant_id,
             path_params={"db_id": "abc123"},
             extra_headers={"Notion-Version": "2022-06-28"},
             json={"page_size": 10},
@@ -198,14 +194,13 @@ For APIs where the credentials are already available (API keys, service tokens),
 ```python
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     # Call your internal API — secret injected automatically
     response = await vault.request(
-        "MANAGED_SECRET_GRANT_ID",  # from Developer Portal (not from a user)
         HttpMethod.GET,
         "https://api.internal.com/v1/loyalty/points",
+        grant_id="MANAGED_SECRET_GRANT_ID",  # from Developer Portal (not from a user)
         query_params={"user_id": "alice"},
         reason="Checking loyalty points for rewards calculation",
     )
@@ -218,97 +213,75 @@ async with AlterVault(
 
 Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
 
-## Actor Tracking (AI Agents)
+## Caller Tracking (AI Agents)
 
-Every SDK instance requires actor identity — `actor_type` and `actor_identifier` are mandatory. This gives you full observability into **which agent** is making API calls and **why**.
+The `caller` parameter identifies this SDK instance in audit logs. This gives full observability into **which agent** is making API calls and **why**.
 
-### Why Actor Tracking?
+### Why Caller Tracking?
 
 When AI agents make OAuth-authenticated API calls on behalf of users, you need to know:
 - **Which agent** accessed a user's data?
-- **What was the context** (conversation thread, tool invocation)?
+- **What was the context** (tool invocation, upstream agent)?
 - **When and how often** did each agent make requests?
 
-Actor tracking answers these questions automatically.
+Caller tracking answers these questions automatically.
 
-### Registering an Actor
+### Registering a Caller
 
-Pass actor identity at SDK initialization (required):
+Pass `caller` at SDK initialization:
 
 ```python
-from alter_sdk import AlterVault, ActorType
+from alter_sdk import AlterVault
 
 vault = AlterVault(
     api_key="alter_key_...",
-    # Actor identity (required)
-    actor_type=ActorType.AI_AGENT,         # ActorType enum
-    actor_identifier="email-assistant-v2", # Unique ID for this agent
-    # Actor metadata (optional — stored on the actor record)
-    actor_name="Email Assistant",          # Human-readable name
-    actor_version="2.1.0",                # Version string
-    framework="langgraph",                # AI framework being used
-    client_type="cursor",                 # Transport client
-    tool_bundle_id="google-calendar-mcp", # Tool collection identifier
+    caller="email-assistant-v2",  # Optional: Unique identifier for this SDK instance
 )
 ```
 
 ### How Registration Works
 
-1. **First request**: SDK sends `actor_type` + `actor_identifier` as HTTP headers
-2. **Backend registers**: Actor is upserted in the database and assigned a UUID
+1. **First request**: SDK sends the `caller` string as an HTTP header
+2. **Backend registers**: Caller is upserted in the caller registry and assigned a UUID
 3. **Backend responds**: UUID returned and cached automatically
 4. **Subsequent requests**: Cached identifier is sent (skips database lookup)
 
-This is fully automatic - you just configure the actor at initialization and the SDK handles the rest.
+This is fully automatic -- just set `caller` at initialization and the SDK handles the rest.
 
-### Per-Request Tracking
+### Per-Request Context
 
-Add execution-level context on each request:
+Add execution-level context on each request using the `context` parameter (a freeform dict stored as JSONB in audit logs):
 
 ```python
 response = await vault.request(
-    "GRANT_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    # Per-request tracking (all optional)
-    run_id="550e8400-e29b-41d4-a716-446655440000",  # Execution run ID (auto-generated UUID if omitted)
-    thread_id="thread-abc-123",                       # Conversation thread
-    tool_id="read_calendar",                           # Tool name — which tool is being invoked
-    tool_call_id="call_xyz_789",                       # Framework invocation correlation ID
+    grant_id="GRANT_ID",  # from Alter Connect
+    context={"tool": "read_calendar", "agent": "cursor"},
 )
 ```
 
-These fields are sent as headers to the backend and included in audit logs, giving you a complete trace from conversation → tool call → API request.
-
-<Note>
-`run_id` is auto-generated as a UUID v4 if not provided. All sub-actions within a single `request()` call share the same `run_id` for audit log grouping.
-</Note>
+Integration packages populate `context` automatically with framework-specific fields like `run_id`, `thread_id`, and `tool_call_id`. See the [FastMCP integration](/sdks/python/mcp) and [LangChain integration](/sdks/python/langchain) guides.
 
 ### Complete Agent Example
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def run_email_agent(grant_id: str):
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="email-assistant-v2",
-        actor_name="Email Assistant",
-        actor_version="2.0.0",
-        framework="langgraph",
+        caller="email-assistant-v2",
     )
 
-    # Each tool call in the agent can be tracked
+    # Each tool call in the agent can be tracked via context
     response = await vault.request(
-        grant_id,
         HttpMethod.GET,
         "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        grant_id=grant_id,
         query_params={"maxResults": "5"},
-        run_id="run-001",
-        thread_id="thread-daily-digest",
-        tool_call_id="call_read_emails",
+        context={"tool": "read_emails", "agent": "email-assistant-v2"},
         reason="Reading emails for daily digest",
     )
 
@@ -322,34 +295,30 @@ asyncio.run(run_email_agent("GRANT_ID"))  # from Alter Connect
 
 ### Multi-Agent Deployments
 
-Each agent must create its own `AlterVault` instance with a unique actor identity. Do not share a single instance across agents -- audit logs, policies, and actor registration are tied to each instance.
+Each agent must create its own `AlterVault` instance with a unique caller identity. Do not share a single instance across agents -- audit logs, policies, and caller registration are tied to each instance.
 
 ```python
 # Each agent gets its own vault instance
 email_agent = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="email-assistant-v2",
-    actor_name="Email Assistant",
+    caller="email-assistant-v2",
 )
 
 calendar_agent = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="calendar-agent-v1",
-    actor_name="Calendar Agent",
+    caller="calendar-agent-v1",
 )
 
-# Audit logs and policies are tracked per agent
+# Audit logs and policies are tracked per caller
 await email_agent.request(
-    gmail_grant_id,  # from Alter Connect
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+    grant_id=gmail_grant_id,  # from Alter Connect
 )
 await calendar_agent.request(
-    calendar_grant_id,  # from Alter Connect
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=calendar_grant_id,  # from Alter Connect
 )
 
 # Clean up each instance
@@ -358,32 +327,24 @@ await calendar_agent.close()
 ```
 
 <Note>
-  All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
+  All agents can use the **same API key** -- the caller identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
 </Note>
 
-### Actor Tracking Parameters Reference
+### Caller Tracking Parameters Reference
 
 **Initialization (set once per SDK instance):**
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `actor_type` | `ActorType` | `ActorType.AI_AGENT` or `.BACKEND_SERVICE` (required) | `ActorType.AI_AGENT` |
-| `actor_identifier` | `str` | Unique identifier for the actor (required) | `"email-assistant-v2"` |
-| `actor_name` | `str` | Human-readable display name | `"Email Assistant"` |
-| `actor_version` | `str` | Version of the actor; updating triggers metadata refresh | `"2.1.0"` |
-| `framework` | `str` | AI framework name | `"langgraph"`, `"crewai"` |
-| `client_type` | `str` | Client type (e.g., MCP client identifier) | `"cursor"`, `"claude-desktop"` |
-| `tool_bundle_id` | `str` | Tool collection identifier (also overridable per-request) | `"google-calendar-mcp"` |
+| `caller` | `str` | Unique identifier for this SDK instance (optional) | `"email-assistant-v2"` |
 
 **Per-request (set on each `vault.request()` call):**
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `run_id` | `str` | Execution run ID (UUID, auto-generated if omitted) | `"550e8400-..."` |
-| `thread_id` | `str` | Conversation thread ID | `"thread-abc-123"` |
-| `tool_id` | `str` | Tool name — which tool is being invoked | `"read_calendar"` |
-| `tool_call_id` | `str` | Framework invocation correlation ID (e.g., LangGraph call ID) | `"call_xyz_789"` |
-| `tool_bundle_id` | `str` | Per-request override of the default tool bundle | `"slack-mcp"` |
+| `context` | `dict[str, str]` | Per-request identity and execution context (audit log JSONB) | `{"tool": "read_calendar", "agent": "cursor"}` |
+
+The `context` dict is validated by the SDK before being sent: keys and values must be strings, the dict must have at most 20 keys, no key longer than 64 chars, no value longer than 512 chars, and the JSON-encoded payload must fit in 4 KB. Violations raise `AlterValueError` so a malformed context never silently disappears from the audit trail.
 
 ## Grant Management
 
@@ -446,9 +407,9 @@ for result in results:
 
 # Now use the grant_id with vault.request()
 response = await vault.request(
-    results[0].grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=results[0].grant_id,
 )
 ```
 
@@ -505,7 +466,8 @@ session = await vault.create_connect_session(
 All internal invariants raise typed exceptions (never bare `AssertionError`), so errors are always catchable with the hierarchy below.
 
 ```
-AlterSDKError (base — also raised for input validation: invalid api_key, actor_type, URL validation, missing path_params)
+AlterSDKError (base — also raised for input validation: invalid api_key, URL validation, missing path_params)
+├── AlterValueError (SDK rejected input — fix application code, e.g. malformed `context` dict)
 ├── BackendError (backend errors)
 │   ├── ReAuthRequiredError (user must re-authorize via Alter Connect)
 │   │   ├── GrantExpiredError (403 — TTL elapsed)
@@ -527,7 +489,7 @@ AlterSDKError (base — also raised for input validation: invalid api_key, actor
 ### Complete Error Handling Example
 
 ```python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 from alter_sdk.exceptions import (
     ReAuthRequiredError,
     PolicyViolationError,
@@ -541,14 +503,13 @@ from alter_sdk.exceptions import (
 async def safe_api_call(grant_id: str):
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         try:
             response = await vault.request(
-                grant_id,
                 HttpMethod.GET,
                 "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                grant_id=grant_id,
             )
             return response.json()
 
@@ -611,8 +572,7 @@ async def safe_api_call(grant_id: str):
     # GOOD - Automatic cleanup
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         response = await vault.request(...)
     # Clients automatically closed
@@ -620,8 +580,7 @@ async def safe_api_call(grant_id: str):
     # BAD - Manual cleanup required
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     )
     response = await vault.request(...)
     # Forgot to call vault.close()!
@@ -655,7 +614,7 @@ async def safe_api_call(grant_id: str):
     ```python
     # The app stores grant_id when the user completes Alter Connect
     grant_id = db.get_grant(user_id=user_id, provider="google")
-    await vault.request(grant_id, HttpMethod.GET, url)
+    await vault.request(HttpMethod.GET, url, grant_id=grant_id)
 
     result = await vault.list_grants(provider_id="google")
     for grant in result.grants:
@@ -668,10 +627,10 @@ async def safe_api_call(grant_id: str):
     from alter_sdk import HttpMethod
 
     # GOOD - Type-safe with autocomplete
-    await vault.request(grant_id, HttpMethod.GET, url)
+    await vault.request(HttpMethod.GET, url, grant_id=grant_id)
 
     # Also works - string methods
-    await vault.request(grant_id, "GET", url)
+    await vault.request("GET", url, grant_id=grant_id)
     ```
   </Accordion>
 
@@ -679,7 +638,7 @@ async def safe_api_call(grant_id: str):
     ```python
     # GOOD - Reason shows up in audit logs
     response = await vault.request(
-        grant_id, HttpMethod.GET, url,
+        HttpMethod.GET, url, grant_id=grant_id,
         reason="Fetching calendar events for weekly digest",
     )
     ```

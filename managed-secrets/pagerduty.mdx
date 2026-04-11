@@ -58,8 +58,8 @@ Use PagerDuty credentials to make authenticated API calls through Alter Vault wi
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://api.pagerduty.com/incidents",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

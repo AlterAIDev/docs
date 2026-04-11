@@ -33,18 +33,18 @@ When a user successfully connects, `onSuccess` receives an array of `Connection`
 ```
 
 <Note>
-  **Important**: Store each `grant_id` in your database, mapped to your user. This is how you'll make API calls later via `vault.request(grant_id, ...)`. The `grant_id` is generated when your **end user** completes the OAuth flow — it's not something you create yourself.
+  **Important**: Store each `grant_id` in the application database, mapped to the user. This is how API calls are made later via `vault.request(method, url, { grantId })`. The `grant_id` is generated when the **end user** completes the OAuth flow — it is not something the developer creates.
 </Note>
 
 <Tip>
-  **Store `account_identifier` too** (e.g., `"alice@gmail.com"`). When a user connects multiple accounts to the same provider (personal + work Gmail), the `account_identifier` lets your app show a picker or set a default account per feature.
+  **Store `account_identifier` too** (e.g., `"alice@gmail.com"`). When a user connects multiple accounts to the same provider (personal + work Gmail), the `account_identifier` lets the application show a picker or set a default account per feature.
 </Tip>
 
 ## Provider Filtering
 
 ### Automatic Provider Display (Recommended)
 
-**Omit `allowed_providers`** to automatically show ALL providers configured in your Developer Portal:
+**Omit `allowed_providers`** to automatically show ALL providers configured in the Developer Portal:
 
 <CodeGroup>
 
@@ -71,7 +71,7 @@ async def create_alter_session(current_user = Depends(get_current_user)):
 </CodeGroup>
 
 <Tip>
-**Best Practice**: Configure providers in the Developer Portal, then omit `allowed_providers` in your code. This keeps provider management centralized and avoids hardcoding provider lists.
+**Best Practice**: Configure providers in the Developer Portal, then omit `allowed_providers` in application code. This keeps provider management centralized and avoids hardcoding provider lists.
 </Tip>
 
 ### Restrict by User Tier or Feature
@@ -124,7 +124,7 @@ const session = await vault.createConnectSession({
 </CodeGroup>
 
 <Warning>
-**Security**: Alter automatically filters requested providers to only those configured in your Developer Portal. Users cannot access unconfigured providers even if listed in `allowed_providers`.
+**Security**: Alter automatically filters requested providers to only those configured in the Developer Portal. Users cannot access unconfigured providers even if listed in `allowed_providers`.
 </Warning>
 
 ## Smart UX Features
@@ -249,7 +249,7 @@ await alterConnect.open({
     }
     ```
 
-    **Fix**: Verify your backend is creating tokens correctly
+    **Fix**: Verify the backend is creating tokens correctly
   </Accordion>
 </AccordionGroup>
 

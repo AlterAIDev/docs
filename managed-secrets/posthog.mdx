@@ -61,8 +61,8 @@ Use PostHog credentials to make authenticated API calls through Alter Vault with
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
-    "https://us.i.posthog.com/api/projects/YOUR_PROJECT_ID/events",  # Use eu.i.posthog.com for EU cloud or your own host for self-hosted
+    "https://us.i.posthog.com/api/projects/YOUR_PROJECT_ID/events",
+    grant_id="YOUR_GRANT_ID",  # Use eu.i.posthog.com for EU cloud or your own host for self-hosted
 )
 ```

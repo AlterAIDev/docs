@@ -61,8 +61,8 @@ Use Coda credentials to make authenticated API calls through Alter Vault without
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://coda.io/apis/v1/docs",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

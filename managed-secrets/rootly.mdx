@@ -58,8 +58,8 @@ Use Rootly credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://api.rootly.com/v1/incidents",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

@@ -78,17 +78,16 @@ Connect your users to GitHub for repository management, issue tracking, pull req
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     response = await vault.request(
-        grant_id,
         HttpMethod.GET,
         "https://api.github.com/user/repos",
+        grant_id=grant_id,
         query_params={"sort": "updated", "per_page": "5"},
     )
     repos = response.json()

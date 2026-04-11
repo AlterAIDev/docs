@@ -35,7 +35,7 @@ Get started with the Alter Connect frontend SDK to add OAuth popup flows to a si
 </Tabs>
 
 <Note>
-**This frontend SDK is optional.** The Alter Connect UI is a hosted page. The backend can create a session and redirect users to the `connect_url` directly without any frontend SDK. This SDK is for SPAs (React, Vue, etc.) that want a popup overlay with real-time `onSuccess`/`onError` callbacks. See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for all three ways to trigger the OAuth flow.
+**This frontend SDK is optional.** The Alter Connect UI is a hosted page. The backend can create a session and redirect users to the `connect_url` directly without any frontend SDK. This SDK is for SPAs (React, Vue, etc.) that want a popup overlay with real-time `onSuccess`/`onError` callbacks. See the [Quickstart](/quickstart#choosing-an-oauth-trigger-method) for all three ways to trigger the OAuth flow.
 </Note>
 
 <Note>
@@ -75,12 +75,11 @@ Create a backend endpoint to generate session tokens:
 <CodeGroup>
 
 ```javascript Node.js/Express (TypeScript SDK)
-const { AlterVault, ActorType } = require('@alter-ai/alter-sdk');
+const { AlterVault } = require('@alter-ai/alter-sdk');
 
 const vault = new AlterVault({
   apiKey: process.env.ALTER_API_KEY,  // Never expose this!
-  actorType: ActorType.BACKEND_SERVICE,
-  actorIdentifier: 'my-express-app',
+  caller: 'my-express-app',
 });
 
 app.post('/api/alter/session', async (req, res) => {
@@ -96,12 +95,11 @@ app.post('/api/alter/session', async (req, res) => {
 import os
 
 from fastapi import Depends
-from alter_sdk import AlterVault, ActorType
+from alter_sdk import AlterVault
 
 vault = AlterVault(
     api_key=os.environ["ALTER_API_KEY"],  # Never expose this!
-    actor_type=ActorType.BACKEND_SERVICE,
-    actor_identifier="my-fastapi-app",
+    caller="my-fastapi-app",
 )
 
 @app.post("/api/alter/session")

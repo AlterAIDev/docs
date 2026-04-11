@@ -58,8 +58,8 @@ Use Klaviyo credentials to make authenticated API calls through Alter Vault with
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://a.klaviyo.com/api/lists",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

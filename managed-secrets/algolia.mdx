@@ -58,8 +58,8 @@ Use Algolia credentials to make authenticated API calls through Alter Vault with
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://YOUR_APP_ID-dsn.algolia.net/1/indexes/YOUR_INDEX/query",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

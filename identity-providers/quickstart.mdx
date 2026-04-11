@@ -21,13 +21,17 @@ In the **Developer Portal**, navigate to your application's **Identity** page.
 
 1. Click **Add Identity Provider**
 2. Enter your OIDC issuer URL (e.g., `https://your-org.okta.com`)
-3. Alter Vault auto-detects the IDP type, user ID claim, and group claim
-4. Optionally override the audience or claim mappings
-5. Click **Save**
+3. Click **Discover** to auto-detect the IDP type, user ID claim, and group claim
+4. Review the suggested claim mappings and override if needed
+5. Click **Add Provider**
 
 <Info>
-**Auto-detection**: Alter Vault recognizes Okta, Azure AD, Auth0, Clerk, Keycloak, Cognito, Firebase, and Supabase from the issuer URL and automatically configures the correct claim mappings.
+**Auto-detection**: Alter Vault recognizes Okta, Azure AD, Auth0, Clerk, Google, Keycloak, Cognito, Firebase, and Supabase from the issuer URL and automatically configures the correct claim mappings.
 </Info>
+
+<Warning>
+**Claim mappings lock after first user sign-in.** The user ID claim, group claim, and role claim cannot be changed once the first user authenticates through the identity provider. If the IDP does not include group or role claims by default (e.g., Auth0 requires a custom Action), leave these fields empty and set them before any user signs in.
+</Warning>
 
 ### Pass JWT When Retrieving Tokens
 
@@ -36,18 +40,16 @@ When your application makes API calls through Alter Vault, include the user's JW
 <CodeGroup>
 
 ```python Python SDK
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
     user_token_getter=lambda: get_user_jwt(),  # Returns JWT from your IDP
 )
 
 # JWT is automatically included by the SDK via user_token_getter
 response = await vault.request(
-    None,  # grantId not needed with identity resolution
     HttpMethod.GET,
     "https://api.example.com/data",
     provider="google",
@@ -55,18 +57,16 @@ response = await vault.request(
 ```
 
 ```typescript TypeScript SDK
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
   userTokenGetter: () => getUserJwt(), // Returns JWT from your IDP
 });
 
 // JWT is automatically included by the SDK via userTokenGetter
 const response = await vault.request(
-  null, // grantId not needed with identity resolution
   HttpMethod.GET,
   "https://api.example.com/data",
   { provider: "google" },
@@ -91,15 +91,69 @@ To let end users sign in through the IDP --- for `vault.authenticate()` in the S
 **What this enables**: Once configured, the SDK's `vault.authenticate()` method opens a browser-based login flow through the IDP, and the Wallet dashboard gains a sign-in page for end users. User accounts are created automatically on first authentication.
 </Info>
 
+#### Per-Provider Setup
+
+<Tabs>
+<Tab title="Auth0">
+1. Go to **Auth0 Dashboard → Applications → Applications** and click **Create Application**
+2. Choose **Regular Web Application** (not SPA --- the callback goes to the Alter Vault backend)
+3. In the app's **Settings** tab, paste both redirect URIs into **Allowed Callback URLs** (comma-separated)
+4. Copy the **Client ID** and **Client Secret** from the same Settings page into the Developer Portal
+
+<Warning>
+If using a custom Auth0 domain (e.g., `auth.yourcompany.com`), the issuer URL registered in Alter Vault must match the issuer in the JWTs Auth0 issues. Check **Auth0 Dashboard → Settings → Custom Domains**.
+</Warning>
+</Tab>
+
+<Tab title="Okta">
+1. Go to **Okta Admin → Applications → Applications** and click **Create App Integration**
+2. Choose **OIDC - OpenID Connect**, then **Web Application**
+3. Under **Sign-in redirect URIs**, add both redirect URIs from the Developer Portal
+4. Copy the **Client ID** and **Client Secret** from the app's **General** tab into the Developer Portal
+</Tab>
+
+<Tab title="Entra ID">
+1. Go to **Azure Portal → App registrations** and select the application (or create a new one)
+2. Go to **Authentication → Add a platform → Web**
+3. Add both redirect URIs from the Developer Portal
+4. Go to **Certificates & secrets → New client secret** and create a secret
+5. Copy the **Application (client) ID** from the Overview page and the **client secret value** into the Developer Portal
+
+<Warning>
+When SCIM provisioning is enabled for Entra ID, the user ID claim must be set to `oid` (not `sub`). Entra ID SCIM sends the `objectId` as the user identifier, and a mismatch creates duplicate user records.
+</Warning>
+</Tab>
+
+<Tab title="Google">
+1. Go to **Google Cloud Console → APIs & Services → Credentials**
+2. Click **Create Credentials → OAuth client ID**, select **Web application**
+3. Under **Authorized redirect URIs**, add both redirect URIs from the Developer Portal
+4. Copy the **Client ID** and **Client secret** into the Developer Portal
+</Tab>
+
+<Tab title="Keycloak">
+1. Go to **Keycloak Admin → Clients** and click **Create client**
+2. Set **Client type** to **OpenID Connect** and **Client authentication** to **On**
+3. Under **Valid redirect URIs**, add both redirect URIs from the Developer Portal
+4. Go to the **Credentials** tab and copy the **Client ID** and **Client secret** into the Developer Portal
+</Tab>
+
+<Tab title="Other OIDC">
+1. Create an OAuth/OIDC application in the identity provider
+2. Set the application type to **Web** or **Confidential** (not SPA/public)
+3. Add both redirect URIs from the Developer Portal as allowed callback URLs
+4. Copy the **Client ID** and **Client Secret** into the Developer Portal
+</Tab>
+</Tabs>
+
 <CodeGroup>
 
 ```python Python SDK
-from alter_sdk import AlterVault, ActorType
+from alter_sdk import AlterVault
 
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 )
 
 # Opens a browser window for the user to sign in via the IDP
@@ -108,12 +162,11 @@ print(auth_result.user_info)  # User profile from the IDP
 ```
 
 ```typescript TypeScript SDK
-import { AlterVault, ActorType } from "@alter-ai/alter-sdk";
+import { AlterVault } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
 });
 
 // Opens a browser window for the user to sign in via the IDP

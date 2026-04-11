@@ -80,17 +80,17 @@ Every credential in Alter Vault has a unique `grant_id` (UUID). Usage is identic
 # (stored in your DB, mapped to your user)
 oauth_grant_id = db.get_grant(user_id="alice", provider="google")
 response = await vault.request(
-    oauth_grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=oauth_grant_id,
 )
 
 # Managed secret — grant_id from Developer Portal
 # (stored in your config/env vars, same for all users)
 response = await vault.request(
-    os.environ["LOYALTY_API_GRANT_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
+    grant_id=os.environ["LOYALTY_API_GRANT_ID"],
 )
 ```
 
@@ -231,28 +231,27 @@ await alterConnect.open({
 ### 2. Backend: Use the Connection
 
 ```python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.BACKEND_SERVICE,
-    actor_identifier="my-service",
+    caller="my-service",
 )
 
 # OAuth: grant_id from your DB (stored when user completed Alter Connect)
 grant_id = db.get_grant(user_id="alice", provider="google")
 response = await vault.request(
-    grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=grant_id,
 )
 events = response.json()
 
 # Managed secret: grant_id from Developer Portal (stored in your config)
 response = await vault.request(
-    os.environ["LOYALTY_API_GRANT_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
+    grant_id=os.environ["LOYALTY_API_GRANT_ID"],
 )
 ```
 

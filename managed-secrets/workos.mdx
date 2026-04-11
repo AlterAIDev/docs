@@ -55,8 +55,8 @@ Use WorkOS credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://api.workos.com/sso/connections",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

@@ -97,13 +97,12 @@ Alter Vault manages two types of credentials -**OAuth grants** and **managed sec
 
 ```python Python (Headless)
 import asyncio
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def main():
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     )
 
     # Open browser → user authorizes → SDK returns connections
@@ -113,9 +112,9 @@ async def main():
 
     # Make API calls with the grant
     response = await vault.request(
-        results[0].grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=results[0].grant_id,
         query_params={"maxResults": "10"},
     )
     events = response.json()
@@ -151,12 +150,11 @@ async function connectProvider() {
 ```
 
 ```python Backend (Session Creation)
-from alter_sdk import AlterVault, ActorType
+from alter_sdk import AlterVault
 
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.BACKEND_SERVICE,
-    actor_identifier="my-app",
+    caller="my-app",
 )
 
 # Create session for frontend

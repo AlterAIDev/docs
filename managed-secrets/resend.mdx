@@ -58,8 +58,8 @@ Use Resend credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://api.resend.com/emails",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

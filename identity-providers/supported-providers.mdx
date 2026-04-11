@@ -9,12 +9,13 @@ Alter Vault automatically detects the following identity providers from the OIDC
 
 | Provider | User ID Claim | Group Claim | SCIM | Webhooks |
 |---|---|---|---|---|
-| **Okta** | `sub` | `groups` | Yes | Yes |
-| **Microsoft Entra ID** | `oid` | `groups` | Yes | Coming soon |
+| **Okta** | `sub` | `groups` | Supported | Yes |
+| **Microsoft Entra ID** | `oid` | `groups` | Beta | Coming soon |
 | **Auth0** | `sub` | Custom action | No | Yes |
 | **Clerk** | `sub` | `org_role` | No | Yes |
-| **Keycloak** | `sub` | `groups` | Via plugin | Coming soon |
+| **Keycloak** | `sub` | `groups` | No | Coming soon |
 | **Amazon Cognito** | `sub` | `cognito:groups` | No | No |
+| **Google** | `sub` | — | No | No |
 | **Firebase Auth** | `sub` | — | No | No |
 | **Supabase Auth** | `sub` | — | No | Coming soon |
 
@@ -32,15 +33,30 @@ You can override the user ID claim, group claim, and role claim in the Developer
 **What gets auto-detected**: When you add an identity provider, Alter Vault performs OIDC discovery on your issuer URL and automatically detects the IDP type, recommended claims, and available sync capabilities. You can preview this with the **Discover** button before saving.
 </Info>
 
+<Warning>
+**Claim mappings lock after first user sign-in.** Once a user authenticates through the identity provider, the user ID claim, group claim, and role claim become immutable. If the IDP requires custom configuration to include group or role claims (e.g., Auth0 requires a custom Action, Cognito requires a Pre Token Generation Lambda), leave these fields empty during setup and configure them before the first user signs in.
+</Warning>
+
 ## Provider Capabilities
 
 ### SCIM 2.0 Support
 
-SCIM provisioning enables real-time user lifecycle management. Currently supported:
+SCIM provisioning enables real-time user lifecycle management, including initial bulk import of all existing users. Only **Okta** and **Microsoft Entra ID** have native SCIM support — other providers rely on JWT lazy sync for user creation.
 
-- **Okta** — Built-in SCIM provisioning with user and group sync
-- **Microsoft Entra ID** — Built-in enterprise application provisioning
-- **Keycloak** — Via the [keycloak-scim](https://github.com/Captain-P-Goldfish/scim-for-keycloak) community plugin
+- **Okta** — Built-in SCIM provisioning with user and group sync. Fully tested and production-ready.
+- **Microsoft Entra ID** — Built-in enterprise application provisioning. Beta: handles the Entra-specific `active` field format, but has not been validated with a live Entra provisioning cycle. Initial provisioning cycles may take up to 40 minutes.
+
+<Warning>
+**Entra ID: user ID claim must be `oid` when SCIM is enabled.** Entra ID SCIM provisioning sends the user's `objectId` as the SCIM `externalId`. Alter Vault stores this as the canonical user identifier. If the identity provider's user ID claim is set to `sub` instead of `oid`, JWT-based requests and SCIM provisioning will create separate user records for the same person — breaking deprovisioning and policy enforcement. Always set the user ID claim to `oid` for Entra ID before enabling SCIM.
+</Warning>
+
+<Info>
+**SCIM imports existing users.** When you enable SCIM, the identity provider runs an initial provisioning cycle that pushes all assigned users and groups to Alter Vault. After that, changes (new users, deprovisioning, group updates) are pushed in real time.
+</Info>
+
+<Warning>
+**Most providers do not support SCIM.** Auth0 (free/developer plans), Clerk, Google, Cognito, Firebase, and Supabase do not offer native SCIM provisioning. For these providers, users are created automatically via JWT lazy sync when they first interact with the system. If you need bulk user import and real-time deprovisioning, use Okta or Microsoft Entra ID.
+</Warning>
 
 [Set up SCIM provisioning →](/identity-providers/scim)
 

@@ -58,8 +58,8 @@ Use Incident.io credentials to make authenticated API calls through Alter Vault 
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://api.incident.io/v2/incidents",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

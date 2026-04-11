@@ -28,7 +28,7 @@ Use WhatsApp Business credentials to make authenticated API calls through Alter 
   <Step title="Generate an access token">
     Generate a temporary access token or create a system user token for production.
   </Step>
-  <Step title="Copy the access token">
+  <Step title="Copy your access token">
     Copy the access token.
   </Step>
 </Steps>
@@ -61,9 +61,9 @@ Use WhatsApp Business credentials to make authenticated API calls through Alter 
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://graph.facebook.com/YOUR_API_VERSION/YOUR_PHONE_NUMBER_ID/messages",
+    grant_id="YOUR_GRANT_ID",
 )
 ```
 

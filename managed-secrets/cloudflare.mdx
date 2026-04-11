@@ -61,8 +61,8 @@ Use Cloudflare credentials to make authenticated API calls through Alter Vault w
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://api.cloudflare.com/client/v4/zones",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

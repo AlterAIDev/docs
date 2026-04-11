@@ -1,11 +1,11 @@
 ---
 title: 'Developer Portal'
-description: 'Configure OAuth providers, managed secrets, and manage your Alter Vault application'
+description: 'Configure OAuth providers, managed secrets, and manage an Alter Vault application'
 ---
 
 ## Getting Started
 
-The Developer Portal ([portal.alterauth.com](https://portal.alterauth.com)) is where you configure OAuth providers, set security policies, and manage your application.
+The Developer Portal ([portal.alterauth.com](https://portal.alterauth.com)) is where OAuth providers are configured, security policies are set, and applications are managed.
 
 <Steps>
   <Step title="Create Account">
@@ -20,14 +20,14 @@ The Developer Portal ([portal.alterauth.com](https://portal.alterauth.com)) is w
     Configure Google, Slack, GitHub, etc.
   </Step>
 
-  <Step title="Copy Your API Key">
-    Get your API Key (`alter_key_...`) for the SDK
+  <Step title="Copy the API Key">
+    Get the API Key (`alter_key_...`) for the SDK
   </Step>
 </Steps>
 
 ## OAuth Provider Setup
 
-### Add Your OAuth Apps
+### Add OAuth Apps
 
 For each provider you want to support:
 
@@ -115,15 +115,15 @@ See each provider's documentation page in the **Providers** section of the sideb
 
 ## Managed Secrets
 
-Managed Secrets let you store API keys, service tokens, and other credentials for your own APIs — no OAuth flow or end-user action needed.
+Managed Secrets store API keys, service tokens, and other credentials for internal APIs — no OAuth flow or end-user action needed.
 
 <Info>
-**How is this different from OAuth?** With OAuth grants, the `grant_id` comes from your **end user** completing an OAuth flow via Alter Connect. With Managed Secrets, the `grant_id` comes from **this portal** when you store a credential. No end user is involved — you store the secret, get a `grant_id`, and use it in your code.
+**How is this different from OAuth?** With OAuth grants, the `grant_id` comes from the **end user** completing an OAuth flow via Alter Connect. With Managed Secrets, the `grant_id` comes from **this portal** when a credential is stored. No end user is involved — the developer stores the secret, gets a `grant_id`, and uses it in application code.
 </Info>
 
 ### When to Use Managed Secrets
 
-- Your own internal APIs that require an API key or service token
+- Internal APIs that require an API key or service token
 - Partner APIs that provide static credentials
 - SaaS platforms with API key authentication
 - Any service where you already have the credentials
@@ -132,7 +132,7 @@ Managed Secrets let you store API keys, service tokens, and other credentials fo
 
 <Steps>
   <Step title="Go to Managed Secrets">
-    Open your app and click **Managed Secrets** in the sidebar
+    Open the application and click **Managed Secrets** in the sidebar
   </Step>
 
   <Step title="Add a Provider">
@@ -148,7 +148,7 @@ Managed Secrets let you store API keys, service tokens, and other credentials fo
   </Step>
 
   <Step title="Store a Secret">
-    Click **Store Secret** on your provider, enter the credential value, and save. You'll receive a `grant_id` (UUID) to use with the SDK.
+    Click **Store Secret** on the provider, enter the credential value, and save. A `grant_id` (UUID) is returned for use with the SDK.
   </Step>
 </Steps>
 
@@ -163,9 +163,9 @@ Use the same `vault.request()` method as OAuth grants:
 ```python
 # Same method — just use the managed secret's grant_id
 response = await vault.request(
-    "MANAGED_SECRET_GRANT_ID",  # from Developer Portal
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
+    grant_id="MANAGED_SECRET_GRANT_ID",  # from Developer Portal
 )
 ```
 
@@ -177,7 +177,7 @@ response = await vault.request(
 
 ### Policies for Managed Secrets
 
-Managed secrets support the same policy rules as OAuth providers. Go to **Policies** to configure time-based access or IP allowlists for your managed secret providers.
+Managed secrets support the same policy rules as OAuth providers. Go to **Policies** to configure time-based access or IP allowlists for managed secret providers.
 
 ## Custom Schemas
 
@@ -187,7 +187,7 @@ Add structured data to any OAuth connection for enhanced functionality.
 - **Sync Settings**: Which data to sync, how often
 - **User Preferences**: Per-connection configuration
 - **Metadata**: Labels, tags, categories
-- **Internal Mapping**: Link to your database records
+- **Internal Mapping**: Link to application database records
 
 ### Creating a Schema
 
@@ -246,11 +246,11 @@ Control how and when OAuth tokens can be accessed. Policies are enforced in real
 
 <Steps>
   <Step title="Configure a Provider">
-    Open your app, then go to **OAuth Providers** in the sidebar and add at least one provider (e.g., Google)
+    Open the application, then go to **OAuth Providers** in the sidebar and add at least one provider (e.g., Google)
   </Step>
 
   <Step title="Open Policies">
-    Go to **Policies** in the app sidebar. Only your configured providers appear here.
+    Go to **Policies** in the app sidebar. Only configured providers appear here.
   </Step>
 
   <Step title="Add Policy">
@@ -303,14 +303,14 @@ If the policy service is unavailable, the system **denies all token access** rat
 
 1. Go to **Application** → **API Keys**
 2. Click **Create Key**, name it (e.g., "Production Backend"), and choose an expiration
-3. Copy and save your key: `alter_key_...` (shown only once)
+3. Copy and save the key: `alter_key_...` (shown only once)
 
 ### Security Best Practices
 
 - **Backend Only**: Never put API keys in frontend code
 - **Session Tokens**: Create temporary tokens for frontend
 - **Set Expiration**: Use 90-day or shorter expiration for production keys
-- **Name Your Keys**: Use descriptive names to track what each key is for
+- **Name Keys Descriptively**: Use descriptive names to track what each key is for
 - **Environment Variables**: Never commit keys to code
 
 ## Connection Management
@@ -394,27 +394,26 @@ Set up notifications for:
 
 ### Backend Code
 ```python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.BACKEND_SERVICE,
-    actor_identifier="my-service",
+    caller="my-service",
 )
 
 # OAuth: grant_id from your DB (stored when user completed Alter Connect)
 grant_id = db.get_grant(user_id="alice", provider="google")
 response = await vault.request(
-    grant_id,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=grant_id,
 )
 
 # Managed secret: grant_id from Developer Portal (stored in config/env)
 response = await vault.request(
-    os.environ["LOYALTY_API_GRANT_ID"],
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
+    grant_id=os.environ["LOYALTY_API_GRANT_ID"],
 )
 ```
 

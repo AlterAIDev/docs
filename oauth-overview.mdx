@@ -6,9 +6,9 @@ icon: 'link'
 
 ## What Are OAuth Connections?
 
-OAuth grants let your **end users** authorize access to their accounts on third-party services like Google, Slack, GitHub, and more. When a user completes the OAuth flow, Alter Vault stores their tokens securely and gives you a `grant_id` to make API calls on their behalf.
+OAuth grants let **end users** authorize access to their accounts on third-party services like Google, Slack, GitHub, and more. When a user completes the OAuth flow, Alter Vault stores their tokens securely and provides a `grant_id` to make API calls on their behalf.
 
-Your code never sees or handles OAuth tokens. You call `vault.request(grant_id, ...)` and the SDK injects the right credential automatically, refreshing expired tokens transparently.
+Application code never sees or handles OAuth tokens. A call to `vault.request(method, url, grant_id=grant_id)` is all that is needed and the SDK injects the right credential automatically, refreshing expired tokens transparently.
 
 ## When to Use OAuth
 
@@ -23,19 +23,19 @@ Use OAuth grants when:
 
 <Steps>
   <Step title="User Authorizes">
-    Your end user completes the OAuth flow via Alter Connect (popup, redirect, or headless). They log into their account and grant permissions.
+    The end user completes the OAuth flow via Alter Connect (popup, redirect, or headless). They log into their account and grant permissions.
   </Step>
 
   <Step title="You Get a grant_id">
-    The `onSuccess` callback (or `connect()` return value) gives you a `grant_id` (UUID) for the user's connected account. Store this in your database mapped to the user.
+    The `onSuccess` callback (or `connect()` return value) provides a `grant_id` (UUID) for the user's connected account. Store this in the application database mapped to the user.
   </Step>
 
   <Step title="Tokens Stored Securely">
-    Access tokens, refresh tokens, and expiry data are encrypted (AES-256-GCM) and stored in Alter Vault -- never in your database.
+    Access tokens, refresh tokens, and expiry data are encrypted (AES-256-GCM) and stored in Alter Vault -- never in the application database.
   </Step>
 
   <Step title="Make API Calls">
-    Call `vault.request(grant_id, method, url)` -- the SDK retrieves the token, refreshes it if needed, and injects it as the correct auth header.
+    Call `vault.request(method, url, grant_id=grant_id)` -- the SDK retrieves the token, refreshes it if needed, and injects it as the correct auth header.
   </Step>
 </Steps>
 
@@ -44,38 +44,35 @@ Use OAuth grants when:
 <CodeGroup>
 
 ```python Python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     # grant_id from Alter Connect (stored in your DB)
     response = await vault.request(
-        grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=grant_id,
         query_params={"maxResults": "10"},
     )
     events = response.json()
 ```
 
 ```typescript TypeScript
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
 });
 
 // grantId from Alter Connect (stored in your DB)
 const response = await vault.request(
-  grantId,
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-  { queryParams: { maxResults: "10" } },
+  { grantId, queryParams: { maxResults: "10" } },
 );
 const events = await response.json();
 await vault.close();
@@ -88,10 +85,10 @@ await vault.close();
 | Method | Best for | How it works |
 |--------|----------|--------------|
 | **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, AI agents | One SDK call does everything — creates a session, opens the browser, and polls until complete. No frontend needed. |
-| **Redirect** | Server-rendered apps, email links | Backend calls `create_connect_session()` and redirects the user to the returned `connect_url`. After OAuth, the user is sent back to your `return_url`. No JS SDK needed. |
+| **Redirect** | Server-rendered apps, email links | Backend calls `create_connect_session()` and redirects the user to the returned `connect_url`. After OAuth, the user is sent back to the `return_url`. No JS SDK needed. |
 | **Popup** (`@alter-ai/connect`) | SPAs (React, Vue, etc.) | Backend calls `create_connect_session()` and passes the `session_token` to the frontend SDK, which opens a popup with `onSuccess`/`onError` callbacks. |
 
-See the [Quickstart](/quickstart#choosing-your-oauth-trigger-method) for full examples of each method.
+See the [Quickstart](/quickstart#choosing-an-oauth-trigger-method) for full examples of each method.
 
 ## Key Features
 
@@ -120,6 +117,6 @@ Alter Vault supports 50+ OAuth providers across categories including productivit
     Frontend popup SDK
   </Card>
   <Card title="Managed Secrets" icon="key" href="/managed-secrets-overview">
-    For your own API keys and service tokens
+    For developer-owned API keys and service tokens
   </Card>
 </CardGroup>

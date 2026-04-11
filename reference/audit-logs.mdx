@@ -114,9 +114,9 @@ Add a `reason` parameter to API calls for richer audit context:
 
 ```python
 response = await vault.request(
-    "GRANT_ID",  # grant_id (UUID)
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id="GRANT_ID",  # grant_id (UUID)
     reason="Syncing calendar for weekly digest email",
 )
 ```
@@ -128,59 +128,43 @@ The reason appears in the audit log detail view, making it easy to understand wh
 When using AI agents, audit logs automatically capture actor context:
 
 ```python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 vault = AlterVault(
     api_key="alter_key_...",
-    # Required: Agent identity
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="email-assistant-v2",
-    # Optional: Agent metadata (stored on the actor record)
-    actor_name="Email Assistant",
-    actor_version="2.1.0",
-    framework="langgraph",
-    client_type="cursor",
-    tool_bundle_id="google-calendar-mcp",
+    caller="email-assistant-v2",
 )
 
 response = await vault.request(
-    "GRANT_ID",  # grant_id (UUID)
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-    run_id="run-001",
-    thread_id="thread-daily-digest",
-    tool_id="read_emails",
+    grant_id="GRANT_ID",  # grant_id (UUID)
+    context={"tool": "read_emails", "agent": "email-assistant-v2"},
     reason="Reading emails for daily digest",
 )
 ```
 
-In the Developer Portal, you can filter audit logs by actor to see exactly what each agent did and when. Registered agents also appear in the **Agents** tab. See the [Python SDK Overview](/sdks/python/overview#actor-tracking-ai-agents) for setup details.
+In the Developer Portal, you can filter audit logs by caller to see exactly what each agent did and when. Registered callers also appear in the **Agents** tab. See the [Python SDK Overview](/sdks/python/overview#caller-tracking-ai-agents) for setup details.
 
-### Actor Context Fields
+### Caller and Context Fields
 
-**Set once at SDK initialization (stored on the actor record):**
+**Set once at SDK initialization:**
 
 | Field | Required | Description | Example |
 |-------|----------|-------------|---------|
-| **Actor type** | Yes | `AI_AGENT` or `BACKEND_SERVICE` (set via `ActorType` enum) | `ActorType.AI_AGENT` |
-| **Actor identifier** | Yes | Unique name for this agent type (per app) | `"email-assistant-v2"` |
-| **Actor name** | No | Human-readable display name (defaults to identifier) | `"Email Assistant"` |
-| **Actor version** | No | Version string; updating triggers a metadata refresh | `"2.1.0"` |
-| **Framework** | No | AI framework being used | `"langgraph"`, `"crewai"` |
-| **Client type** | No | Transport client identifier | `"cursor"`, `"claude-desktop"` |
-| **Tool bundle ID** | No | Tool collection the agent uses (also overridable per-request) | `"google-calendar-mcp"` |
+| **Caller** | No | Unique identifier for this SDK instance (registered in the caller registry) | `"email-assistant-v2"` |
 
-**Set per request (written to each audit log row):**
+**Set per request (written to each audit log row as `context` JSONB):**
 
-| Field | Description | Example |
-|-------|-------------|---------|
-| **Run ID** | Execution run identifier (auto-generated UUID if omitted) | LangGraph run ID |
-| **Thread ID** | Conversation thread identifier | `"thread-alice-001"` |
-| **Tool name** | Which tool is being invoked | `"read_calendar"`, `"send_email"` |
-| **Tool call ID** | Framework invocation correlation ID | LangGraph call ID |
-| **Tool bundle ID** | Per-request override of the default tool bundle | `"slack-mcp"` |
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| **context** | `dict[str, str]` | Per-request identity and execution details | `{"tool": "read_calendar", "agent": "cursor"}` |
 
-These fields let you trace exactly which AI agent, in which run, made each credential access.
+The `context` dict must use string keys and string values. The SDK validates the shape before sending: at most 20 keys, no key longer than 64 characters, no value longer than 512 characters, and the total JSON-encoded payload must fit in 4 KB. Violations raise `AlterValueError`.
+
+Common context keys include `tool` (which tool is being invoked), `agent` (upstream AI agent), `run_id`, `thread_id`, `parent_tool`, and `tool_call_id`. The [FastMCP integration](/sdks/python/mcp) and [LangChain integration](/sdks/python/langchain) packages populate these automatically.
+
+These fields let you trace exactly which caller, in which execution context, made each credential access.
 
 ## Managed Secret Audit Logging
 

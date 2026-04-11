@@ -58,8 +58,8 @@ Use Vercel credentials to make authenticated API calls through Alter Vault witho
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://api.vercel.com/v9/projects",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

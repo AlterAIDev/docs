@@ -61,8 +61,8 @@ Use Discord credentials to make authenticated API calls through Alter Vault with
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://discord.com/api/v10/channels/YOUR_CHANNEL_ID/messages",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

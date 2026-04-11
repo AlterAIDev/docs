@@ -101,18 +101,17 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     # Use the grant_id returned by Alter Connect
     response = await vault.request(
-        grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=grant_id,
         query_params={"maxResults": "5"},
     )
     events = response.json()

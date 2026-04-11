@@ -172,9 +172,9 @@ from alter_sdk.exceptions import (
 
 try:
     response = await vault.request(
-        grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=grant_id,
     )
 except GrantExpiredError:
     # Grant TTL expired — prompt user to reconnect
@@ -197,9 +197,9 @@ import {
 
 try {
   const response = await vault.request(
-    grantId,
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    { grantId },
   );
 } catch (e) {
   if (e instanceof GrantExpiredError) {

@@ -55,8 +55,8 @@ Use Exa credentials to make authenticated API calls through Alter Vault without 
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://api.exa.ai/search",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

@@ -58,8 +58,8 @@ Use Brevo credentials to make authenticated API calls through Alter Vault withou
 
 ```python
 response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://api.brevo.com/v3/smtp/email",
+    grant_id="YOUR_GRANT_ID",
 )
 ```

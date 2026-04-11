@@ -12,15 +12,16 @@ icon: 'book'
 
 ```typescript
 const response = await vault.request(
-  grantId,           // Grant ID (UUID string) from Alter Connect
   method,           // HttpMethod enum or string (e.g., HttpMethod.GET, "GET")
   url,              // Full URL of the provider API endpoint
   {
+    grantId: "...",    // Grant ID (UUID string) from Alter Connect
     json: {...},       // Optional: JSON request body
     queryParams: {},   // Optional: URL query parameters
     pathParams: {},    // Optional: URL path template substitutions
     extraHeaders: {},  // Optional: Additional headers (Authorization is auto-injected)
     reason: "...",     // Optional: Reason for audit trail
+    context: {},       // Optional: Per-request identity context for audit
   }
 );
 ```
@@ -46,8 +47,8 @@ Strings also work for forward compatibility:
 
 ```typescript
 // These are equivalent
-await vault.request(grantId, HttpMethod.GET, url);
-await vault.request(grantId, "GET", url);
+await vault.request(HttpMethod.GET, url, { grantId });
+await vault.request("GET", url, { grantId });
 ```
 
 ## Complete Examples
@@ -55,21 +56,20 @@ await vault.request(grantId, "GET", url);
 ### List Tasks
 
 ```typescript
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 async function listTasks(grantId: string) {
   const vault = new AlterVault({
     apiKey: "alter_key_...",
-    actorType: ActorType.AI_AGENT,
-    actorIdentifier: "my-agent",
+    caller: "my-agent",
   });
 
   try {
     const response = await vault.request(
-      grantId,
       HttpMethod.GET,
       "https://api.example.com/v1/tasks",
       {
+        grantId,
         queryParams: {
           limit: "10",
           status: "active",
@@ -94,16 +94,15 @@ async function listTasks(grantId: string) {
 async function listUsers(grantId: string) {
   const vault = new AlterVault({
     apiKey: "alter_key_...",
-    actorType: ActorType.AI_AGENT,
-    actorIdentifier: "my-agent",
+    caller: "my-agent",
   });
 
   try {
     const response = await vault.request(
-      grantId,
       HttpMethod.GET,
       "https://api.example.com/v1/users",
       {
+        grantId,
         queryParams: { limit: "10", sort: "name" },
       }
     );
@@ -125,17 +124,16 @@ For APIs where the credentials are already available (API keys, service tokens),
 ```typescript
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
 });
 
 try {
   // Call your internal API — secret injected automatically
   const response = await vault.request(
-    "MANAGED_SECRET_GRANT_ID",  // from Developer Portal (not from a user)
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
     {
+      grantId: "MANAGED_SECRET_GRANT_ID",  // from Developer Portal (not from a user)
       queryParams: { user_id: "alice" },
       reason: "Checking loyalty points for rewards calculation",
     }
@@ -152,87 +150,69 @@ try {
 
 Policy enforcement, audit logging, and error handling all work identically for both OAuth and managed secrets. See the [Managed Secrets guide](/reference/managed-secrets) for setup details.
 
-## Actor Tracking (AI Agents)
+## Caller Tracking (AI Agents)
 
-### Registering an Actor
+### Registering a Caller
 
-Pass actor identity at SDK initialization using the `ActorType` enum:
+Pass a `caller` string at SDK initialization to identify this SDK instance in audit logs:
 
 ```typescript
-import { AlterVault, ActorType } from "@alter-ai/alter-sdk";
+import { AlterVault } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,         // Required: ActorType enum
-  actorIdentifier: "email-assistant-v2", // Required: Unique identifier
-  // Optional: Actor metadata (stored on the actor record)
-  actorName: "Email Assistant",          // Human-readable name
-  actorVersion: "2.1.0",                // Version string
-  framework: "langgraph",               // AI framework
-  clientType: "cursor",                 // Transport client
-  toolBundleId: "google-calendar-mcp",  // Tool collection identifier
+  caller: "email-assistant-v2",  // Optional: Unique identifier for this SDK instance
 });
 ```
 
-Available actor types:
+The backend auto-registers the caller in the audit attribution system on first request.
 
-```typescript
-ActorType.AI_AGENT          // "ai_agent"
-ActorType.BACKEND_SERVICE   // "backend_service"
-```
+### Per-Request Context
 
-### Per-Request Tracking
-
-Add execution-level context on each request:
+Add execution-level context on each request using the `context` parameter (a freeform object stored as JSONB in audit logs):
 
 ```typescript
 const response = await vault.request(
-  "GRANT_ID",  // from Alter Connect
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   {
-    runId: "550e8400-e29b-41d4-a716-446655440000",  // auto-generated UUID if omitted
-    threadId: "thread-abc-123",
-    toolId: "read_calendar",        // Tool name — which tool is being invoked
-    toolCallId: "call_xyz_789",     // Framework invocation correlation ID
+    grantId: "GRANT_ID",  // from Alter Connect
+    context: {
+      tool: "read_calendar",
+      agent: "cursor",
+    },
   }
 );
 ```
 
-<Note>
-`runId` is auto-generated as a UUID v4 if not provided. All sub-actions within a single `request()` call share the same `runId` for audit log grouping.
-</Note>
+The TypeScript SDK currently exposes the core credential-access surface only. Developer applications populate `context` manually for each request -- framework-specific integration packages (FastMCP, LangChain) are available in the Python SDK via `alter-sdk[mcp]` / `alter-sdk[langchain]` extras and are planned for the TypeScript SDK in a future release.
 
 ### Multi-Agent Deployments
 
-Each agent must create its own `AlterVault` instance with a unique actor identity. Do not share a single instance across agents -- audit logs, policies, and actor registration are tied to each instance.
+Each agent must create its own `AlterVault` instance with a unique caller identity. Do not share a single instance across agents -- audit logs, policies, and caller registration are tied to each instance.
 
 ```typescript
 // Each agent gets its own vault instance
 const emailAgent = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "email-assistant-v2",
-  actorName: "Email Assistant",
+  caller: "email-assistant-v2",
 });
 
 const calendarAgent = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "calendar-agent-v1",
-  actorName: "Calendar Agent",
+  caller: "calendar-agent-v1",
 });
 
-// Audit logs and policies are tracked per agent
+// Audit logs and policies are tracked per caller
 await emailAgent.request(
-  gmailGrantId,  // from Alter Connect
   HttpMethod.GET,
   "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+  { grantId: gmailGrantId },  // from Alter Connect
 );
 await calendarAgent.request(
-  calendarGrantId,  // from Alter Connect
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { grantId: calendarGrantId },  // from Alter Connect
 );
 
 // Clean up each instance
@@ -241,32 +221,24 @@ await calendarAgent.close();
 ```
 
 <Note>
-  All agents can use the **same API key** -- the actor identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
+  All agents can use the **same API key** -- the caller identity (set at initialization) is what differentiates them in audit logs and policy enforcement.
 </Note>
 
-### Actor Tracking Parameters Reference
+### Caller Tracking Parameters Reference
 
 **Initialization (set once per SDK instance):**
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `actorType` | `ActorType` | `ActorType.AI_AGENT` or `.BACKEND_SERVICE` (required) | `ActorType.AI_AGENT` |
-| `actorIdentifier` | `string` | Unique identifier for the actor (required) | `"email-assistant-v2"` |
-| `actorName` | `string` | Human-readable display name | `"Email Assistant"` |
-| `actorVersion` | `string` | Version of the actor; updating triggers metadata refresh | `"2.1.0"` |
-| `framework` | `string` | AI framework name | `"langgraph"`, `"crewai"` |
-| `clientType` | `string` | Client type (e.g., MCP client identifier) | `"cursor"`, `"claude-desktop"` |
-| `toolBundleId` | `string` | Tool collection identifier (also overridable per-request) | `"google-calendar-mcp"` |
+| `caller` | `string` | Unique identifier for this SDK instance (optional) | `"email-assistant-v2"` |
 
 **Per-request (set on each `vault.request()` call):**
 
 | Parameter | Type | Description | Example |
 |-----------|------|-------------|---------|
-| `runId` | `string` | Execution run ID (UUID, auto-generated if omitted) | `"550e8400-..."` |
-| `threadId` | `string` | Conversation thread ID | `"thread-abc-123"` |
-| `toolId` | `string` | Tool name — which tool is being invoked | `"read_calendar"` |
-| `toolCallId` | `string` | Framework invocation correlation ID (e.g., LangGraph call ID) | `"call_xyz_789"` |
-| `toolBundleId` | `string` | Per-request override of the default tool bundle | `"slack-mcp"` |
+| `context` | `Record<string, string>` | Per-request identity and execution context (audit log JSONB) | `{ tool: "read_calendar", agent: "cursor" }` |
+
+The `context` object is validated by the SDK before being sent: keys and values must be strings, the object must have at most 20 keys, no key longer than 64 chars, no value longer than 512 chars, and the JSON-encoded payload must fit in 4 KB. Violations throw `AlterValueError` so a malformed context never silently disappears from the audit trail.
 
 ## Grant Management
 
@@ -331,9 +303,9 @@ for (const result of results) {
 
 // Now use the grantId with vault.request()
 const response = await vault.request(
-  results[0].grantId,
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { grantId: results[0].grantId },
 );
 ```
 
@@ -387,7 +359,8 @@ const session = await vault.createConnectSession({
 ### Exception Hierarchy
 
 ```
-AlterSDKError (base — also thrown for input validation: invalid apiKey, actorType, URL validation, missing pathParams)
+AlterSDKError (base — also thrown for input validation: invalid apiKey, URL validation, missing pathParams)
+├── AlterValueError (SDK rejected input — fix application code, e.g. malformed `context` object)
 ├── BackendError (backend errors)
 │   ├── ReAuthRequiredError (user must re-authorize via Alter Connect)
 │   │   ├── GrantExpiredError (403 — TTL elapsed)
@@ -402,14 +375,14 @@ AlterSDKError (base — also thrown for input validation: invalid apiKey, actorT
 │   └── ConnectTimeoutError (user didn't complete OAuth in time)
 ├── ProviderAPIError (provider returned 4xx/5xx)
 │   └── ScopeReauthRequiredError (403 + scope mismatch — user must re-authorize)
-└── NetworkError (connection failures)
+└── NetworkError (connection/timeout failures)
     └── TimeoutError (request timed out)
 ```
 
 ### Complete Error Handling Example
 
 ```typescript
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 import {
   ReAuthRequiredError,
   PolicyViolationError,
@@ -422,15 +395,14 @@ import {
 async function safeApiCall(grantId: string) {
   const vault = new AlterVault({
     apiKey: "alter_key_...",
-    actorType: ActorType.AI_AGENT,
-    actorIdentifier: "my-agent",
+    caller: "my-agent",
   });
 
   try {
     const response = await vault.request(
-      grantId,
       HttpMethod.GET,
       "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      { grantId },
     );
     return await response.json();
 

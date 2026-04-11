@@ -1,12 +1,12 @@
 ---
 title: 'Quickstart'
-description: 'Complete guide to integrating Alter Vault into your application'
+description: 'Complete guide to integrating Alter Vault into an application'
 icon: 'lightbulb'
 ---
 
 ## Overview
 
-This guide will help you integrate Alter Vault into your application. By the end, you'll be able to:
+This guide covers integrating Alter Vault into an application. By the end, the setup will support:
 - Connect OAuth accounts and make authenticated API calls
 - Use the Python SDK with automatic token injection
 - Never handle OAuth tokens directly
@@ -17,14 +17,14 @@ Alter Vault manages two types of credentials. Both use the same `vault.request()
 
 | | OAuth Connections | Managed Secrets |
 |---|---|---|
-| **What** | Third-party services (Google, Slack, GitHub) | Your own APIs (internal services, partner APIs) |
+| **What** | Third-party services (Google, Slack, GitHub) | Internal APIs (internal services, partner APIs) |
 | **Who provides credentials** | **End user** authorizes via OAuth flow | **Developer** stores via Developer Portal |
 | **Where `grant_id` comes from** | Returned in `onSuccess` callback when user completes Alter Connect | Returned by Developer Portal when you store a secret |
 | **Setup** | Alter Connect UI (frontend) or `vault.connect()` (headless) | Developer Portal → Managed Secrets → Store Secret |
 | **Token refresh** | Automatic (OAuth refresh flow) | Manual (re-store when rotated) |
 
 <Info>
-**The key distinction**: For OAuth, your **end user** triggers the grant by logging into their account (Google, Slack, etc.), and the `grant_id` is returned to you. For Managed Secrets, **you** (the developer) store the credential in the portal and get the `grant_id` back. Once you have a `grant_id`, usage is identical: `vault.request(grant_id, ...)`.
+**The key distinction**: For OAuth, the **end user** triggers the grant by logging into their account (Google, Slack, etc.), and the `grant_id` is returned. For Managed Secrets, **you** (the developer) store the credential in the portal and get the `grant_id` back. Once you have a `grant_id`, usage is identical: `vault.request(method, url, grant_id=grant_id)`.
 </Info>
 
 ## Two Integration Paths
@@ -38,7 +38,7 @@ Alter Vault manages two types of credentials. Both use the same `vault.request()
 
 Before you begin, you'll need:
 - An Alter Vault account ([sign up free](https://portal.alterauth.com))
-- An OAuth app with your provider (Google, GitHub, etc.)
+- An OAuth app with the chosen provider (Google, GitHub, etc.)
 - Python 3.11+
 
 ## Quick Path: Connect from Python
@@ -47,13 +47,12 @@ The fastest way to get started. Everything happens in Python -- the SDK opens a 
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def main():
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     )
 
     # Open browser → user authorizes → SDK returns connections
@@ -64,9 +63,9 @@ async def main():
 
     # Make API calls with the grant
     response = await vault.request(
-        results[0].grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=results[0].grant_id,
         query_params={"maxResults": "10"},
     )
     events = response.json()
@@ -90,15 +89,15 @@ Skip to [Step 6](#step-6-use-the-python-sdk) for more usage examples, or continu
 
 ## Full Web App Integration
 
-For production web apps, use the session-based flow. Your backend creates a session and gets back a `connect_url` - a hosted page where the user completes OAuth.
+For production web apps, use the session-based flow. The backend creates a session and gets back a `connect_url` - a hosted page where the user completes OAuth.
 
-### Choosing Your OAuth Trigger Method
+### Choosing an OAuth Trigger Method
 
 | Method | When to use | How it works |
 |--------|------------|--------------|
 | **Headless** (`vault.connect()`) | CLI tools, scripts, Jupyter notebooks, backend agents. No frontend at all. | One SDK call does everything — creates a session, opens the user's default browser, and polls until OAuth completes. Everything happens in Python/TypeScript. |
-| **Redirect** | Server-rendered apps (Django, Rails, etc.), email links, or any app that can redirect a browser. No JavaScript SDK needed. | Your backend calls `create_connect_session()`, gets a `connect_url`, and redirects the user to it. After OAuth, the user is redirected back to your `return_url` with the results. |
-| **Popup** (`@alter-ai/connect` SDK) | Single-page apps (React, Vue, etc.) where you want a popup overlay with real-time `onSuccess`/`onError` callbacks without leaving the page. | Your backend calls `create_connect_session()` and passes the `session_token` to the frontend SDK, which opens the hosted page in a popup. |
+| **Redirect** | Server-rendered apps (Django, Rails, etc.), email links, or any app that can redirect a browser. No JavaScript SDK needed. | The backend calls `create_connect_session()`, gets a `connect_url`, and redirects the user to it. After OAuth, the user is redirected back to the `return_url` with the results. |
+| **Popup** (`@alter-ai/connect` SDK) | Single-page apps (React, Vue, etc.) where you want a popup overlay with real-time `onSuccess`/`onError` callbacks without leaving the page. | The backend calls `create_connect_session()` and passes the `session_token` to the frontend SDK, which opens the hosted page in a popup. |
 
 <Info>
 **The frontend JavaScript SDK (`@alter-ai/connect`) is optional.** The `connect_url` returned by `create_connect_session()` is a standard HTTPS URL that works in any browser. The frontend SDK just wraps it in a popup with callbacks for a smoother SPA experience.
@@ -110,7 +109,7 @@ For production web apps, use the session-based flow. Your backend creates a sess
 2. **Alter Connect UI** - Hosted page (at the `connect_url`) that handles provider selection and the entire OAuth flow
 3. **Connect SDK (`@alter-ai/connect`)** - **Optional** frontend SDK that opens the hosted page in a popup with callbacks
 
-## Step 1: Create Your Application
+## Step 1: Create an Application
 
 <Steps>
   <Step title="Sign in to the Developer Portal">
@@ -121,16 +120,16 @@ For production web apps, use the session-based flow. Your backend creates a sess
     Click "New Application" and give it a name
   </Step>
 
-  <Step title="Get Your Credentials">
-    Copy your API Key (starts with `alter_key_`) - you'll need this soon
+  <Step title="Get the Credentials">
+    Copy the API Key (starts with `alter_key_`) - this will be needed soon
   </Step>
 
   <Step title="Configure OAuth Providers">
-    Add your OAuth provider credentials (Google, Slack, GitHub, etc.)
+    Add the OAuth provider credentials (Google, Slack, GitHub, etc.)
   </Step>
 </Steps>
 
-## Step 2: Configure Your OAuth Provider
+## Step 2: Configure the OAuth Provider
 
 Let's set up Google as an example (other providers work similarly):
 
@@ -150,7 +149,7 @@ Let's set up Google as an example (other providers work similarly):
     In the Alter Vault dashboard:
     1. Go to "OAuth Providers" → "Add Provider"
     2. Select "Google"
-    3. Enter your Client ID and Client Secret
+    3. Enter the Client ID and Client Secret
     4. Save
   </Step>
 </Steps>
@@ -167,7 +166,7 @@ If you're using the **popup flow** (SPAs), also install the optional frontend SD
 
 ## Step 4: Create a Session
 
-Your backend calls `create_connect_session()` which returns:
+The backend calls `create_connect_session()` which returns:
 - **`connect_url`** - a hosted page where the user completes OAuth (use this for the redirect flow)
 - **`session_token`** - a short-lived token to pass to the frontend SDK (use this for the popup flow)
 
@@ -176,14 +175,13 @@ Your backend calls `create_connect_session()` which returns:
 ```python Flask (Python SDK)
 import asyncio
 from flask import Flask, request, jsonify, redirect
-from alter_sdk import AlterVault, ActorType
+from alter_sdk import AlterVault
 
 app = Flask(__name__)
 
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.BACKEND_SERVICE,
-    actor_identifier="my-flask-app",
+    caller="my-flask-app",
 )
 
 @app.route('/api/connect/session', methods=['POST'])
@@ -207,14 +205,13 @@ def create_oauth_session():
 
 ```javascript Express (TypeScript SDK)
 const express = require('express');
-const { AlterVault, ActorType } = require('@alter-ai/alter-sdk');
+const { AlterVault } = require('@alter-ai/alter-sdk');
 
 const app = express();
 
 const vault = new AlterVault({
   apiKey: 'alter_key_...',
-  actorType: ActorType.BACKEND_SERVICE,
-  actorIdentifier: 'my-express-app',
+  caller: 'my-express-app',
 });
 
 app.post('/api/connect/session', async (req, res) => {
@@ -236,11 +233,11 @@ app.post('/api/connect/session', async (req, res) => {
 
 ## Step 5: Trigger the OAuth Flow
 
-Choose the approach that fits your app:
+Choose the approach that fits the application:
 
 ### Option A: Redirect Flow (no frontend SDK needed)
 
-Redirect the user's browser to the `connect_url`. After OAuth completes, the user is redirected back to your app. This works with any backend framework - no JavaScript SDK required.
+Redirect the user's browser to the `connect_url`. After OAuth completes, the user is redirected back to the application. This works with any backend framework - no JavaScript SDK required.
 
 <CodeGroup>
 
@@ -283,7 +280,7 @@ async function connectProvider(provider) {
 
 ### Option B: Popup Flow (frontend SDK)
 
-Use the `@alter-ai/connect` SDK to open the OAuth page in a popup with real-time callbacks. The user stays on your page.
+Use the `@alter-ai/connect` SDK to open the OAuth page in a popup with real-time callbacks. The user stays on the current page.
 
 <CodeGroup>
 
@@ -306,7 +303,7 @@ function IntegrationsPage() {
             onSuccess: (connections) => {
                 // User completed OAuth! Store each grant_id in your database.
                 for (const conn of connections) {
-                    console.log('Connected!', conn.grant_id, conn.provider_id);
+                    console.log('Connected!', conn.grant_id, conn.provider);
                 }
                 loadIntegrations();
             },
@@ -352,7 +349,7 @@ async function connectProvider(provider) {
         onSuccess: function(connections) {
             // User completed OAuth! Store each grant_id in your database.
             for (const conn of connections) {
-                console.log('Connected!', conn.grant_id, conn.provider_id);
+                console.log('Connected!', conn.grant_id, conn.provider);
             }
             location.reload();
         },
@@ -374,13 +371,12 @@ Now use the SDK to make API calls with automatic token injection:
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def fetch_calendar_events(user_id: str):
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     )
 
     # Your app stores grant_id when the user completes Alter Connect (Step 5)
@@ -389,9 +385,9 @@ async def fetch_calendar_events(user_id: str):
     try:
         # Make API request -token is injected automatically
         response = await vault.request(
-            grant_id,
             HttpMethod.GET,
             "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            grant_id=grant_id,
             query_params={
                 "maxResults": "10",
                 "singleEvents": "true",
@@ -418,13 +414,12 @@ asyncio.run(fetch_calendar_events("alice"))
 ```python
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     response = await vault.request(
-        "GRANT_ID",  # from Alter Connect
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id="GRANT_ID",  # from Alter Connect
     )
     events = response.json()
 # Clients automatically closed
@@ -435,22 +430,21 @@ async with AlterVault(
 ```python
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     # POST with JSON body
     response = await vault.request(
-        slack_grant_id,  # from Alter Connect
         HttpMethod.POST,
         "https://slack.com/api/chat.postMessage",
+        grant_id=slack_grant_id,  # from Alter Connect
         json={"channel": "#general", "text": "Hello from Alter!"},
     )
 
     # URL path templating with automatic URL encoding
     response = await vault.request(
-        sentry_grant_id,  # from Alter Connect
         HttpMethod.GET,
         "https://api.example.com/v1/accounts/{account_id}/contacts",
+        grant_id=sentry_grant_id,  # from Alter Connect
         path_params={"account_id": "acc-123"},
         query_params={"limit": "50"},
     )
@@ -470,8 +464,9 @@ from alter_sdk.exceptions import (
 
 try:
     response = await vault.request(
-        grant_id, HttpMethod.GET,
+        HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=grant_id,
     )
 except ReAuthRequiredError:
     print("User must re-authorize - redirect to Alter Connect")
@@ -494,27 +489,21 @@ If you're building AI agents, add actor tracking for full observability:
 ```python
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="email-assistant-v2",
-    actor_name="Email Assistant",
-    actor_version="2.0.0",
-    framework="langgraph",
+    caller="email-assistant-v2",
 )
 
-# Actor identity is sent automatically on every request
-# Per-request tracking adds execution context
+# Caller identity is sent automatically on every request
+# Per-request context adds execution detail for audit logs
 response = await vault.request(
-    "GRANT_ID",  # from Alter Connect
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
-    run_id="run-001",
-    thread_id="thread-daily-digest",
-    tool_call_id="call_read_emails",
+    grant_id="GRANT_ID",  # from Alter Connect
+    context={"tool": "read_emails", "agent": "email-assistant-v2"},
     reason="Reading emails for daily digest",
 )
 ```
 
-See the [Python SDK Overview](/sdks/python/overview#actor-tracking-ai-agents--mcp-servers) for the complete actor tracking guide.
+See the [Python SDK Overview](/sdks/python/overview#caller-tracking-ai-agents--mcp-servers) for the complete caller tracking guide.
 
 ## Complete Example: Flask + Google Calendar
 
@@ -523,14 +512,13 @@ Here's a full example showing a Flask API that fetches calendar events:
 ```python
 import asyncio
 from flask import Flask, jsonify, request
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 from alter_sdk.exceptions import GrantNotFoundError
 
 app = Flask(__name__)
 vault = AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.BACKEND_SERVICE,
-    actor_identifier="my-flask-app",
+    caller="my-flask-app",
 )
 
 @app.route('/api/users/<user_id>/events')
@@ -542,9 +530,9 @@ def get_user_events(user_id):
     async def fetch_events():
         try:
             response = await vault.request(
-                grant_id,
                 HttpMethod.GET,
                 "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+                grant_id=grant_id,
                 query_params={
                     "maxResults": "10",
                     "singleEvents": "true",
@@ -569,19 +557,19 @@ if __name__ == '__main__':
 
 ## Alternative: Using Managed Secrets
 
-If you're connecting to **your own APIs** (internal services, partner APIs, SaaS platforms with API keys), you don't need the OAuth flow. Use Managed Secrets instead.
+For internal APIs (internal services, partner APIs, SaaS platforms with API keys), the OAuth flow is not needed. Use Managed Secrets instead.
 
 <Info>
-**How is this different from OAuth?** With OAuth, the `grant_id` comes from your **end user** completing an OAuth login. With Managed Secrets, the `grant_id` comes from **you** (the developer) storing a credential in the Developer Portal. No end-user action is needed.
+**How is this different from OAuth?** With OAuth, the `grant_id` comes from the **end user** completing an OAuth login. With Managed Secrets, the `grant_id` comes from **you** (the developer) storing a credential in the Developer Portal. No end-user action is needed.
 </Info>
 
-### Step 1: Store Your Secret in the Developer Portal
+### Step 1: Store the Secret in the Developer Portal
 
-1. Go to the Developer Portal → your app → **Managed Secrets**
+1. Go to the Developer Portal → the application → **Managed Secrets**
 2. Click **Add Provider** (e.g., "Loyalty API")
 3. Choose credential type (Bearer Token, API Key, Basic Auth, or AWS SigV4)
 4. Click **Store Secret** and enter the credential value
-5. **Copy the `grant_id` returned** -this is what you'll use in your code
+5. **Copy the `grant_id` returned** -this is what gets used in application code
 
 ### Step 2: Use vault.request()
 
@@ -590,18 +578,17 @@ Use the exact same `vault.request()` method -just pass the managed secret's `gra
 <CodeGroup>
 
 ```python Python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     # Call your internal API -secret injected automatically
     response = await vault.request(
-        "MANAGED_SECRET_GRANT_ID",  # from Developer Portal
         HttpMethod.GET,
         "https://api.internal.com/v1/loyalty/points",
+        grant_id="MANAGED_SECRET_GRANT_ID",  # from Developer Portal
         query_params={"user_id": "alice"},
         reason="Checking loyalty points",
     )
@@ -609,19 +596,18 @@ async with AlterVault(
 ```
 
 ```typescript TypeScript
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
 });
 
 const response = await vault.request(
-  "MANAGED_SECRET_GRANT_ID",  // from Developer Portal
   HttpMethod.GET,
   "https://api.internal.com/v1/loyalty/points",
   {
+    grantId: "MANAGED_SECRET_GRANT_ID",  // from Developer Portal
     queryParams: { user_id: "alice" },
     reason: "Checking loyalty points",
   }
@@ -639,28 +625,28 @@ await vault.close();
 ## Key Concepts
 
 ### Zero Token Exposure
-`vault.request()` **is your HTTP client** -it replaces direct `fetch` or `httpx` calls. Instead of constructing auth headers yourself, you pass a `grant_id` and the target URL. The SDK:
-- Makes the HTTP request on your behalf
+`vault.request()` **is the HTTP client** -it replaces direct `fetch` or `httpx` calls. Instead of constructing auth headers manually, pass a `grant_id` and the target URL. The SDK:
+- Makes the HTTP request on behalf of the caller
 - Retrieves the credential internally and injects it as the correct auth header
 - Returns the API response directly to you
 - Refreshes OAuth tokens transparently before they expire
 
-Your code never sees, stores, or handles any tokens or secrets -eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
+Application code never sees, stores, or handles any tokens or secrets -eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
 
 ### Where Does `grant_id` Come From?
 
 Every credential in Alter Vault has a unique `grant_id` (UUID). Where it originates depends on the credential type:
 
-- **OAuth grants**: The `grant_id` is returned in the `onSuccess` callback when your **end user** completes the OAuth flow via Alter Connect. Store this in your database, mapped to your users.
-- **Managed secrets**: The `grant_id` is returned by the **Developer Portal** when you store a credential. Hard-code it in your config or environment variables.
+- **OAuth grants**: The `grant_id` is returned in the `onSuccess` callback when the **end user** completes the OAuth flow via Alter Connect. Store this in the application database, mapped to users.
+- **Managed secrets**: The `grant_id` is returned by the **Developer Portal** when a credential is stored. Hard-code it in the config or environment variables.
 
 ```python
 # OAuth: grant_id stored in your DB after user completed Alter Connect
 grant_id = db.get_grant(user_id=user_id, provider="google")
-await vault.request(grant_id, HttpMethod.GET, url)
+await vault.request(HttpMethod.GET, url, grant_id=grant_id)
 
 # Managed secret: grant_id from Developer Portal, stored in your config
-await vault.request(os.environ["LOYALTY_API_GRANT_ID"], HttpMethod.GET, url)
+await vault.request(HttpMethod.GET, url, grant_id=os.environ["LOYALTY_API_GRANT_ID"])
 ```
 
 ### Multiple Connections (Multi-Account)
@@ -676,7 +662,7 @@ onSuccess: async (connections) => {
         await saveToDatabase({
             user_id: currentUser.id,
             grant_id: conn.grant_id,
-            provider_id: conn.provider_id,
+            provider_id: conn.provider,
             account: conn.account_identifier  // e.g., "alice@gmail.com"
         });
     }
@@ -703,13 +689,13 @@ for grant in result.grants:
 ```
 
 ### Provider Support
-The SDK works with **any** OAuth provider configured in your dashboard. The first parameter is always the `grant_id`:
+The SDK works with **any** OAuth provider configured in the dashboard. Pass the `grant_id` as a keyword argument:
 
 ```python
 # Use the grant_id from Alter Connect
-await vault.request(google_grant_id, HttpMethod.GET, url)   # from Alter Connect
-await vault.request(github_grant_id, HttpMethod.GET, url)   # from Alter Connect
-await vault.request(slack_grant_id, HttpMethod.POST, url)   # from Alter Connect
+await vault.request(HttpMethod.GET, url, grant_id=google_grant_id)   # from Alter Connect
+await vault.request(HttpMethod.GET, url, grant_id=github_grant_id)   # from Alter Connect
+await vault.request(HttpMethod.POST, url, grant_id=slack_grant_id)   # from Alter Connect
 ```
 
 ## Best Practices
@@ -720,8 +706,8 @@ await vault.request(slack_grant_id, HttpMethod.POST, url)   # from Alter Connect
 - Set IP restrictions in production
 
 ### Grant Management
-- Store the `grant_id` from Alter Connect in your database
-- Map grant IDs to your users for easy lookup
+- Store the `grant_id` from Alter Connect in the application database
+- Map grant IDs to users for easy lookup
 - Use `listGrants()` to retrieve grant IDs programmatically
 
 ### Error Handling
@@ -734,7 +720,7 @@ await vault.request(slack_grant_id, HttpMethod.POST, url)   # from Alter Connect
 ### Grant Not Found
 If you get `GrantNotFoundError`, ensure:
 - User has completed OAuth flow via Alter Connect
-- The `grant_id` is correct and belongs to your app
+- The `grant_id` is correct and belongs to the application
 - Connection hasn't been revoked
 
 ### Token Expired
@@ -747,13 +733,13 @@ The SDK automatically refreshes tokens. If refresh fails:
 If you get `PolicyViolationError`:
 - Check the error message for the specific rule that failed (time-based access or IP allowlist)
 - Review the policy configuration in **App Details -> Policies** in the Developer Portal
-- If using IP allowlist, confirm your server's IP is included
+- If using IP allowlist, confirm the server's IP is included
 - If using time restrictions, check if you're within business hours / weekdays
 
 ### Provider Not Configured
 If you get `BackendError` with "not configured":
 - Add the provider in the Alter Vault dashboard
-- Enter your OAuth Client ID and Client Secret
+- Enter the OAuth Client ID and Client Secret
 
 ## What's Next?
 

@@ -74,68 +74,64 @@ Use `vault.request()` when you want a lightweight approach with no AWS SDK depen
 <CodeGroup>
 
 ```python Python
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async with AlterVault(
     api_key="alter_key_...",
-    actor_type=ActorType.AI_AGENT,
-    actor_identifier="my-agent",
+    caller="my-agent",
 ) as vault:
     # S3
     response = await vault.request(
-        "YOUR_GRANT_ID",
         HttpMethod.GET,
         "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+        grant_id="YOUR_GRANT_ID",
     )
 
     # Bedrock (same credential, different service and region)
     response = await vault.request(
-        "YOUR_GRANT_ID",
         HttpMethod.POST,
         "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
+        grant_id="YOUR_GRANT_ID",
         json={"prompt": "Hello"},
     )
 
     # Lambda
     response = await vault.request(
-        "YOUR_GRANT_ID",
         HttpMethod.POST,
         "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
+        grant_id="YOUR_GRANT_ID",
         json={"key": "value"},
     )
 ```
 
 ```typescript TypeScript
-import { AlterVault, ActorType, HttpMethod } from "@alter-ai/alter-sdk";
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 
 const vault = new AlterVault({
   apiKey: "alter_key_...",
-  actorType: ActorType.AI_AGENT,
-  actorIdentifier: "my-agent",
+  caller: "my-agent",
 });
 
 try {
   // S3
   const s3Response = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.GET,
     "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+    { grantId: "YOUR_GRANT_ID" },
   );
 
   // Bedrock (same credential, different service and region)
   const bedrockResponse = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
-    { json: { prompt: "Hello" } },
+    { grantId: "YOUR_GRANT_ID", json: { prompt: "Hello" } },
   );
 
   // Lambda
   const lambdaResponse = await vault.request(
-    "YOUR_GRANT_ID",
     HttpMethod.POST,
     "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
-    { json: { key: "value" } },
+    { grantId: "YOUR_GRANT_ID", json: { key: "value" } },
   );
 } finally {
   await vault.close();
@@ -160,13 +156,12 @@ pip install 'alter-sdk[aws]'
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, ActorType
+from alter_sdk import AlterVault
 
 async def main():
     async with AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     ) as vault:
         # Create a boto3 S3 client routed through Alter Vault
         s3 = await vault.boto3_client(
@@ -211,9 +206,7 @@ asyncio.run(main())
 | `region_name` | `str` | `"us-east-1"` | AWS region |
 | `timeout` | `float` | client timeout | Per-request timeout in seconds |
 | `reason` | `str` | `None` | Audit reason applied to all calls from this client |
-| `run_id` | `str` | auto-generated | AI agent run ID for audit correlation |
-| `thread_id` | `str` | `None` | Conversation thread ID for audit correlation |
-| `tool_call_id` | `str` | `None` | Tool call ID for audit correlation |
+| `context` | `dict` | `None` | Per-request identity context for audit correlation (e.g., `{"tool": "s3_list", "agent": "data-pipeline"}`) |
 
 **Error handling** works natively -- boto3 raises `botocore.exceptions.ClientError` for AWS errors (e.g., `NoSuchBucket`, `AccessDenied`), just like a regular boto3 client. Alter Vault-level errors (closed client, network issues) raise `AlterSDKError`.
 

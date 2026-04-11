@@ -46,13 +46,12 @@ The fastest way to get started: `connect()` opens a browser, the user authorizes
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, ActorType, HttpMethod
+from alter_sdk import AlterVault, HttpMethod
 
 async def main():
     vault = AlterVault(
         api_key="alter_key_...",
-        actor_type=ActorType.AI_AGENT,
-        actor_identifier="my-agent",
+        caller="my-agent",
     )
 
     # Open browser → user authorizes → SDK returns connection
@@ -63,9 +62,9 @@ async def main():
 
     # Make API calls with the grant
     response = await vault.request(
-        results[0].grant_id,
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=results[0].grant_id,
         query_params={"maxResults": "10"},
     )
     events = response.json()
@@ -83,19 +82,23 @@ asyncio.run(main())
 </Note>
 
 <Tip>
-  **Already have a `grant_id`?** Skip `connect()` and go straight to `vault.request(grant_id, ...)`. The `connect()` method is for when you need to initiate a new OAuth flow from code. For web apps with a frontend, use [Alter Connect](/sdks/javascript/quickstart) instead.
+  **Already have a `grant_id`?** Skip `connect()` and go straight to `vault.request(method, url, grant_id=grant_id)`. The `connect()` method is for when a new OAuth flow needs to be initiated from code. For web apps with a frontend, use [Alter Connect](/sdks/javascript/quickstart) instead.
 </Tip>
 
 ## Configuration
 
 ```python
+from alter_sdk import AlterVault, CallerType
+
 vault = AlterVault(
     api_key="alter_key_...",              # Required: API key from dashboard
-    actor_type=ActorType.AI_AGENT,        # Required: ActorType enum
-    actor_identifier="my-agent",          # Required: Unique identifier
+    caller="my-agent",                    # Optional: Caller identity for audit logs
+    caller_type=CallerType.AGENT,         # Optional: AGENT (default) or SERVICE
     timeout=30.0,                         # Optional: HTTP timeout in seconds
 )
 ```
+
+Use `CallerType.SERVICE` for backend infrastructure callers that should not appear in the Developer Portal Agents tab.
 
 Audit logging is always enabled — every token retrieval and API call is automatically logged for compliance and security. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
@@ -111,8 +114,9 @@ from alter_sdk.exceptions import (
 
 try:
     response = await vault.request(
-        grant_id, HttpMethod.GET,
+        HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        grant_id=grant_id,
     )
 except ScopeReauthRequiredError as e:
     print(f"Scopes changed — user must re-authorize (provider: {e.provider_id}, grant: {e.grant_id})")
@@ -128,12 +132,15 @@ except GrantNotFoundError:
 
 <CardGroup cols={2}>
   <Card title="SDK Overview" icon="book" href="/sdks/python/overview">
-    Core concepts, complete examples, actor tracking, and error handling
+    Core concepts, complete examples, caller tracking, and error handling
+  </Card>
+  <Card title="FastMCP Integration" icon="plug" href="/sdks/python/mcp">
+    Build MCP tools with automatic OAuth credential injection
+  </Card>
+  <Card title="LangChain Integration" icon="link-simple" href="/sdks/python/langchain">
+    Build LangChain/LangGraph tools with automatic audit context
   </Card>
   <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
     Full integration walkthrough with frontend + backend
-  </Card>
-  <Card title="Architecture" icon="building" href="/reference/architecture">
-    Understand the security architecture
   </Card>
 </CardGroup>
