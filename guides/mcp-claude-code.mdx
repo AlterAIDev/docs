@@ -1,12 +1,14 @@
 ---
-title: 'Connect an MCP Server to Claude Code'
-description: 'Build an MCP server with automatic OAuth and connect it to Claude Code in under 5 minutes'
-icon: 'terminal'
+title: 'Build a Multi-User MCP Server'
+description: 'Create an MCP server with per-user OAuth that works with Claude Code, Claude Desktop, and any spec-compliant MCP client'
+icon: 'server'
 ---
 
 ## Overview
 
-The Alter Python SDK includes a built-in OAuth 2.0 Authorization Server that lets Claude Code (and Claude Desktop) connect to MCP servers with native authentication — no `mcp-remote` shim or proxy needed. Build an MCP server, point Claude Code at it, and the SDK handles discovery, registration, browser login, and token management automatically.
+The Alter Python SDK turns any FastMCP server into a multi-user MCP server with built-in OAuth 2.0. Each user authenticates with an identity provider, and the SDK resolves their OAuth grants automatically -- no shared credentials, no per-user configuration, no `mcp-remote` shim.
+
+One server, many users, each with their own OAuth tokens.
 
 ## Prerequisites
 
@@ -14,7 +16,6 @@ The Alter Python SDK includes a built-in OAuth 2.0 Authorization Server that let
 - **OAuth provider configured** in the Developer Portal (e.g., Google, GitHub, Slack)
 - **Identity provider configured** (e.g., Auth0, Clerk) for user authentication
 - Python 3.11+
-- [Claude Code](https://claude.ai/claude-code) installed
 
 ## Install Dependencies
 
@@ -51,8 +52,8 @@ BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000/mcp")
 alter = AlterFastAPI(api_key=ALTER_API_KEY, caller="my-mcp-server")
 vault = alter.vault
 
-# Create the MCP auth provider — this is a full OAuth 2.0 Authorization Server.
-# Claude Code discovers it automatically via RFC 8414 metadata.
+# Create the MCP auth provider -- a full OAuth 2.0 Authorization Server.
+# MCP clients discover it automatically via RFC 8414 metadata.
 alter_mcp = AlterMCP(vault)
 auth = alter.auth_provider(
     base_url=BASE_URL,
@@ -81,8 +82,6 @@ app = FastAPI(lifespan=mcp_app.lifespan)
 app.mount("/mcp", mcp_app)
 
 # Mount OAuth discovery routes at the application root (RFC 8414).
-# Claude Code probes /.well-known/oauth-authorization-server at the
-# root level to discover the authorization server metadata.
 for route in auth.get_well_known_routes():
     app.routes.insert(0, route)
 
@@ -105,7 +104,33 @@ python server.py
 
 The server starts on `http://localhost:8000` with the MCP endpoint at `/mcp`.
 
-## Configure Claude Code
+## How Multi-User Auth Works
+
+When any MCP client connects, the server handles the full OAuth 2.0 flow automatically:
+
+<Steps>
+  <Step title="Discovery">
+    The client fetches `/.well-known/oauth-authorization-server` to discover OAuth endpoints (authorization, token, registration).
+  </Step>
+  <Step title="Client Registration">
+    The client registers itself via the `/register` endpoint (dynamic client registration per RFC 7591).
+  </Step>
+  <Step title="User Login">
+    A browser window opens for IDP login (e.g., Auth0, Clerk). The user authenticates with existing credentials.
+  </Step>
+  <Step title="Token Exchange">
+    The SDK exchanges the authorization code for access and refresh tokens (with PKCE). The client stores these locally.
+  </Step>
+  <Step title="Identity Resolution">
+    On every tool call, the SDK maps the authenticated token to the user's identity, then resolves the correct OAuth grant for that user. Different users get different grants -- true multi-tenancy.
+  </Step>
+</Steps>
+
+On subsequent connections, clients reuse stored tokens (refreshing as needed) -- no re-login required until the refresh token expires.
+
+## Connecting MCP Clients
+
+### Claude Code
 
 Add the MCP server to the project configuration. Create or edit `.claude.json` in the project root:
 
@@ -120,35 +145,35 @@ Add the MCP server to the project configuration. Create or edit `.claude.json` i
 }
 ```
 
-Alternatively, use the Claude Code CLI:
+Or use the CLI:
 
 ```bash
 claude mcp add my-server --type http --url http://localhost:8000/mcp
 ```
 
-## What Happens on First Connect
+### Claude Desktop
 
-When Claude Code connects to the MCP server for the first time:
+Add the same configuration to the Claude Desktop config file:
 
-<Steps>
-  <Step title="Discovery">
-    Claude Code fetches `/.well-known/oauth-authorization-server` to discover the OAuth endpoints (authorization, token, registration).
-  </Step>
-  <Step title="Client Registration">
-    Claude Code registers itself as an OAuth client via the `/register` endpoint (dynamic client registration per RFC 7591).
-  </Step>
-  <Step title="Authorization">
-    A browser window opens for IDP login (e.g., Auth0, Clerk). The user authenticates with existing credentials.
-  </Step>
-  <Step title="Token Exchange">
-    After login completes, the SDK exchanges the authorization code for access and refresh tokens (with PKCE). Claude Code stores these locally.
-  </Step>
-  <Step title="Ready">
-    MCP tools are now available. Every tool call carries the authenticated identity, so `vault.request()` resolves the correct OAuth grant automatically.
-  </Step>
-</Steps>
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
 
-On subsequent connections, Claude Code reuses the stored tokens (refreshing as needed) — no re-login required until the refresh token expires.
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving the config.
+
+### Any MCP Client
+
+Any MCP client that supports the HTTP transport with OAuth 2.0 (RFC 8414 discovery + PKCE) can connect using the same URL. No client-specific configuration is needed on the server side.
 
 ## Adding More Tools
 
@@ -184,26 +209,6 @@ async def search_emails(
   connected multiple accounts for the same provider, the LLM can pass the
   email address to select which account to use.
 </Tip>
-
-## Claude Desktop
-
-The same server works with Claude Desktop. Add the configuration to the Claude Desktop config file:
-
-- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
-- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "my-server": {
-      "type": "http",
-      "url": "http://localhost:8000/mcp"
-    }
-  }
-}
-```
-
-Restart Claude Desktop after saving the config.
 
 ## Next Steps
 
