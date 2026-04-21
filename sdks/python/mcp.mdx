@@ -97,13 +97,14 @@ All other exceptions propagate normally.
 
 ## Authentication with `AlterAuthProvider`
 
-For MCP servers that need to authenticate end users via an identity provider (IDP), use `AlterAuthProvider`. It implements FastMCP's auth provider protocol to trigger Alter Connect when a user needs to log in.
+For MCP servers that need to authenticate end users via an identity provider (IDP), use `AlterAuthProvider`. It implements a full OAuth 2.0 Authorization Server — Claude Code and other spec-compliant MCP clients can discover, register, and authenticate automatically without any shim or proxy.
 
 ```python
-from alter_sdk.mcp.auth import AlterAuthProvider
+from alter_sdk.mcp import AlterAuthProvider
 
 auth = AlterAuthProvider(
     vault,
+    base_url="http://localhost:8000/mcp",
     providers={
         "google": ["gmail.readonly", "calendar.events"],
         "github": ["repo"],
@@ -114,7 +115,11 @@ auth = AlterAuthProvider(
 mcp = FastMCP("my-server", auth=auth)
 ```
 
-When FastMCP calls `auth.create_auth_url()`, the provider creates an Alter Connect session with the declared scopes as the ceiling. When `auth.verify_token(token)` is called, it verifies the JWT against the app's configured identity provider via the backend's production `JWTValidationService`.
+The `base_url` parameter tells the OAuth server where it is hosted, so it can advertise correct endpoint URLs in the RFC 8414 discovery metadata. The `providers` dict declares which OAuth providers and scopes are available via Alter Connect.
+
+<Tip>
+  For a step-by-step guide on connecting an MCP server to Claude Code, see [Connect an MCP Server to Claude Code](/guides/mcp-claude-code).
+</Tip>
 
 ### Multi-Provider Scopes
 
@@ -174,7 +179,7 @@ from alter_sdk.mcp.auth import AlterAuthProvider
 vault = AlterVault(api_key="alter_key_...", caller="calendar-mcp")
 alter = AlterMCP(vault)
 
-auth = AlterAuthProvider(vault, providers={"google": ["calendar.events"]})
+auth = AlterAuthProvider(vault, base_url="http://localhost:8000/mcp", providers={"google": ["calendar.events"]})
 mcp = FastMCP("calendar-server", auth=auth)
 
 

@@ -24,6 +24,26 @@ Requires Python 3.11 or higher.
   </Tab>
 </Tabs>
 
+For framework integrations:
+
+<Tabs>
+  <Tab title="pip">
+    ```bash
+    pip install 'alter-sdk[fastapi]'    # FastAPI integration
+    pip install 'alter-sdk[mcp]'        # FastMCP integration
+    pip install 'alter-sdk[langchain]'  # LangChain integration
+    ```
+  </Tab>
+
+  <Tab title="Poetry">
+    ```bash
+    poetry add 'alter-sdk[fastapi]'
+    poetry add 'alter-sdk[mcp]'
+    poetry add 'alter-sdk[langchain]'
+    ```
+  </Tab>
+</Tabs>
+
 For native boto3 integration with AWS services:
 
 <Tabs>
@@ -102,6 +122,44 @@ Use `CallerType.SERVICE` for backend infrastructure callers that should not appe
 
 Audit logging is always enabled — every token retrieval and API call is automatically logged for compliance and security. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
+## Connecting an Identity Provider
+
+If the application uses an external IDP (Okta, Entra ID, Auth0, Clerk, Keycloak, or any OIDC issuer), wire it up to the SDK so every request is scoped to the signed-in end user. This is required for `provider=` lookups (identity-based grant resolution) and powers group-based policies and instant deprovisioning.
+
+**One-time setup (Developer Portal):** configure the app's IDP on the Identity page — paste the OIDC issuer URL, click **Discover**, then save. Alter Vault auto-detects the IDP type and claim mappings. **Each app can have only one IDP at a time**; switching providers requires removing the current IDP configuration and then adding the replacement. See the [IDP Setup Guide](/identity-providers/quickstart) for per-provider steps.
+
+**Per-request wiring (SDK):** pass a `user_token_getter` that returns the end user's IDP-issued JWT. The SDK attaches it to every token request so the backend can resolve the user from the JWT claims.
+
+```python
+from alter_sdk import AlterVault, HttpMethod
+
+vault = AlterVault(
+    api_key="alter_key_...",
+    caller="my-agent",
+    # Called before every request — return a fresh JWT for the current user.
+    # Sync or async callables are both supported.
+    user_token_getter=lambda: get_current_user_jwt(),
+)
+
+# `provider=` looks up the grant that belongs to the JWT's user — no grant_id needed.
+response = await vault.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google",
+)
+```
+
+<Info>
+**Two resolution modes** — pass `grant_id=` when the caller already knows the exact grant, or pass `provider=` with an active end-user token source so the backend can resolve the grant from the JWT's `sub` claim. The token source can come from constructor `user_token_getter` or from a token cached via `vault.authenticate()`.
+</Info>
+
+**End-user login flow (optional):** if the application does not already have a JWT for the user, call `vault.authenticate()` to open a browser-based OIDC login through the IDP and receive the user profile. The SDK caches the resulting token internally and installs it as the active token source for that `AlterVault` instance. If constructor `user_token_getter` was set earlier, `vault.authenticate()` overrides it for subsequent `provider=` requests. Configure the IDP's wallet/SDK client credentials in the Developer Portal first.
+
+```python
+auth_result = await vault.authenticate()
+print(auth_result.user_info)  # { sub, email, name, ... } from the IDP
+```
+
 ## Quick Error Handling
 
 ```python
@@ -109,6 +167,7 @@ from alter_sdk.exceptions import (
     ReAuthRequiredError,
     ScopeReauthRequiredError,
     PolicyViolationError,
+    TokenRefreshInProgressError,
     GrantNotFoundError,
 )
 
@@ -124,9 +183,26 @@ except ReAuthRequiredError:
     print("User must re-authorize via Alter Connect")
 except PolicyViolationError as e:
     print(f"Access denied by policy: {e.message} (rule: {e.policy_error})")
+except TokenRefreshInProgressError as e:
+    # Another request is mid-refresh — transient, retry after backoff
+    print(f"Token refresh in progress for {e.grant_id} — retry after backoff")
 except GrantNotFoundError:
     print("User hasn't connected Google yet")
 ```
+
+## Revoking a Grant
+
+Permanently revoke a grant when it's no longer needed. Tokens are deleted from Vault and the grant status is set to `revoked`. The user must re-authorize via Alter Connect to restore access.
+
+```python
+result = await vault.revoke_grant(
+    grant_id=grant_id,
+    reason="Agent cleanup: stale grant",  # optional; stored in the audit log
+)
+print(f"Revoked at {result.revoked_at}")
+```
+
+`revoke_grant()` raises `GrantNotFoundError` if the grant does not exist or is already revoked.
 
 ## Next Steps
 

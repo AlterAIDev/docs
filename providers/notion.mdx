@@ -12,11 +12,11 @@ Connect your users to Notion for notes, documents, databases, and knowledge mana
 | **Provider ID** | `notion` |
 | **Category** | Productivity |
 | **PKCE** | Not supported |
-| **Token refresh** | Not needed (tokens don't expire) |
+| **Token refresh** | Not used (long-lived access token) |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 <Note>
-  Notion tokens do not expire and cannot be refreshed. Permissions are granted per-page by the user during authorization.
+  Notion permissions are granted per-page during authorization. This integration uses long-lived access tokens; Notion also supports refresh tokens if needed in the future.
 </Note>
 
 ## Step 1: Create a Notion Integration
@@ -75,6 +75,6 @@ Notion does not use traditional OAuth scopes. Instead, permissions are granted p
 ## Notes
 
 - Notion uses **Internal** and **Public** integration types. You must use **Public** for OAuth.
-- Notion tokens do not expire and cannot be refreshed.
+- Notion supports refresh tokens, but this integration uses long-lived access tokens. Re-authorization is only needed if the user revokes access.
 - Users grant access to specific pages and databases during authorization, not via scopes.
 - See the [Notion OAuth documentation](https://developers.notion.com/docs/authorization) for more details.

@@ -8,7 +8,7 @@ Get started with the Alter SDK for TypeScript to make authenticated API calls to
 
 ## Installation
 
-Requires Node.js 18 or higher. TypeScript 5.0+ recommended.
+Requires Node.js 20 or higher. TypeScript 5.0+ recommended.
 
 <Tabs>
   <Tab title="npm">
@@ -78,6 +78,50 @@ Use `CallerType.SERVICE` for backend infrastructure callers that should not appe
 
 Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 
+## Connecting an Identity Provider
+
+If the application uses an external IDP (Okta, Entra ID, Auth0, Clerk, Keycloak, or any OIDC issuer), wire it up to the SDK so every request is scoped to the signed-in end user. This is required for `provider` lookups (identity-based grant resolution) and powers group-based policies and instant deprovisioning.
+
+**One-time setup (Developer Portal):** add the IDP to the application on its Identity page — paste the OIDC issuer URL, click **Discover**, then save. Alter Vault auto-detects the IDP type and claim mappings.
+
+<Info>
+**Single-IDP rule:** each application can have only one active identity provider configuration at a time. To switch providers, remove the current IDP and add the replacement, then update JWT issuer settings and webhook/OIDC credentials for the replacement.
+</Info>
+
+See the [IDP Setup Guide](/identity-providers/quickstart) for per-provider steps.
+
+**Per-request wiring (SDK):** pass a `userTokenGetter` that returns the end user's IDP-issued JWT. The SDK attaches it to every token request so the backend can resolve the user from the JWT claims.
+
+```typescript
+import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  caller: "my-agent",
+  // Called before every request — return a fresh JWT for the current user.
+  // Sync or async functions are both supported.
+  userTokenGetter: () => getCurrentUserJwt(),
+});
+
+// `provider` looks up the grant that belongs to the JWT's user — no grantId needed.
+const response = await vault.request(
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { provider: "google" },
+);
+```
+
+<Info>
+**Two resolution modes** — pass `grantId` when the caller already knows the exact grant, or pass `provider` with an active end-user token source so the backend can resolve the grant from the JWT's `sub` claim. The token source can come from constructor `userTokenGetter` or from a token cached via `vault.authenticate()`.
+</Info>
+
+**End-user login flow (optional):** if the application does not already have a JWT for the user, call `vault.authenticate()` to open a browser-based OIDC login through the IDP and receive the user profile. The SDK caches the resulting token internally and installs it as the active token getter for that `AlterVault` instance (overriding any constructor-supplied `userTokenGetter`) — configure the IDP's wallet/SDK client credentials in the Developer Portal first.
+
+```typescript
+const authResult = await vault.authenticate();
+console.log(authResult.userInfo); // { sub, email, name, ... } from the IDP
+```
+
 ## Quick Error Handling
 
 ```typescript
@@ -85,6 +129,7 @@ import {
   ReAuthRequiredError,
   ScopeReauthRequiredError,
   PolicyViolationError,
+  TokenRefreshInProgressError,
   GrantNotFoundError,
 } from "@alter-ai/alter-sdk";
 
@@ -102,6 +147,9 @@ try {
     console.log("User must re-authorize via Alter Connect");
   } else if (e instanceof PolicyViolationError) {
     console.log(`Access denied by policy: ${e.message} (rule: ${e.policyError})`);
+  } else if (e instanceof TokenRefreshInProgressError) {
+    // Another request is mid-refresh — transient, retry after backoff
+    console.log(`Token refresh in progress for ${e.grantId} — retry after backoff`);
   } else if (e instanceof GrantNotFoundError) {
     console.log("User hasn't connected Google yet");
   } else {
@@ -111,6 +159,19 @@ try {
   await vault.close();
 }
 ```
+
+## Revoking a Grant
+
+Permanently revoke a grant when it's no longer needed. Tokens are deleted from Vault and the grant status is set to `revoked`. The user must re-authorize via Alter Connect to restore access.
+
+```typescript
+const result = await vault.revokeGrant(grantId, {
+  reason: "Agent cleanup: stale grant", // optional; stored in the audit log
+});
+console.log(`Revoked at ${result.revokedAt}`);
+```
+
+`revokeGrant()` throws `GrantNotFoundError` if the grant does not exist or is already revoked.
 
 ## Next Steps
 

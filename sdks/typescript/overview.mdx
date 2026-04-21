@@ -294,7 +294,8 @@ For CLI tools, scripts, and server-side applications, use `connect()` to open th
 ```typescript
 const results = await vault.connect({
   providers: ["google"],
-  timeout: 300,        // max wait in seconds (default: 5 min)
+  timeout: 300_000,    // max wait in milliseconds (default: 300000 = 5 min)
+  pollInterval: 2000,  // poll cadence in milliseconds
   openBrowser: true,   // set false to print URL instead
 });
 for (const result of results) {

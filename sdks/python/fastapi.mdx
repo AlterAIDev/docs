@@ -1,0 +1,137 @@
+---
+title: 'FastAPI Integration'
+description: 'Build FastAPI backends with automatic Bearer token capture and OAuth credential injection'
+icon: 'bolt'
+---
+
+## Overview
+
+The `alter-sdk[fastapi]` extra provides `AlterFastAPI`, a FastAPI dependency that automatically captures Bearer tokens from incoming requests and makes them available to the SDK for identity resolution. No manual ContextVar or header extraction needed.
+
+```bash
+pip install 'alter-sdk[fastapi]'
+```
+
+## Quick Start
+
+```python
+from fastapi import Depends, FastAPI
+from alter_sdk.fastapi import AlterFastAPI
+
+alter = AlterFastAPI(api_key="alter_key_...", caller="my-app")
+app = FastAPI()
+
+
+@app.post("/chat")
+async def chat(vault=Depends(alter)):
+    """Each request automatically captures the Bearer token."""
+    resp = await vault.request(
+        "GET",
+        "https://api.example.com/v1/resource",
+        provider="<provider>",
+    )
+    return resp.json()
+
+
+@app.get("/connect")
+async def connect(vault=Depends(alter)):
+    """Create an Alter Connect session for OAuth authorization."""
+    session = await vault.create_connect_session(
+        allowed_providers=["<provider>"],
+    )
+    return {
+        "connect_url": session.connect_url,
+        "session_token": session.session_token,
+    }
+```
+
+`Depends(alter)` does two things per request:
+1. Extracts the `Authorization: Bearer <token>` header (returns 403 if missing)
+2. Returns the configured `AlterVault` instance with the token available for identity resolution
+
+## How It Works
+
+Under the hood, `AlterFastAPI` uses a task-scoped `ContextVar` to isolate tokens across concurrent requests. Each call to `Depends(alter)` captures the Bearer token for that specific request, so the SDK resolves the correct user identity when calling `vault.request(provider=...)`.
+
+This replaces the manual pattern that previously required writing a ContextVar, a Bearer extraction helper, and wiring them together:
+
+```python
+# Before (manual boilerplate):
+_token: ContextVar[str | None] = ContextVar("token", default=None)
+vault = AlterVault(api_key=..., user_token_getter=lambda: _token.get())
+
+@app.post("/chat")
+async def chat(authorization: str = Header(...)):
+    token = authorization.removeprefix("Bearer ").strip()
+    _token.set(token)
+    resp = await vault.request(...)
+
+# After (AlterFastAPI handles it):
+alter = AlterFastAPI(api_key=...)
+
+@app.post("/chat")
+async def chat(vault=Depends(alter)):
+    resp = await vault.request(...)
+```
+
+## Combined FastAPI + MCP Server
+
+When building a server that exposes both REST endpoints and MCP tools, use `alter.auth_provider()` to create an MCP auth provider that shares the same identity context:
+
+```python
+from fastmcp import FastMCP
+from alter_sdk.fastapi import AlterFastAPI
+from alter_sdk.mcp import AlterMCP, AlterContext
+
+alter = AlterFastAPI(api_key="alter_key_...", caller="my-app")
+vault = alter.vault
+
+# MCP setup — auth_provider() creates a full OAuth 2.0 Authorization Server
+alter_mcp = AlterMCP(vault)
+auth = alter.auth_provider(base_url="http://localhost:8000/mcp", providers={"<provider>": ["scope1", "scope2"]})
+mcp = FastMCP("my-server", auth=auth)
+
+# REST endpoint — uses Depends(alter)
+@app.post("/chat")
+async def chat(vault=Depends(alter)):
+    resp = await vault.request("GET", "https://api.example.com/v1/resource", provider="<provider>")
+    return resp.json()
+
+# MCP tool — uses AlterContext
+@mcp.tool()
+@alter_mcp.tool(provider="<provider>")
+async def list_resources(ctx: AlterContext, max_results: int = 10) -> list[dict]:
+    resp = await ctx.request("GET", "https://api.example.com/v1/resource")
+    return resp.json()
+```
+
+Both paths share the same `AlterVault` instance and identity resolution — the REST path captures tokens via `Depends(alter)`, and the MCP path captures them via `auth.verify_token()`.
+
+## API Reference
+
+### `AlterFastAPI(api_key, *, caller=None, **kwargs)`
+
+Creates a FastAPI-integrated vault wrapper.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `api_key` | `str` | Alter Vault API key |
+| `caller` | `str \| None` | Caller identifier for audit logs |
+| `**kwargs` | | Additional arguments passed to `AlterVault` (except `user_token_getter`) |
+
+### `alter.vault`
+
+The underlying `AlterVault` instance. Use this when a function needs the vault directly (e.g., `@alter_tool(alter.vault, provider=...)`).
+
+### `alter.set_user_token(token)`
+
+Manually set the user token for the current request context. Use in custom auth flows or middleware that captures tokens outside the standard `Depends(alter)` path.
+
+### `alter.auth_provider(*, base_url="", providers=None)`
+
+Create an MCP auth provider (full OAuth 2.0 Authorization Server) that auto-captures verified tokens for identity resolution.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `base_url` | `str` | URL where the MCP server is mounted, used as the OAuth issuer (e.g., `"http://localhost:8000/mcp"`) |
+| `providers` | `dict[str, list[str]] \| None` | Map of provider_id to required scopes for Alter Connect |

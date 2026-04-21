@@ -18,20 +18,20 @@ Connect your users to Mercury for business banking data, account balances, trans
 ## Step 1: Create a Mercury OAuth App
 
 <Steps>
-  <Step title="Go to the Mercury Developer Settings">
-    Navigate to [app.mercury.com/settings/developers](https://app.mercury.com/settings/developers) and sign in.
+  <Step title="Review Mercury's OAuth integration guide">
+    Open [Mercury's OAuth2 integration guide](https://docs.mercury.com/docs/integrations-with-oauth2) and submit an integration request. Mercury does not offer a self-serve developer console for OAuth.
   </Step>
 
-  <Step title="Create a new application">
-    Click **Create Application** and enter the application name and description.
+  <Step title="Wait for Mercury to provision credentials">
+    After approval, Mercury provides a **Client ID** and **Client Secret**.
   </Step>
 
-  <Step title="Configure the redirect URI">
-    Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URIs** field.
+  <Step title="Register the redirect URI">
+    Provide the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) as the registered **Redirect URI**.
   </Step>
 
-  <Step title="Get your credentials">
-    Copy the **Client ID** and **Client Secret**.
+  <Step title="Enter credentials in Alter Vault">
+    Use the **Client ID** and **Client Secret** from Mercury in the Developer Portal (see Step 2 below).
   </Step>
 </Steps>
 
@@ -69,8 +69,7 @@ Connect your users to Mercury for business banking data, account balances, trans
 | Scope | Description |
 |-------|-------------|
 | `read` | Read-only access to account and transaction data |
-| `write` | Write access to account data |
-| `transfer` | Initiate transfers and payments |
+| `offline_access` | Maintain continuous access with refresh tokens |
 
 ## Notes
 

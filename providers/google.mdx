@@ -38,8 +38,8 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 ## Step 2: Create OAuth Credentials
 
 <Steps>
-  <Step title="Open Credentials page">
-    Go to **APIs & Services** > **Credentials** and click **Create Credentials** > **OAuth client ID**.
+  <Step title="Open Clients page">
+    Go to the **Google Auth Platform** > **Clients** page and click **Create Client**.
   </Step>
 
   <Step title="Configure consent screen (first time only)">
@@ -60,15 +60,15 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
     - Click **Create**
   </Step>
 
-  <Step title="Copy credentials">
-    Copy the **Client ID** and **Client Secret** from the dialog. You'll need these in the next step.
+  <Step title="Download credentials immediately">
+    Download and securely store the **Client ID** and **Client Secret** from the dialog. The secret is only shown once at creation time.
 
     The Client ID looks like: `123456789-abcdefg.apps.googleusercontent.com`
   </Step>
 </Steps>
 
 <Warning>
-  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+  Never share the Client Secret publicly. Client secrets are only visible at creation time — download and store securely (e.g., in a secret manager) before closing the dialog. Only enter the secret in the Alter Vault Developer Portal.
 </Warning>
 
 ## Step 3: Add to Alter Vault

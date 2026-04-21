@@ -69,14 +69,14 @@ Connect your users to HubSpot for CRM data, contact management, deal tracking, a
 | Scope | Description |
 |-------|-------------|
 | `crm.objects.contacts.read` | Read contact records |
-| `crm.objects.contacts.write` | Create and update contacts |
+| `crm.objects.contacts.write` | Create, update, and delete contacts |
 | `crm.objects.companies.read` | Read company records |
-| `crm.objects.companies.write` | Create and update companies |
+| `crm.objects.companies.write` | Create, update, and delete companies |
 | `crm.objects.deals.read` | Read deal records |
-| `crm.objects.deals.write` | Create and update deals |
+| `crm.objects.deals.write` | Create, update, and delete deals |
 
 ## Notes
 
 - HubSpot enforces granular scopes — request only what your app needs.
-- Tokens expire after 6 hours. Alter Vault handles automatic refresh using the refresh token.
+- Access tokens are short-lived (~30 minutes). Alter Vault handles automatic refresh using the refresh token.
 - See the [HubSpot OAuth quickstart](https://developers.hubspot.com/docs/api/oauth-quickstart-guide) for more details.

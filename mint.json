@@ -60,6 +60,12 @@
       ]
     },
     {
+      "group": "Guides",
+      "pages": [
+        "guides/mcp-claude-code"
+      ]
+    },
+    {
       "group": "SDKs",
       "pages": [
         {
@@ -67,6 +73,7 @@
           "pages": [
             "sdks/python/quickstart",
             "sdks/python/overview",
+            "sdks/python/fastapi",
             "sdks/python/mcp",
             "sdks/python/langchain"
           ]
@@ -93,7 +100,6 @@
       "pages": [
         "identity-providers/overview",
         "identity-providers/quickstart",
-        "identity-providers/scim",
         "identity-providers/supported-providers"
       ]
     },

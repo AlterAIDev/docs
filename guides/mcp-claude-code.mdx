@@ -1,0 +1,223 @@
+---
+title: 'Connect an MCP Server to Claude Code'
+description: 'Build an MCP server with automatic OAuth and connect it to Claude Code in under 5 minutes'
+icon: 'terminal'
+---
+
+## Overview
+
+The Alter Python SDK includes a built-in OAuth 2.0 Authorization Server that lets Claude Code (and Claude Desktop) connect to MCP servers with native authentication — no `mcp-remote` shim or proxy needed. Build an MCP server, point Claude Code at it, and the SDK handles discovery, registration, browser login, and token management automatically.
+
+## Prerequisites
+
+- **Alter Vault API key** (from the [Developer Portal](https://portal.alterauth.com))
+- **OAuth provider configured** in the Developer Portal (e.g., Google, GitHub, Slack)
+- **Identity provider configured** (e.g., Auth0, Clerk) for user authentication
+- Python 3.11+
+- [Claude Code](https://claude.ai/claude-code) installed
+
+## Install Dependencies
+
+<Tabs>
+  <Tab title="pip">
+    ```bash
+    pip install 'alter-sdk[fastapi,mcp]' fastapi uvicorn
+    ```
+  </Tab>
+  <Tab title="Poetry">
+    ```bash
+    poetry add 'alter-sdk[fastapi,mcp]' fastapi uvicorn
+    ```
+  </Tab>
+</Tabs>
+
+## Build the Server
+
+Create a file called `server.py`:
+
+```python
+import os
+import uvicorn
+from fastapi import FastAPI
+from fastmcp import FastMCP
+from alter_sdk.fastapi import AlterFastAPI
+from alter_sdk.mcp import AlterMCP, AlterContext
+
+# --- SDK setup ---
+
+ALTER_API_KEY = os.environ["ALTER_API_KEY"]
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000/mcp")
+
+alter = AlterFastAPI(api_key=ALTER_API_KEY, caller="my-mcp-server")
+vault = alter.vault
+
+# Create the MCP auth provider — this is a full OAuth 2.0 Authorization Server.
+# Claude Code discovers it automatically via RFC 8414 metadata.
+alter_mcp = AlterMCP(vault)
+auth = alter.auth_provider(
+    base_url=BASE_URL,
+    providers={"google": ["gmail.readonly"]},
+)
+mcp = FastMCP("my-server", auth=auth)
+
+# --- MCP tools ---
+
+@mcp.tool()
+@alter_mcp.tool(provider="google")
+async def list_emails(ctx: AlterContext, max_results: int = 10) -> list[dict]:
+    """List recent emails from the inbox."""
+    max_results = max(1, min(max_results, 50))
+    resp = await ctx.request(
+        "GET",
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        query_params={"maxResults": str(max_results)},
+    )
+    return resp.json().get("messages", [])
+
+# --- App setup ---
+
+mcp_app = mcp.http_app(path="/")
+app = FastAPI(lifespan=mcp_app.lifespan)
+app.mount("/mcp", mcp_app)
+
+# Mount OAuth discovery routes at the application root (RFC 8414).
+# Claude Code probes /.well-known/oauth-authorization-server at the
+# root level to discover the authorization server metadata.
+for route in auth.get_well_known_routes():
+    app.routes.insert(0, route)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+```
+
+<Note>
+  The `base_url` parameter must match the URL where the MCP server is
+  mounted (e.g., `http://localhost:8000/mcp`). The SDK uses this as the
+  OAuth issuer and advertises endpoint URLs relative to it.
+</Note>
+
+## Run the Server
+
+```bash
+export ALTER_API_KEY="alter_key_..."
+python server.py
+```
+
+The server starts on `http://localhost:8000` with the MCP endpoint at `/mcp`.
+
+## Configure Claude Code
+
+Add the MCP server to the project configuration. Create or edit `.claude.json` in the project root:
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+Alternatively, use the Claude Code CLI:
+
+```bash
+claude mcp add my-server --type http --url http://localhost:8000/mcp
+```
+
+## What Happens on First Connect
+
+When Claude Code connects to the MCP server for the first time:
+
+<Steps>
+  <Step title="Discovery">
+    Claude Code fetches `/.well-known/oauth-authorization-server` to discover the OAuth endpoints (authorization, token, registration).
+  </Step>
+  <Step title="Client Registration">
+    Claude Code registers itself as an OAuth client via the `/register` endpoint (dynamic client registration per RFC 7591).
+  </Step>
+  <Step title="Authorization">
+    A browser window opens for IDP login (e.g., Auth0, Clerk). The user authenticates with existing credentials.
+  </Step>
+  <Step title="Token Exchange">
+    After login completes, the SDK exchanges the authorization code for access and refresh tokens (with PKCE). Claude Code stores these locally.
+  </Step>
+  <Step title="Ready">
+    MCP tools are now available. Every tool call carries the authenticated identity, so `vault.request()` resolves the correct OAuth grant automatically.
+  </Step>
+</Steps>
+
+On subsequent connections, Claude Code reuses the stored tokens (refreshing as needed) — no re-login required until the refresh token expires.
+
+## Adding More Tools
+
+Add additional tools by stacking the `@mcp.tool()` and `@alter_mcp.tool()` decorators:
+
+```python
+@mcp.tool()
+@alter_mcp.tool(provider="google")
+async def search_emails(
+    ctx: AlterContext, query: str, max_results: int = 10, account: str = ""
+) -> list[dict]:
+    """Search emails using Gmail search syntax.
+
+    Args:
+        query: Gmail search query (e.g., "from:alice subject:meeting").
+        max_results: Number of results (1-50, default 10).
+        account: Email address of the Google account to use (required if
+            multiple accounts are connected).
+    """
+    max_results = max(1, min(max_results, 50))
+    acct = account.strip() or None
+    resp = await ctx.request(
+        "GET",
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        account=acct,
+        query_params={"q": query, "maxResults": str(max_results)},
+    )
+    return resp.json().get("messages", [])
+```
+
+<Tip>
+  The `account` parameter enables multi-account support. When a user has
+  connected multiple accounts for the same provider, the LLM can pass the
+  email address to select which account to use.
+</Tip>
+
+## Claude Desktop
+
+The same server works with Claude Desktop. Add the configuration to the Claude Desktop config file:
+
+- **macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "my-server": {
+      "type": "http",
+      "url": "http://localhost:8000/mcp"
+    }
+  }
+}
+```
+
+Restart Claude Desktop after saving the config.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="MCP Tool API" icon="wrench" href="/sdks/python/mcp">
+    Detailed `@alter.tool()` decorator reference, error recovery, nested tools, and `AlterContext` API.
+  </Card>
+  <Card title="FastAPI Integration" icon="bolt" href="/sdks/python/fastapi">
+    Build combined REST + MCP servers with shared identity resolution.
+  </Card>
+  <Card title="LangChain Integration" icon="link" href="/sdks/python/langchain">
+    Use `@alter_tool` with LangChain agents and LangGraph workflows.
+  </Card>
+  <Card title="Python SDK Quickstart" icon="python" href="/sdks/python/quickstart">
+    Full SDK setup, configuration options, and error handling.
+  </Card>
+</CardGroup>

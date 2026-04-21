@@ -125,12 +125,22 @@ async with AlterVault(
 | `write:org` | Read/write access to org membership and projects |
 | `read:org` | Read-only access to org and team membership |
 
+### Webhooks & Keys
+
+| Scope | Description |
+|-------|-------------|
+| `admin:repo_hook` | Full access to repository hooks |
+| `admin:org_hook` | Full access to organization hooks |
+| `admin:public_key` | Fully manage public keys |
+| `admin:gpg_key` | Fully manage GPG keys |
+
 ### Other
 
 | Scope | Description |
 |-------|-------------|
 | `gist` | Write access to gists |
 | `notifications` | Access notifications |
+| `project` | Read/write access to user and organization projects |
 | `workflow` | Add and update GitHub Actions workflows |
 | `write:packages` | Upload/publish packages |
 | `read:packages` | Download packages |

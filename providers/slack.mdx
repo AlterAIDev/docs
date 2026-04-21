@@ -47,7 +47,7 @@ Connect your users to Slack workspaces for messaging, channel management, file s
   </Step>
 
   <Step title="Enable token rotation">
-    Go to **Settings** > **Basic Information**:
+    Go to **OAuth & Permissions**:
     - Scroll to **Token Rotation**
     - Click **Opt in to token rotation**
 
@@ -162,7 +162,8 @@ async with AlterVault(
 | List channels | GET | `https://slack.com/api/conversations.list` |
 | Get channel history | GET | `https://slack.com/api/conversations.history` |
 | List users | GET | `https://slack.com/api/users.list` |
-| Upload a file | POST | `https://slack.com/api/files.upload` |
+| Get file upload URL | POST | `https://slack.com/api/files.getUploadURLExternal` |
+| Complete file upload | POST | `https://slack.com/api/files.completeUploadExternal` |
 | Add a reaction | POST | `https://slack.com/api/reactions.add` |
 
 ## Notes

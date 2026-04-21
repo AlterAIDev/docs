@@ -1,32 +1,36 @@
 ---
 title: 'IDP Setup Guide'
-description: 'Connect your identity provider to Alter Vault in minutes'
+description: 'Connect Auth0 or Clerk to Alter Vault in minutes'
 ---
 
 ## Prerequisites
 
-Before you begin, make sure you have:
+Before starting, make sure the following are in place:
 
 - An Alter Vault account with an application created in the Developer Portal
-- An OIDC-compatible identity provider (Okta, Azure AD, Auth0, Clerk, Keycloak, etc.)
+- An Auth0 tenant or Clerk application (or any OIDC-compliant identity provider)
 - The Python SDK or TypeScript SDK installed
 
 ## Setup Steps
 
 <Steps>
 
-### Add Your Identity Provider
+### Add the Identity Provider
 
-In the **Developer Portal**, navigate to your application's **Identity** page.
+In the **Developer Portal**, navigate to the application's **Identity** page.
 
 1. Click **Add Identity Provider**
-2. Enter your OIDC issuer URL (e.g., `https://your-org.okta.com`)
+2. Enter the OIDC issuer URL (e.g., `https://your-tenant.us.auth0.com` or `https://your-app.clerk.accounts.dev`)
 3. Click **Discover** to auto-detect the IDP type, user ID claim, and group claim
 4. Review the suggested claim mappings and override if needed
 5. Click **Add Provider**
 
+<Warning>
+**One IDP per app at a time.** Each application can have only one active identity provider configuration. To switch providers, remove the existing IDP configuration and then add the replacement.
+</Warning>
+
 <Info>
-**Auto-detection**: Alter Vault recognizes Okta, Azure AD, Auth0, Clerk, Google, Keycloak, Cognito, Firebase, and Supabase from the issuer URL and automatically configures the correct claim mappings.
+**Auto-detection**: Alter Vault recognizes Auth0 and Clerk from the issuer URL and automatically configures the correct claim mappings. Any other OIDC-compliant provider defaults to `custom_oidc` and uses the standard `sub` claim.
 </Info>
 
 <Warning>
@@ -35,7 +39,7 @@ In the **Developer Portal**, navigate to your application's **Identity** page.
 
 ### Pass JWT When Retrieving Tokens
 
-When your application makes API calls through Alter Vault, include the user's JWT from your IDP. This enables Alter Vault to identify the user and enforce access policies.
+When the application makes API calls through Alter Vault, include the end user's JWT issued by the identity provider. This lets Alter Vault identify the user and enforce access policies.
 
 <CodeGroup>
 
@@ -45,7 +49,7 @@ from alter_sdk import AlterVault, HttpMethod
 vault = AlterVault(
     api_key="alter_key_...",
     caller="my-agent",
-    user_token_getter=lambda: get_user_jwt(),  # Returns JWT from your IDP
+    user_token_getter=lambda: get_user_jwt(),  # Returns JWT from the identity provider
 )
 
 # JWT is automatically included by the SDK via user_token_getter
@@ -62,7 +66,7 @@ import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
 const vault = new AlterVault({
   apiKey: "alter_key_...",
   caller: "my-agent",
-  userTokenGetter: () => getUserJwt(), // Returns JWT from your IDP
+  userTokenGetter: () => getUserJwt(), // Returns JWT from the identity provider
 });
 
 // JWT is automatically included by the SDK via userTokenGetter
@@ -98,51 +102,30 @@ To let end users sign in through the IDP --- for `vault.authenticate()` in the S
 1. Go to **Auth0 Dashboard → Applications → Applications** and click **Create Application**
 2. Choose **Regular Web Application** (not SPA --- the callback goes to the Alter Vault backend)
 3. In the app's **Settings** tab, paste both redirect URIs into **Allowed Callback URLs** (comma-separated)
-4. Copy the **Client ID** and **Client Secret** from the same Settings page into the Developer Portal
+4. In the same **Settings** tab, paste the **Wallet logout URL** shown in the Developer Portal into **Allowed Logout URLs**.
+
+   <Info>
+   **Use the bare URL with no query parameters.** Auth0 exact-matches this field, so `https://wallet.alterauth.com/sign-in` works but `https://wallet.alterauth.com/sign-in?appId=…` will be rejected. Alter Vault sends the `appId` through the OIDC `state` parameter, which Auth0 echoes back automatically --- no per-app URL is needed.
+
+   Example: if the Wallet callback shown in the Developer Portal is `https://wallet.alterauth.com/api/auth/callback`, the logout URL is `https://wallet.alterauth.com/sign-in`.
+   </Info>
+
+   Without this step the Wallet's "Sign out" button cannot return users to the sign-in page after Auth0 clears its session, and end users cannot switch accounts.
+5. Copy the **Client ID** and **Client Secret** from the same Settings page into the Developer Portal
 
 <Warning>
 If using a custom Auth0 domain (e.g., `auth.yourcompany.com`), the issuer URL registered in Alter Vault must match the issuer in the JWTs Auth0 issues. Check **Auth0 Dashboard → Settings → Custom Domains**.
 </Warning>
 </Tab>
 
-<Tab title="Okta">
-1. Go to **Okta Admin → Applications → Applications** and click **Create App Integration**
-2. Choose **OIDC - OpenID Connect**, then **Web Application**
-3. Under **Sign-in redirect URIs**, add both redirect URIs from the Developer Portal
-4. Copy the **Client ID** and **Client Secret** from the app's **General** tab into the Developer Portal
-</Tab>
+<Tab title="Clerk">
+1. In the Clerk Dashboard, go to **Configure → OAuth Applications** (requires a production instance)
+2. Create a new OAuth application and add both redirect URIs from the Developer Portal as allowed callbacks
+3. Copy the **Client ID** and **Client Secret** into the Developer Portal
 
-<Tab title="Entra ID">
-1. Go to **Azure Portal → App registrations** and select the application (or create a new one)
-2. Go to **Authentication → Add a platform → Web**
-3. Add both redirect URIs from the Developer Portal
-4. Go to **Certificates & secrets → New client secret** and create a secret
-5. Copy the **Application (client) ID** from the Overview page and the **client secret value** into the Developer Portal
-
-<Warning>
-When SCIM provisioning is enabled for Entra ID, the user ID claim must be set to `oid` (not `sub`). Entra ID SCIM sends the `objectId` as the user identifier, and a mismatch creates duplicate user records.
-</Warning>
-</Tab>
-
-<Tab title="Google">
-1. Go to **Google Cloud Console → APIs & Services → Credentials**
-2. Click **Create Credentials → OAuth client ID**, select **Web application**
-3. Under **Authorized redirect URIs**, add both redirect URIs from the Developer Portal
-4. Copy the **Client ID** and **Client secret** into the Developer Portal
-</Tab>
-
-<Tab title="Keycloak">
-1. Go to **Keycloak Admin → Clients** and click **Create client**
-2. Set **Client type** to **OpenID Connect** and **Client authentication** to **On**
-3. Under **Valid redirect URIs**, add both redirect URIs from the Developer Portal
-4. Go to the **Credentials** tab and copy the **Client ID** and **Client secret** into the Developer Portal
-</Tab>
-
-<Tab title="Other OIDC">
-1. Create an OAuth/OIDC application in the identity provider
-2. Set the application type to **Web** or **Confidential** (not SPA/public)
-3. Add both redirect URIs from the Developer Portal as allowed callback URLs
-4. Copy the **Client ID** and **Client Secret** into the Developer Portal
+<Info>
+Clerk's JWT issuer URL follows the pattern `https://your-app.clerk.accounts.dev` for development instances or `https://clerk.your-domain.com` for production instances with a custom domain.
+</Info>
 </Tab>
 </Tabs>
 
@@ -176,36 +159,53 @@ console.log(authResult.userInfo); // User profile from the IDP
 
 </CodeGroup>
 
-### Enable SCIM (Recommended for Enterprise)
+### Enable Webhooks for Deprovisioning
 
-For enterprise IDPs like Okta and Azure AD, enable SCIM for real-time user provisioning and immediate deprovisioning. SCIM is available on all plans.
+For real-time user lifecycle sync, enable webhooks so the identity provider pushes `user.deleted` and `user.suspended` events to Alter Vault. The setup differs by provider because Clerk (via Svix) generates its own signing secret, while Auth0 accepts any shared token.
 
-1. In **Developer Portal** → the app's **Identity** page → **SCIM** section
-2. Click **Enable SCIM**
-3. **Copy the bearer token** (shown only once!) and the SCIM endpoint URL
-4. Configure the IDP to push to this endpoint (see [SCIM Reference](/identity-providers/scim) for per-IDP instructions)
+<Tabs>
+<Tab title="Auth0">
+1. In **Developer Portal** → the app's **Identity** page → **Webhooks** section, click **Enable Webhooks**. Copy the generated signing secret (shown only once) and the webhook endpoint URL.
+2. In **Auth0 Dashboard → Monitoring → Streams**, create a new **Custom Webhook** log stream.
+3. Paste the webhook endpoint URL as the **Payload URL**.
+4. Paste the signing secret into the **Authorization Token** field.
+5. Filter the stream to `sdu` (user deleted by admin), `ublkdu` (user blocked by admin), and `ubuu` (user unblocked by admin) events. These are the three admin-initiated lifecycle events Alter Vault acts on; login events (`sul`) and rate-limit events (`limit_sul`) are intentionally ignored because they are not per-user lifecycle changes.
+6. Save the log stream.
+</Tab>
+
+<Tab title="Clerk">
+Clerk generates the signing secret inside the Clerk Dashboard, so the flow is reversed: create the endpoint in Clerk first, then paste its signing secret into the Developer Portal.
+
+1. In **Developer Portal** → the app's **Identity** page → **Webhooks** section, note the **Webhook URL** shown for the app.
+2. In **Clerk Dashboard → Webhooks**, click **Add Endpoint** and paste the webhook URL as the endpoint URL.
+3. Subscribe to `user.updated`, `user.deleted`, and `organizationMembership.deleted` events.
+4. Clerk displays a **Signing Secret** for the endpoint (starts with `whsec_`). Copy it.
+5. Back in the Developer Portal, toggle **Enable Webhooks** and paste the signing secret into the dialog, then **Save Secret**.
+
+To rotate later: generate a new signing secret in Clerk's endpoint settings, then use **Rotate Secret** in the Developer Portal and paste the new value.
+</Tab>
+</Tabs>
 
 <Warning>
-**Save the bearer token immediately!** The SCIM bearer token is displayed only once when you enable SCIM. If you lose it, you can rotate it from the Developer Portal, but the old token will be invalidated.
+**Auth0 only — save the generated signing secret immediately.** The Developer Portal displays it once when webhooks are enabled. If lost, use **Rotate Secret** to generate a new one (the old one is immediately invalidated). Clerk signing secrets live in the Clerk Dashboard; re-copy them from there if needed.
 </Warning>
 
 ### Test Deprovisioning
 
 To verify the integration works end-to-end:
 
-1. Assign a test user to the application in the IDP
-2. Verify the user appears in Alter Vault (check the SCIM sync status in Developer Portal)
-3. Remove the test user from the IDP
-4. Verify their OAuth grants are revoked in Alter Vault
+1. Sign in as a test user through the identity provider (this creates the user in Alter Vault via JWT lazy sync)
+2. Delete the test user in the identity provider
+3. Verify their OAuth grants are revoked in Alter Vault
 
 </Steps>
 
 ## What Happens Behind the Scenes
 
-When you pass a JWT or when your IDP sends a SCIM event:
+When the application passes a JWT or the identity provider sends a webhook event:
 
-1. **User identity is resolved** — Alter Vault maps the JWT `sub` claim (or SCIM `externalId`) to an internal user record
-2. **Groups are synced** — Group memberships from JWT claims or SCIM group operations are synced to Alter Vault
+1. **User identity is resolved** — Alter Vault maps the JWT `sub` claim to an internal user record
+2. **Groups are synced** — Group memberships from JWT claims are synced to Alter Vault
 3. **Connections are linked** — OAuth grants are associated with the user for lifecycle management
 4. **Policies are evaluated** — Group-based access policies can restrict which providers a user can access
 
@@ -218,5 +218,4 @@ When a user is **deprovisioned**:
 
 ## Next Steps
 
-- [SCIM 2.0 Reference](/identity-providers/scim) — Technical reference for SCIM provisioning
-- [Supported Providers](/identity-providers/supported-providers) — Which IDPs are supported and their capabilities
+- [Supported Providers](/identity-providers/supported-providers) — Provider capabilities and claim conventions
