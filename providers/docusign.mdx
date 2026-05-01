@@ -11,27 +11,31 @@ Connect your users to DocuSign for electronic signature workflows, document mana
 |----------|-------|
 | **Provider ID** | `docusign` |
 | **Category** | Business |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a DocuSign OAuth App
 
 <Steps>
-  <Step title="Go to the DocuSign Developer Portal">
-    Navigate to [developers.docusign.com](https://developers.docusign.com/) and sign in.
+  <Step title="Open Apps and Keys">
+    Sign in to DocuSign as an administrator and go to **Settings** > **Apps and Keys** — or open [apps.docusign.com/admin/apps-and-keys](https://apps.docusign.com/admin/apps-and-keys) directly. For developer accounts, use [apps-d.docusign.com/admin/apps-and-keys](https://apps-d.docusign.com/admin/apps-and-keys).
   </Step>
 
   <Step title="Create a new application">
-    Go to **Apps and Keys** and click **Add App and Integration Key**.
+    Click **ADD APP / INTEGRATION KEY**, enter the App Name, and save.
+  </Step>
+
+  <Step title="Generate a secret key">
+    Under **Authentication**, click **Add Secret Key** and copy the secret immediately — it is only displayed once.
   </Step>
 
   <Step title="Configure the redirect URI">
-    Under **Additional settings**, add a **Redirect URI** using the Alter callback URL from the [Developer Portal](https://portal.alterauth.com).
+    Under **Additional Settings**, add a **Redirect URI** using the Alter callback URL from the [Developer Portal](https://portal.alterauth.com). Match the trailing slash exactly — DocuSign requires an exact string match.
   </Step>
 
   <Step title="Get your credentials">
-    Copy the **Integration Key** (Client ID) and generate a **Secret Key** (Client Secret).
+    Copy the **Integration Key** (Client ID) shown on the app details page.
   </Step>
 </Steps>
 

@@ -131,13 +131,17 @@ import {
   PolicyViolationError,
   TokenRefreshInProgressError,
   GrantNotFoundError,
+  AmbiguousGrantError,
 } from "@alter-ai/alter-sdk";
 
 try {
+  // Identity mode — the SDK resolves the grant from the configured
+  // userTokenGetter. AmbiguousGrantError can only be raised on this
+  // path; direct (grantId) mode addresses a single grant.
   const response = await vault.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    { grantId },
+    { provider: "google" },
   );
   return await response.json();
 } catch (e) {
@@ -150,6 +154,11 @@ try {
   } else if (e instanceof TokenRefreshInProgressError) {
     // Another request is mid-refresh — transient, retry after backoff
     console.log(`Token refresh in progress for ${e.grantId} — retry after backoff`);
+  } else if (e instanceof AmbiguousGrantError) {
+    // JWT identity resolution matched multiple active grants — supply
+    // `account` to disambiguate. Matching identifiers are exposed on the
+    // exception so the caller can prompt or pick.
+    console.log(`Multiple grants for ${e.providerId}:`, e.accountIdentifiers);
   } else if (e instanceof GrantNotFoundError) {
     console.log("User hasn't connected Google yet");
   } else {
@@ -172,6 +181,51 @@ console.log(`Revoked at ${result.revokedAt}`);
 ```
 
 `revokeGrant()` throws `GrantNotFoundError` if the grant does not exist or is already revoked.
+
+When the `AlterVault` instance has `userTokenGetter` configured, `revokeGrant()` targets a grant owned by the authenticated caller — passing a `grantId` that belongs to someone else throws `GrantNotFoundError`. See [Scoping grant operations to the authenticated user](/sdks/typescript/overview#scoping-grant-operations-to-the-authenticated-user) in the overview.
+
+## Provisioning Managed-Secret Grants
+
+`createManagedSecretGrant()` ties a managed secret to a specific principal (user, IDP group, or system). Use it when an admin or backend job needs to provision access without sending the end user through Alter Connect.
+
+```typescript
+import {
+  AlterVault,
+  type GroupPrincipal,
+  type UserPrincipal,
+  type SystemPrincipal,
+} from "@alter-ai/alter-sdk";
+
+// Tie the secret to an IDP group — every member with a verified JWT gets access
+const groupGrant = await vault.createManagedSecretGrant("a1b2c3d4-5e6f-7890-abcd-ef0123456789", {
+  principal: {
+    type: "group",
+    idpId: "idp_xyz",
+    externalGroupId: "okta-group-engineering",
+    label: "engineering-prod-stripe",
+  } satisfies GroupPrincipal,
+});
+
+// Tie the secret to a specific end user (validates userToken against the IDP).
+// `label` is required so the wallet can render meaningful copy.
+const userGrant = await vault.createManagedSecretGrant("a1b2c3d4-5e6f-7890-abcd-ef0123456789", {
+  principal: {
+    type: "user",
+    userToken: currentUserJwt,
+    label: "alice-prod-stripe-readonly",
+  } satisfies UserPrincipal,
+});
+
+// Headless system grant — no end-user identity required. `label` is optional
+// because system grants typically don't surface in the wallet.
+const systemGrant = await vault.createManagedSecretGrant("a1b2c3d4-5e6f-7890-abcd-ef0123456789", {
+  principal: { type: "system", label: "cron-stripe-charges" } satisfies SystemPrincipal,
+});
+
+console.log(groupGrant.grantId, groupGrant.principalType);
+```
+
+`Principal` is a discriminated union (`type` field is the discriminator). `label` is required on `UserPrincipal` and `GroupPrincipal` (rendered in the wallet) and optional on `SystemPrincipal`. The backend resolves and persists the principal: `UserPrincipal` validates the JWT and binds the grant to the resolved app user; `GroupPrincipal` upserts the IDP group; `SystemPrincipal` records a headless grant — anyone with the grant id and a valid signature for the app can retrieve the credential, so use only for backend flows with no caller user.
 
 ## Next Steps
 

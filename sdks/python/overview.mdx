@@ -392,6 +392,38 @@ print(f"Connect URL: {session.connect_url}")
 
 Returns `ConnectSession` with `session_token`, `connect_url`, `expires_in`, `expires_at`.
 
+### Scoping grant operations to the authenticated user
+
+In user-facing applications — where many end users share a single `AlterVault` instance — configure `user_token_getter` so every grant operation is tied to the caller's identity. The SDK forwards the end user's IDP JWT and the backend resolves each call against that user's own grants.
+
+```python
+vault = AlterVault(
+    api_key="alter_key_...",
+    user_token_getter=lambda: get_current_user_jwt(),
+)
+
+# list_grants() returns the caller's grants.
+result = await vault.list_grants()
+
+# revoke_grant() targets a grant the caller owns.
+# Passing a grant_id that does not belong to the caller raises
+# GrantNotFoundError.
+await vault.revoke_grant(grant_id)
+
+# create_connect_session() produces a Connect URL tied to the caller's identity.
+session = await vault.create_connect_session(allowed_providers=["google"])
+
+# vault.request(grant_id=...) retrieves a token only when the grant
+# belongs to the caller. (Or use provider="..." for identity resolution.)
+await vault.request(HttpMethod.GET, url, grant_id=grant_id)
+```
+
+FastAPI users get this wiring for free with [`AlterFastAPI`](/sdks/python/fastapi) — the dependency captures the incoming Bearer token and configures `user_token_getter` automatically.
+
+If `user_token_getter` is configured but cannot produce a token (e.g. the end user's session has expired), the SDK raises `AlterSDKError`. Surface this as a 401 to the end user so they can re-authenticate.
+
+Omit `user_token_getter` for headless tools (CLIs, cron jobs, backend migrations) that operate on grants the developer manages directly. The same methods then run under the application's own credentials.
+
 ### Headless Connect (from code)
 
 For CLI tools, Jupyter notebooks, and backend scripts, use `connect()` to open the browser, wait for the user to complete OAuth, and get the result back:

@@ -11,7 +11,7 @@ Connect your users to Outreach for sales engagement, sequence management, prospe
 |----------|-------|
 | **Provider ID** | `outreach` |
 | **Category** | CRM & Sales |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
@@ -19,21 +19,21 @@ Connect your users to Outreach for sales engagement, sequence management, prospe
 
 <Steps>
   <Step title="Go to the Outreach Developer Portal">
-    Navigate to [developers.outreach.io](https://developers.outreach.io/) and sign in.
+    Sign in to [developers.outreach.io/apps/new](https://developers.outreach.io/apps/new) and click **Create app**. Enter the App name; the App identifier auto-populates.
   </Step>
 
-  <Step title="Create a new application">
-    Register a new OAuth application and enter the application name and description.
-  </Step>
-
-  <Step title="Configure the redirect URI">
-    Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URI** field.
+  <Step title="Configure API access">
+    In the new app's left menu, open **API access**. Add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) under **Redirect URIs** and select the OAuth data scopes the application needs.
   </Step>
 
   <Step title="Get your credentials">
-    Copy the **Client ID** and **Client Secret**.
+    Copy the development **Client ID** and **Client Secret**. The secret is displayed only once — use **Regenerate** if it's lost.
   </Step>
 </Steps>
+
+<Note>
+  Outreach apps have separate development and production credentials. Development credentials are provisioned immediately for testing; production credentials are issued only after the app goes through Outreach's publishing review. Development grants expire weekly for users outside the owning org and after 10 users in the owning org, so use development credentials for testing only.
+</Note>
 
 <Warning>
   Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.

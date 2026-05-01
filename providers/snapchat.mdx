@@ -11,32 +11,32 @@ Connect your users to Snapchat for marketing campaign management, advertising da
 |----------|-------|
 | **Provider ID** | `snapchat` |
 | **Category** | Social |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a Snapchat OAuth App
 
 <Steps>
-  <Step title="Go to the Snapchat Business Manager">
-    Navigate to [business.snapchat.com](https://business.snapchat.com/) and sign in.
+  <Step title="Go to the Snap Business Manager">
+    Navigate to [business.snapchat.com](https://business.snapchat.com/) and sign in as an Organization Admin.
   </Step>
 
-  <Step title="Register your app">
-    Go to **Business Settings** > **OAuth Apps** and click **Register App**. Fill in the app name and description.
+  <Step title="Register the app">
+    Open the organization and go to **Business Details** to create a new OAuth app. Enter the app name and description.
   </Step>
 
   <Step title="Configure the redirect URI">
-    Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URLs** field.
+    Add the Alter callback URL (HTTPS) from the [Developer Portal](https://portal.alterauth.com) as the **Redirect URI**. The redirect URI cannot be edited after the app is created.
   </Step>
 
-  <Step title="Get your credentials">
+  <Step title="Get credentials">
     Copy the **Client ID** and **Client Secret**.
   </Step>
 </Steps>
 
 <Warning>
-  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+  Never share the Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
 </Warning>
 
 ## Step 2: Add to Alter Vault
@@ -73,5 +73,6 @@ Connect your users to Snapchat for marketing campaign management, advertising da
 
 ## Notes
 
-- Snapchat Marketing API access requires approval from Snapchat. Apply through the Business Manager.
-- See the [Snapchat Marketing API authentication documentation](https://marketingapi.snapchat.com/docs/#authentication) for more details.
+- Snapchat Marketing API access requires approval from Snapchat. Apply through the Snap Business Manager.
+- The redirect URI of an OAuth app cannot be edited after creation — register a new app to change it.
+- See the [Snap Marketing API authentication docs](https://docs.snap.com/api/marketing-api/Ads-API/authentication) for endpoint details.

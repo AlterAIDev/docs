@@ -19,21 +19,31 @@ Connect your users to Adobe for Creative Cloud assets, document workflows, and i
 
 <Steps>
   <Step title="Go to the Adobe Developer Console">
-    Navigate to [developer.adobe.com/console](https://developer.adobe.com/console) and sign in.
+    Navigate to [developer.adobe.com/console](https://developer.adobe.com/console) and click **Create new project**.
   </Step>
 
-  <Step title="Create a new project">
-    Click **Create New Project** and add an **OAuth 2.0** credential. Set the application type to **Web Application**.
+  <Step title="Add an API to the project">
+    Open the project and click **Add API**. Choose the Adobe API the integration needs (e.g., Creative Cloud, Document Cloud).
   </Step>
 
-  <Step title="Add the redirect URI">
-    Add the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com) to the redirect URI field.
+  <Step title="Select OAuth Web App credentials">
+    Choose **OAuth User Authentication** and select **Web App** as the platform. Web App requires the secret to live on a backend server.
+  </Step>
+
+  <Step title="Configure redirect URIs">
+    Enter:
+    - **Default Redirect URI**: the Alter callback URL from the [Developer Portal](https://portal.alterauth.com)
+    - **Redirect URI pattern**: a regex that matches the default redirect URI (Adobe requires both)
   </Step>
 
   <Step title="Get your credentials">
-    Copy the **Client ID** and **Client Secret** from the credential details.
+    Open the OAuth Web App credential and copy the **Client ID** and **Client Secret**.
   </Step>
 </Steps>
+
+<Note>
+  Adobe IMS requires `openid` and/or `AdobeID` as foundational identity scopes. The `offline_access` scope alone is not sufficient — it must be combined with `openid` or `AdobeID` to receive refresh tokens.
+</Note>
 
 <Warning>
   Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.

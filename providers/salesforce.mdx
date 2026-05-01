@@ -11,36 +11,47 @@ Connect your users to Salesforce for CRM data, opportunity management, contact r
 |----------|-------|
 | **Provider ID** | `salesforce` |
 | **Category** | Popular |
-| **PKCE** | Supported (required for new apps) |
+| **PKCE** | Supported (configurable; recommended) |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
-## Step 1: Create a Salesforce OAuth App
+## Step 1: Create a Salesforce External Client App
 
 <Steps>
   <Step title="Log into your Salesforce org">
     Navigate to [login.salesforce.com](https://login.salesforce.com/) and sign in.
   </Step>
 
-  <Step title="Create an External Client App">
-    Go to **Setup**, search for **External Client App Manager**, and click **New External Client App**. Enter the app name and contact email.
+  <Step title="Open External Client App Manager">
+    Go to **Setup**. In the Quick Find box, search for **External Client App Manager** and open it. Click **New External Client App**.
+  </Step>
+
+  <Step title="Enter basic information">
+    Fill in:
+    - **External Client App Name** and **API Name** (auto-populated)
+    - **Contact Email**
+    - **Distribution State** — Local for single-org use, Packaged for distribution across orgs
   </Step>
 
   <Step title="Enable OAuth settings">
-    Enable **OAuth Settings**. Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Callback URL** field. Select the required OAuth scopes.
+    Enable **OAuth Settings** and add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Callback URL** field. Select the OAuth scopes the application needs (e.g., `api`, and `refresh_token` to enable refresh tokens).
   </Step>
 
-  <Step title="Get your credentials">
-    After saving, copy the **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret) from the app settings.
+  <Step title="Configure OAuth policies">
+    After creating the app, open the **Policies** tab and click **Edit**. In the OAuth Policies section, enable the OAuth flows the application will use (Authorization Code is required for the standard web flow) and save.
+  </Step>
+
+  <Step title="Get credentials">
+    Open **Settings** → **OAuth Settings** to copy the **Consumer Key** (Client ID) and **Consumer Secret** (Client Secret). Salesforce may require email verification before revealing the secret.
   </Step>
 </Steps>
 
 <Note>
-  As of Spring '26, Salesforce requires External Client Apps instead of Connected Apps for new integrations. Existing Connected Apps continue to function.
+  As of Spring '26, Salesforce blocks creation of new Connected Apps. New integrations must use External Client Apps. Existing Connected Apps continue to function. External Client Apps separate the app definition (created by the developer) from OAuth policy enforcement (managed by an admin) — both the app and its policies must be configured before the app can be used.
 </Note>
 
 <Warning>
-  Never share your Consumer Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+  Never share the Consumer Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
 </Warning>
 
 ## Step 2: Add to Alter Vault

@@ -18,12 +18,12 @@ Connect your users to Stripe via Stripe Connect for payment processing, account 
 ## Step 1: Create a Stripe Connect OAuth App
 
 <Steps>
-  <Step title="Go to Stripe Connect Settings">
-    Navigate to [dashboard.stripe.com/settings/connect](https://dashboard.stripe.com/settings/connect) and sign in.
+  <Step title="Go to Stripe Connect OAuth Settings">
+    Navigate to [dashboard.stripe.com/settings/connect/onboarding-options/oauth](https://dashboard.stripe.com/settings/connect/onboarding-options/oauth) and sign in.
   </Step>
 
   <Step title="Enable OAuth">
-    Under **Integration**, enable **OAuth for Standard accounts**.
+    Enable **Onboard accounts with OAuth**.
   </Step>
 
   <Step title="Configure the redirect URI">
@@ -75,4 +75,5 @@ Connect your users to Stripe via Stripe Connect for payment processing, account 
 
 - Stripe Connect tokens do not expire. There is no refresh token flow.
 - Stripe Connect is for connecting to other Stripe accounts (not individual user accounts).
+- Stripe recommends Connect Onboarding instead of OAuth for new integrations.
 - See the [Stripe Connect OAuth reference](https://docs.stripe.com/connect/oauth-reference) for more details.

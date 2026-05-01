@@ -11,27 +11,29 @@ Connect your users to HubSpot for CRM data, contact management, deal tracking, a
 |----------|-------|
 | **Provider ID** | `hubspot` |
 | **Category** | Popular |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a HubSpot OAuth App
 
 <Steps>
-  <Step title="Go to the HubSpot Developer Portal">
-    Navigate to [developers.hubspot.com](https://developers.hubspot.com/) and sign in.
+  <Step title="Install and authenticate the HubSpot CLI">
+    Install the HubSpot CLI (v7.6.0 or later) and authenticate with `hs init` or `hs account auth`. Apps are now created via the CLI from any standard HubSpot account — the legacy developer-account model was retired in March 2026.
   </Step>
 
-  <Step title="Create a new app">
-    Go to **Apps** and click **Create app**. Fill in the app name and details.
+  <Step title="Create a new project">
+    Run `hs project create` and choose:
+    - **Distribution**: Marketplace or restricted installation
+    - **Authentication**: OAuth (for installation in multiple HubSpot accounts)
   </Step>
 
   <Step title="Configure OAuth settings">
-    Under the **Auth** tab, add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to **Redirect URLs**.
+    Edit the app's top-level `app-hsmeta.json` file and add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) to the `redirectUrls` array. Add the required scopes under `auth.requiredScopes`. Then run `hs project upload` to deploy the app to HubSpot.
   </Step>
 
   <Step title="Get your credentials">
-    Copy the **Client ID** and **Client secret**.
+    In the HubSpot account, go to **Development** > **Projects**, open the project, click the app name, and open the **Auth** tab. Copy the **Client ID** and **Client secret**.
   </Step>
 </Steps>
 
@@ -79,4 +81,4 @@ Connect your users to HubSpot for CRM data, contact management, deal tracking, a
 
 - HubSpot enforces granular scopes — request only what your app needs.
 - Access tokens are short-lived (~30 minutes). Alter Vault handles automatic refresh using the refresh token.
-- See the [HubSpot OAuth quickstart](https://developers.hubspot.com/docs/api/oauth-quickstart-guide) for more details.
+- See the [HubSpot OAuth documentation](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth) for more details.

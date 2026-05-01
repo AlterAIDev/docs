@@ -287,6 +287,38 @@ console.log(`Connect URL: ${session.connectUrl}`);
 
 Returns `ConnectSession` with `sessionToken`, `connectUrl`, `expiresIn`, `expiresAt`.
 
+### Scoping grant operations to the authenticated user
+
+In user-facing applications — where many end users share a single `AlterVault` instance — configure `userTokenGetter` so every grant operation is tied to the caller's identity. The SDK forwards the end user's IDP JWT and the backend resolves each call against that user's own grants.
+
+```typescript
+const vault = new AlterVault({
+  apiKey: "alter_key_...",
+  userTokenGetter: () => getCurrentUserJwt(),
+});
+
+// listGrants() returns the caller's grants.
+const result = await vault.listGrants();
+
+// revokeGrant() targets a grant the caller owns.
+// Passing a grantId that does not belong to the caller throws
+// GrantNotFoundError.
+await vault.revokeGrant(grantId);
+
+// createConnectSession() produces a Connect URL tied to the caller's identity.
+const session = await vault.createConnectSession({
+  allowedProviders: ["google"],
+});
+
+// vault.request({ grantId, ... }) retrieves a token only when the grant
+// belongs to the caller. (Or use { provider: "..." } for identity resolution.)
+await vault.request(HttpMethod.GET, url, { grantId });
+```
+
+If `userTokenGetter` is configured but cannot produce a token (e.g. the end user's session has expired), the SDK throws `AlterSDKError`. Surface this as a 401 to the end user so they can re-authenticate.
+
+Omit `userTokenGetter` for headless tools (scripts, cron jobs, backend migrations) that operate on grants the developer manages directly. The same methods then run under the application's own credentials.
+
 ### Headless Connect (from code)
 
 For CLI tools, scripts, and server-side applications, use `connect()` to open the browser, wait for the user to complete OAuth, and get the result back:

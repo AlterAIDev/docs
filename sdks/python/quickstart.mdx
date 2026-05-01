@@ -160,6 +160,34 @@ auth_result = await vault.authenticate()
 print(auth_result.user_info)  # { sub, email, name, ... } from the IDP
 ```
 
+## Connecting Without an IDP
+
+The SDK does not require an identity provider. When `AlterVault` is constructed without a `user_token_getter`, every Connect session it produces creates a **system-principal** grant — bound to the app, not to any end user, and addressed by `grant_id`. This is the path for server-to-server jobs, CLI tools, fixture provisioning, and any environment where there is no signed-in user.
+
+```python
+from alter_sdk import AlterVault, HttpMethod
+
+vault = AlterVault(api_key="alter_key_...")  # no user_token_getter
+
+# Start the OAuth flow. With no user_token, the resulting grant is system-principal.
+session = await vault.create_connect_session(allowed_providers=["google"])
+print("Open this URL to authorize:", session.connect_url)
+
+# After the operator completes OAuth in the browser, look up the new grant.
+# Because no user_token_getter is configured, list_grants() returns app-scoped grants.
+result = await vault.list_grants(provider_id="google", limit=5)
+grant = result.grants[0]
+assert grant.principal_type == "system"
+
+response = await vault.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=grant.grant_id,
+)
+```
+
+System-principal grants do not appear in any end user's Wallet Dashboard. Revoke them from the Developer Portal or via SDK with the `grant_id`. A runnable example covering custom managed secrets, AWS, Cloudflare, and non-IDP OAuth lives at `examples/system-principal-sandbox/`.
+
 ## Quick Error Handling
 
 ```python
@@ -169,13 +197,17 @@ from alter_sdk.exceptions import (
     PolicyViolationError,
     TokenRefreshInProgressError,
     GrantNotFoundError,
+    AmbiguousGrantError,
 )
 
 try:
+    # Identity mode — the SDK resolves the grant from the configured
+    # user_token_getter. AmbiguousGrantError can only be raised on this
+    # path; direct (grant_id=...) mode addresses a single grant.
     response = await vault.request(
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        grant_id=grant_id,
+        provider="google",
     )
 except ScopeReauthRequiredError as e:
     print(f"Scopes changed — user must re-authorize (provider: {e.provider_id}, grant: {e.grant_id})")
@@ -186,6 +218,11 @@ except PolicyViolationError as e:
 except TokenRefreshInProgressError as e:
     # Another request is mid-refresh — transient, retry after backoff
     print(f"Token refresh in progress for {e.grant_id} — retry after backoff")
+except AmbiguousGrantError as e:
+    # JWT identity resolution matched multiple active grants — supply
+    # `account` to disambiguate. The matching identifiers are exposed on
+    # the exception so the caller can prompt or pick.
+    print(f"Multiple grants for {e.provider_id}: {e.account_identifiers}")
 except GrantNotFoundError:
     print("User hasn't connected Google yet")
 ```
@@ -203,6 +240,47 @@ print(f"Revoked at {result.revoked_at}")
 ```
 
 `revoke_grant()` raises `GrantNotFoundError` if the grant does not exist or is already revoked.
+
+When the `AlterVault` instance has `user_token_getter` configured (including the [`AlterFastAPI`](/sdks/python/fastapi) dependency), `revoke_grant()` targets a grant owned by the authenticated caller — passing a `grant_id` that belongs to someone else raises `GrantNotFoundError`. See [Scoping grant operations to the authenticated user](/sdks/python/overview#scoping-grant-operations-to-the-authenticated-user) in the overview.
+
+## Provisioning Managed-Secret Grants
+
+`create_managed_secret_grant()` ties a managed secret to a specific principal (user, IDP group, or system). Use it when an admin or backend job needs to provision access without sending the end user through Alter Connect.
+
+```python
+from alter_sdk import AlterVault, GroupPrincipal, UserPrincipal, SystemPrincipal
+
+# Tie the secret to an IDP group — every member with a verified JWT gets access
+grant = await vault.create_managed_secret_grant(
+    "a1b2c3d4-5e6f-7890-abcd-ef0123456789",
+    principal=GroupPrincipal(
+        idp_id="idp_xyz",
+        external_group_id="okta-group-engineering",
+        label="engineering-prod-stripe",
+    ),
+)
+
+# Tie the secret to a specific end user (validates user_token against the IDP).
+# `label` is required so the wallet can render meaningful copy.
+grant = await vault.create_managed_secret_grant(
+    "a1b2c3d4-5e6f-7890-abcd-ef0123456789",
+    principal=UserPrincipal(
+        user_token=current_user_jwt,
+        label="alice-prod-stripe-readonly",
+    ),
+)
+
+# Headless system grant — no end-user identity required. `label` is optional
+# because system grants typically don't surface in the wallet.
+grant = await vault.create_managed_secret_grant(
+    "a1b2c3d4-5e6f-7890-abcd-ef0123456789",
+    principal=SystemPrincipal(label="cron-stripe-charges"),
+)
+
+print(grant.grant_id, grant.principal_type)
+```
+
+`Principal` is a discriminated union (`type` field is the discriminator). `label` is required on `UserPrincipal` and `GroupPrincipal` (rendered in the wallet) and optional on `SystemPrincipal`. The backend resolves and persists the principal: `UserPrincipal` validates the JWT and binds the grant to the resolved app user; `GroupPrincipal` upserts the IDP group; `SystemPrincipal` records a headless grant — anyone with the grant id and a valid signature for the app can retrieve the credential, so use only for backend flows with no caller user.
 
 ## Next Steps
 

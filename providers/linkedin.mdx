@@ -11,7 +11,7 @@ Connect your users to LinkedIn for professional profile data, social posting, an
 |----------|-------|
 | **Provider ID** | `linkedin` |
 | **Category** | Social |
-| **PKCE** | Not supported |
+| **PKCE** | Supported |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
@@ -72,11 +72,10 @@ Connect your users to LinkedIn for professional profile data, social posting, an
 | `profile` | Access to profile name, photo, and headline |
 | `email` | Access to primary email address |
 | `w_member_social` | Post, comment, and like on behalf of member |
-| `r_liteprofile` | Read basic profile data |
-| `r_emailaddress` | Read email address |
 | `r_organization_social` | Read organizational posts and statistics |
 
 ## Notes
 
-- LinkedIn requires requesting product access for some scopes (e.g., `r_organization_social`). Apply in the **Products** tab of your app.
+- LinkedIn now uses OpenID Connect for member authentication. Use `openid`, `profile`, and `email` rather than the deprecated `r_liteprofile` and `r_emailaddress` scopes — apps created after August 1, 2023 (when "Sign In with LinkedIn using OpenID Connect" replaced the legacy product) reject those legacy scopes with `unauthorized_scope`.
+- LinkedIn requires requesting product access for some scopes (e.g., `r_organization_social`). Apply in the **Products** tab of the app.
 - See the [LinkedIn OAuth 2.0 documentation](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow) for more details.

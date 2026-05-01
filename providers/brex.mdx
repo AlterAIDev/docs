@@ -15,33 +15,27 @@ Connect your users to Brex for corporate card management, expense tracking, and 
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
-## Step 1: Create a Brex OAuth App
+## Step 1: Get Brex OAuth credentials
+
+Brex OAuth (3LO) is partner-gated — there is no self-serve developer console for creating OAuth apps. Credentials must be issued by Brex's developer support team after the partner application is approved.
 
 <Steps>
-  <Step title="Go to the Brex Developer Dashboard">
-    Navigate to [developer.brex.com](https://developer.brex.com/) and sign in.
+  <Step title="Apply to be a Brex developer partner">
+    Submit an application at [brex.com/partners](https://www.brex.com/partners).
   </Step>
 
-  <Step title="Create an application">
-    Navigate to **OAuth Applications** and click **Create Application**.
+  <Step title="Request OAuth credentials">
+    Once approved, contact the Brex developer support team to request OAuth client credentials. Provide the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) — Brex configures the redirect URI on its side, there is no self-serve UI for it.
   </Step>
 
-  <Step title="Configure your app">
-    Enter the application name and description.
-  </Step>
-
-  <Step title="Add the redirect URI">
-    Add the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URIs** field.
-  </Step>
-
-  <Step title="Select scopes">
-    Select the scopes your application needs. See [Available Scopes](#available-scopes) below.
-  </Step>
-
-  <Step title="Get your credentials">
-    Copy the **Client ID** and **Client Secret**.
+  <Step title="Receive credentials">
+    Brex issues a **Client ID**, **Client Secret**, and the list of approved scopes.
   </Step>
 </Steps>
+
+<Note>
+  For internal automations against a single Brex account (not user-facing OAuth), use a User Token generated under **Developer → Settings** at [dashboard.brex.com](https://dashboard.brex.com/) instead — that flow uses a static bearer token, not OAuth, and does not work with this provider.
+</Note>
 
 <Warning>
   Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.

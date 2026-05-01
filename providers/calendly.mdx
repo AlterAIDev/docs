@@ -18,16 +18,18 @@ Connect your users to Calendly for scheduling automation, event management, and 
 ## Step 1: Create a Calendly OAuth App
 
 <Steps>
-  <Step title="Go to the Calendly Developer Portal">
-    Navigate to [developer.calendly.com](https://developer.calendly.com/) and sign in.
+  <Step title="Sign up for the Calendly Developer Portal">
+    Go to [developer.calendly.com](https://developer.calendly.com/) and sign up with GitHub or Google. The developer account is separate from a regular Calendly user account.
   </Step>
 
   <Step title="Create an application">
-    Click **Create an Application** under **My Apps**.
+    Open **My OAuth Apps** and click **Create New App**.
   </Step>
 
   <Step title="Configure your app">
-    Fill in the app name, description, and company URL.
+    Choose:
+    - **Application type** (web or native)
+    - **Environment** — Sandbox for development (HTTP localhost allowed), Production for live data (HTTPS only)
   </Step>
 
   <Step title="Add the redirect URI">
@@ -35,7 +37,7 @@ Connect your users to Calendly for scheduling automation, event management, and 
   </Step>
 
   <Step title="Get your credentials">
-    Copy the **Client ID** and **Client Secret**.
+    Copy the **Client ID**, **Client Secret**, and **Webhook signing key**. The secret and signing key are only displayed once.
   </Step>
 </Steps>
 
@@ -76,5 +78,7 @@ Connect your users to Calendly for scheduling automation, event management, and 
 
 ## Notes
 
-- Calendly OAuth apps require approval for production access.
-- During development, you can test with up to 100 users.
+- The Calendly developer account is separate from a regular Calendly user account — sign in with GitHub or Google.
+- Use the Sandbox environment for development; HTTP localhost redirect URIs are allowed there. Production requires HTTPS.
+- Calendly OAuth recommends PKCE with the S256 `code_challenge_method` (RFC 7636).
+- The Client Secret and Webhook signing key are revealed only at creation — save them immediately.
