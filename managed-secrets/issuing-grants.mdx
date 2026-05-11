@@ -106,7 +106,7 @@ The grant becomes unusable after the TTL elapses. Use this for short-lived acces
 
 ## Agent-issued grants
 
-Agents (the `Agent` class) can issue grants — but only for themselves. The backend resolves the calling agent from the HMAC-verified API key on the request.
+Agents (the `Agent` class) can issue grants — but only for themselves. The backend resolves the calling agent from the API key on the request.
 
 ```python
 # Inside agent code

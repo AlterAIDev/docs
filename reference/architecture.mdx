@@ -1,320 +1,160 @@
 ---
 title: 'Architecture & Security'
-description: 'How Alter Vault works: multi-tenant credential management, identity-aware authorization, and security architecture'
+description: 'How Alter Vault works: credential storage, identity-aware authorization, and audit.'
 ---
 
-## How Alter Vault Works
+## How Alter Vault works
 
-Alter Vault is the credential and authorization layer for AI agents that serve multiple users across multiple services. It stores OAuth tokens and API credentials in an encrypted vault, enforces identity-aware policies on every access, and logs every action with full actor context.
+Alter Vault is the credential and authorization layer for apps and AI agents that call third-party APIs on behalf of users. Credentials are encrypted at rest, identity-aware policies are enforced on every retrieval, and every access is recorded in an audit trail.
 
-### Two Paths, One API
+### Two paths, one API
 
-Alter Vault supports two types of credentials, both accessed through the same `alter_app.request()` method:
+Both credential types are accessed through the same `vault.request()` method:
 
-- **OAuth Connections** — for third-party services where users authorize access (Google, Slack, GitHub)
-- **Managed Secrets** — for internal APIs where credentials are already available (API keys, service tokens)
+- **OAuth grants** — for third-party services where end users authorize access.
+- **Managed secrets** — for credentials the developer already holds (API keys, service tokens).
 
 ```mermaid
 graph LR
-    A1[User Authorizes] --> B1[OAuth Flow]
-    B1 --> C[Credentials Encrypted in Vault]
-    A2[Developer Stores Secret] --> C
-    C --> D[alter_app.request]
-    D --> E[Credential Injected Automatically]
-    E --> F[API Response Returned]
+    A1[End user authorizes] --> B1[OAuth flow]
+    B1 --> C[Credential encrypted at rest]
+    A2[Developer provisions secret] --> C
+    C --> D[vault.request]
+    D --> E[Credential injected]
+    E --> F[Response returned]
 ```
 
-## Zero Credential Exposure
+## Zero credential exposure
 
-Application code **never sees or stores credentials**. Here is what happens instead:
+Application code never sees the credential. The flow:
 
 <Steps>
-  <Step title="Connect or Store">
-    **OAuth**: User authorizes through Alter Connect UI. **Managed Secrets**: Developer stores credentials via the Developer Portal.
+  <Step title="Authorize or provision">
+    **OAuth**: the end user authorizes through Alter Connect. **Managed secrets**: the developer stores the credential in the Developer Portal.
   </Step>
 
-  <Step title="Encrypt & Store">
-    All credentials are encrypted (AES-256-GCM) and stored in a secure vault
+  <Step title="Encrypt at rest">
+    Credentials are encrypted (AES-256-GCM) before persistence.
   </Step>
 
-  <Step title="Call alter_app.request()">
-    The SDK retrieves and injects credentials into API calls automatically
+  <Step title="Call vault.request()">
+    The SDK retrieves and injects the credential into the outbound API call.
   </Step>
 
-  <Step title="Automatic Management">
-    OAuth tokens refresh before expiring. Managed secrets are injected with the correct header format.
+  <Step title="Refresh and rotate">
+    OAuth tokens are refreshed before they expire. Managed-secret injection uses the right header format per provider.
   </Step>
 </Steps>
 
 ## Security
 
-### Encryption
-- **AES-256-GCM** encryption for all stored tokens
-- **TLS 1.3** for all data in transit
-- **Hardware security modules** for key management
+- **Encryption at rest** — AES-256-GCM for all stored credentials.
+- **TLS 1.3** for all data in transit.
+- **API key authentication** for application backends; short-lived session tokens for browser-side flows.
+- **Identity-aware policies** — time-based access, IP allowlist, URL/method restrictions, rules tied to the calling identity. See [Security Policies](/reference/policies).
+- **Fail-closed** — when authorization cannot be evaluated, access is denied.
 
-### Access Control
-- **API key authentication** for backend services
-- **Session tokens** for frontend (never expose API keys)
-- **Built-in policies** — time-based access, IP allowlist, connection TTL
-- **Custom policies** — URL restrictions, HTTP method restrictions, rate limiting, and rules tied to user or actor identity. See [Security Policies](/reference/policies#custom-policies).
-- **Fail-closed design** — if the policy service is unavailable, all token access is denied
+## Grant ID: the universal handle
 
-### Compliance
-- **SOC 2 Type II** certified
-- **HIPAA** compliant infrastructure
-- **GDPR** compliant with data residency options
-- **PCI DSS** Level 1 for payment integrations
+Every credential in Alter Vault is addressed by a `grant_id` (UUID). Usage is identical via `vault.request()` regardless of credential type. What differs is **where the `grant_id` comes from**:
 
-## Grant ID: The Universal Handle
-
-Every credential in Alter Vault has a unique `grant_id` (UUID). Usage is identical via `alter_app.request()` regardless of credential type. The key difference is **where the `grant_id` comes from**:
-
-| Credential Type | Where `grant_id` Comes From | Who Creates It |
+| Credential Type | Where `grant_id` comes from | Who creates it |
 |---|---|---|
-| **OAuth** | `onSuccess` callback when end user completes OAuth via Alter Connect | **End user** (by logging into Google, Slack, etc.) |
-| **Managed Secret** | Developer Portal when storing a credential | **Developer** (via portal UI) |
+| **OAuth** | `onSuccess` callback when the end user completes Alter Connect | The end user (by authorizing with Google, Slack, etc.) |
+| **Managed Secret** | Developer Portal when storing the credential | The developer |
 
 ```python
-# OAuth grant — grant_id from end user completing Alter Connect
-# (stored in your DB, mapped to your user)
-oauth_grant_id = db.get_grant(user_id="alice", provider="google")
-response = await alter_app.request(
+# OAuth grant — per-user, returned by Alter Connect
+response = await vault.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=oauth_grant_id,
 )
 
-# Managed secret — grant_id from Developer Portal
-# (stored in your config/env vars, same for all users)
-response = await alter_app.request(
+# Managed secret — per-service, same grant_id for all callers
+response = await vault.request(
     HttpMethod.GET,
-    "https://api.internal.com/v1/loyalty/points",
-    grant_id=os.environ["LOYALTY_API_GRANT_ID"],
+    "https://api.example.com/v1/resource",
+    grant_id=managed_secret_grant_id,
 )
 ```
 
 <Note>
-**OAuth grants are per-user** — each end user who authorizes gets their own `grant_id`. **Managed secrets are per-service** — one credential is stored and all backend code shares the same `grant_id`.
+**OAuth grants are per-user**: each end user who authorizes gets their own `grant_id`. **Managed secrets are per-service**: one credential is provisioned and shared by all backend callers. Re-authorizing the same OAuth account updates the existing grant rather than creating a duplicate, so the `grant_id` is stable.
 </Note>
 
-### Connection Deduplication
+## Custom schemas
 
-Alter Vault automatically prevents duplicate OAuth grants for the same account. When a user re-authorizes, the existing connection is **updated** instead of creating a duplicate.
-
-```mermaid
-graph TD
-    A[User Re-authorizes] --> B{Check account_identifier}
-    B -->|Found| C[Update Tokens on Existing Connection]
-    B -->|Not Found| D[Create New Connection]
-
-    C --> E[Return grant_id]
-    D --> E
-```
-
-- Search by the OAuth account identifier (email, sub, or ID from the provider)
-- If found, update the existing connection with fresh tokens
-- If not found, create a new connection and return the new `grant_id`
-
-<Note>
-If a user re-authorizes with the same OAuth account, the existing connection is updated. The `grant_id` remains the same.
-</Note>
-
-## Custom Schemas
-
-Add structured data to any OAuth connection:
+Attach structured per-grant data — sync settings, user preferences, tags, internal IDs — to any OAuth connection.
 
 ```json
 {
   "sync_preferences": {
-    "calendar": {
-      "enabled": true,
-      "frequency": "hourly"
-    },
-    "email": {
-      "enabled": false
-    }
+    "calendar": { "enabled": true, "frequency": "hourly" },
+    "email":    { "enabled": false }
   }
 }
 ```
 
-Use cases:
-- **Sync settings** - Which data to sync, how often
-- **User preferences** - Per-connection configuration
-- **Metadata** - Labels, tags, categories
-- **Mapping** - Link to internal records
+## Audit logs
 
-## Audit Logs
+Every credential access, every connection lifecycle event, every API call routed through `vault.request()` is recorded with full actor context. View, filter, and export from the Developer Portal.
 
-All activity is logged automatically, including token access, connection changes, API calls, and admin actions. View, filter, and export logs from the Developer Portal. AI agents are tracked with full context (actor name, run ID, thread ID).
+See the [Audit Logs guide](/reference/audit-logs).
 
-See the [Audit Logs guide](/reference/audit-logs) for details on viewing and exporting logs.
+## What Alter Vault handles vs. what application code doesn't
 
-## Performance
+| Handled by Alter Vault | What application code no longer does |
+|---|---|
+| Encrypted credential storage | Store tokens or API keys |
+| OAuth token refresh before expiry | Implement refresh logic |
+| Per-provider header injection (Bearer, API key, Basic, multi-header) | Construct auth headers |
+| Policy enforcement on every access | Build access-control checks |
+| Audit trail for every access | Wire up compliance logging |
 
-<CardGroup cols={3}>
-  <Card title="Token Retrieval" icon="bolt">
-    **Less than 10ms** for cached tokens
-  </Card>
+## Choosing a workload class
 
-  <Card title="Availability" icon="server">
-    **99.99%** uptime SLA
-  </Card>
+The SDK exposes two top-level classes:
 
-  <Card title="Scale" icon="chart-line">
-    **Millions** of tokens/day
-  </Card>
-</CardGroup>
+- **`App`** — application backends acting on behalf of any end user the app stored a `grant_id` for, plus admin operations (provisioning agents, minting Connect sessions, managing grants).
+- **`Agent`** — workload identities with their own access set. An agent can only reach credentials explicitly bound to it: either user-delegated OAuth grants (from a Connect flow that named the agent) or agent-owned managed secrets provisioned in the Developer Portal.
 
-## Credential Management
-
-Alter Vault handles the entire credential lifecycle:
-
-### Automatic
-
-- ✅ **Store credentials securely** — Encrypted at rest (AES-256-GCM)
-- ✅ **Refresh OAuth tokens before expiry** — No failed API calls
-- ✅ **Inject the right header** — Bearer, API Key, Basic Auth — automatic
-- ✅ **Enforce policies** — Time-based and IP restrictions on every access
-- ✅ **Retry on failure** — Automatic error recovery
-- ✅ **Audit all access** — Complete compliance trail for both OAuth and managed secrets
-
-### Eliminated
-
-- ❌ Store tokens or API keys in the application database
-- ❌ Implement refresh logic
-- ❌ Construct auth headers manually
-- ❌ Manage encryption keys
-- ❌ Build retry mechanisms
-
-## Architecture Benefits
-
-<AccordionGroup>
-  <Accordion title="Reduced Security Risk">
-    Tokens are never handled directly by application code, eliminating the risk of token leaks, database breaches, or accidental exposure in logs.
-  </Accordion>
-
-  <Accordion title="Simplified Compliance">
-    Alter Vault carries SOC 2 and HIPAA certifications, reducing the compliance burden for applications built on top of it.
-  </Accordion>
-
-  <Accordion title="Provider Agnostic">
-    One integration with Alter Vault provides access to 100+ OAuth providers without learning each API.
-  </Accordion>
-
-  <Accordion title="Maintenance Free">
-    When Google changes their OAuth flow or Slack updates their API, Alter Vault handles it. Application code does not change.
-  </Accordion>
-</AccordionGroup>
-
-## Integration Example
-
-The complete flow in practice:
-
-### 1. Frontend: User Connects (OAuth)
-
-```javascript
-// User clicks "Connect Google" — your backend creates a session (no user_id needed)
-const { session_token } = await fetch('/api/session').then(r => r.json());
-await alterConnect.open({
-  token: session_token,
-  onSuccess: (connections) => {
-    // User completed OAuth! Each connection has a grant_id.
-    // Store these in your database, mapped to your user.
-    for (const conn of connections) {
-      saveToDb(currentUser.id, conn.grant_id, conn.provider);
-    }
-  }
-});
-```
-
-### 2. Backend: Use the Connection
-
-Pick the principal that matches the caller. The SDK exposes two
-classes — `App` (app keys, `alter_key_app_*`) and `Agent` (agent keys,
-`alter_key_agent_*`). Both are workload-capable; both have `request()`.
-The difference is the **principal kind on the wire** — and therefore
-which authorization path the backend uses.
-
-**Application backend (app key)** — the application server acts on
-behalf of any end user it stored a `grant_id` for. `App` is also the
-surface for admin operations (provisioning agents, minting Connect
-sessions, managing grants). Use `App`:
+Both classes expose `request()`. Pick the one that matches the caller's identity.
 
 ```python
-from alter_sdk import App, HttpMethod
+from alter_sdk import App, Agent, HttpMethod
 
-app = App(
-    api_key="alter_key_app_...",
-    caller="my-service",
-)
-
-# OAuth: grant_id from the application database (stored when user completed Alter Connect)
-grant_id = db.get_grant(user_id="alice", provider="google")
+# Application backend
+app = App(api_key=APP_API_KEY)
 response = await app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=grant_id,
 )
-events = response.json()
 
-# Managed secret: grant_id from Developer Portal (stored in application config)
-response = await app.request(
-    HttpMethod.GET,
-    "https://api.internal.com/v1/loyalty/points",
-    grant_id=os.environ["LOYALTY_API_GRANT_ID"],
-)
-```
-
-**AI agent workload (agent key)** — an agent with its own
-identity-scoped access set. The agent can only reach credentials
-explicitly bound to it, via either user-delegated OAuth grants
-(`oauth_grant_agent_delegations`, written when a user completes
-Connect with `agent=<this-agent>`) or agent-owned managed-secret
-grants (operator-provisioned in the Developer Portal, no user in the
-loop). Use `Agent`:
-
-```python
-from alter_sdk import Agent, HttpMethod
-
-agent = Agent(api_key="alter_key_agent_...")
-
-# OAuth: agent reaches a user-delegated grant by provider. The
-# delegation row in oauth_grant_agent_delegations is what authorizes
-# the call — agent.request never bypasses it.
+# Agent workload
+agent = Agent(api_key=AGENT_API_KEY)
 response = await agent.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     provider="google",
-    # Optional disambiguator when the agent holds delegations from
-    # multiple users on the same provider:
-    # app_user_id=alice_user_id,
-)
-events = response.json()
-
-# Managed secret: agent-owned, also reached by provider.
-response = await agent.request(
-    HttpMethod.GET,
-    "https://api.internal.com/v1/loyalty/points",
-    provider="loyalty",
 )
 ```
 
-That's it. No token handling, no refresh logic, no storage concerns.
+See [Agents → Overview](/agents/overview) for the full agent model.
 
-## Getting Started
+## Getting started
 
-<CardGroup cols={2}>
-  <Card title="Quick Start" icon="rocket" href="/quickstart">
-    Connect a first integration in 5 minutes
+<CardGroup cols={3}>
+  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
+    Hands-on walkthrough.
   </Card>
 
   <Card title="Audit Logs" icon="clipboard-list" href="/reference/audit-logs">
-    Compliance and observability
+    Access history and exports.
   </Card>
 
   <Card title="Developer Portal" icon="browser" href="/reference/developer-portal">
-    Configure OAuth providers
+    Configure providers and policies.
   </Card>
-
 </CardGroup>

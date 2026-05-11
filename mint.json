@@ -57,6 +57,8 @@
     { "source": "/identity-providers/overview", "destination": "/oauth/identity-providers/overview" },
     { "source": "/identity-providers/quickstart", "destination": "/oauth/identity-providers/overview" },
     { "source": "/identity-providers/supported-providers", "destination": "/oauth/identity-providers/overview" },
+    { "source": "/oauth/identity-providers/keycloak", "destination": "/oauth/identity-providers/overview" },
+    { "source": "/oauth/identity-providers/workos", "destination": "/oauth/identity-providers/overview" },
     { "source": "/sdks/python/overview", "destination": "/sdks/overview" },
     { "source": "/sdks/typescript/overview", "destination": "/sdks/overview" },
     { "source": "/sdks/javascript/quickstart", "destination": "/sdks/connect-js/quickstart" },
@@ -77,25 +79,23 @@
       ]
     },
     {
+      "group": "Identity Providers",
+      "pages": [
+        "oauth/identity-providers/overview",
+        "oauth/identity-providers/auth0",
+        "oauth/identity-providers/clerk",
+        "oauth/identity-providers/okta",
+        "oauth/identity-providers/custom-oidc"
+      ]
+    },
+    {
       "group": "OAuth Grants",
       "pages": [
         "oauth/overview",
         "oauth/jwt-identity",
         "oauth/grant-id-identity",
         "oauth/headless",
-        "oauth/managing-grants",
-        {
-          "group": "Identity Providers",
-          "pages": [
-            "oauth/identity-providers/overview",
-            "oauth/identity-providers/auth0",
-            "oauth/identity-providers/clerk",
-            "oauth/identity-providers/okta",
-            "oauth/identity-providers/keycloak",
-            "oauth/identity-providers/workos",
-            "oauth/identity-providers/custom-oidc"
-          ]
-        }
+        "oauth/managing-grants"
       ]
     },
     {
@@ -186,24 +186,26 @@
             "providers/google",
             "providers/github",
             "providers/slack",
-            "providers/asana",
+            "providers/microsoft",
             "providers/atlassian",
-            "providers/calendly",
-            "providers/clickup",
-            "providers/canva",
             "providers/notion",
             "providers/hubspot",
-            "providers/microsoft",
-            "providers/salesforce"
+            "providers/salesforce",
+            "providers/asana",
+            "providers/stripe",
+            "providers/calendly",
+            "providers/canva",
+            "providers/clickup"
           ]
         },
         {
-          "group": "Productivity",
+          "group": "Productivity & Collaboration",
           "pages": [
             "providers/acuity-scheduling",
             "providers/airtable",
             "providers/basecamp",
             "providers/cal-com",
+            "providers/docusign",
             "providers/linear",
             "providers/miro",
             "providers/monday",
@@ -222,22 +224,30 @@
           ]
         },
         {
-          "group": "Design & Developer Tools",
+          "group": "Design & Creative",
           "pages": [
             "providers/adobe",
             "providers/autodesk",
+            "providers/figma"
+          ]
+        },
+        {
+          "group": "Developer Tools",
+          "pages": [
             "providers/bitbucket",
             "providers/contentful",
-            "providers/figma",
+            "providers/digitalocean",
             "providers/pagerduty",
+            "providers/sentry",
             "providers/webflow"
           ]
         },
         {
-          "group": "Marketing",
+          "group": "Marketing & Events",
           "pages": [
             "providers/bitly",
             "providers/constant-contact",
+            "providers/eventbrite",
             "providers/mailchimp"
           ]
         },
@@ -252,7 +262,7 @@
           ]
         },
         {
-          "group": "Social",
+          "group": "Social & Media",
           "pages": [
             "providers/facebook",
             "providers/instagram",
@@ -286,8 +296,7 @@
           "group": "Payments",
           "pages": [
             "providers/paypal",
-            "providers/square",
-            "providers/stripe"
+            "providers/square"
           ]
         },
         {
@@ -295,25 +304,6 @@
           "pages": [
             "providers/ebay",
             "providers/squarespace"
-          ]
-        },
-        {
-          "group": "Error Monitoring",
-          "pages": [
-            "providers/sentry"
-          ]
-        },
-        {
-          "group": "Cloud & Infrastructure",
-          "pages": [
-            "providers/digitalocean"
-          ]
-        },
-        {
-          "group": "Business",
-          "pages": [
-            "providers/docusign",
-            "providers/eventbrite"
           ]
         }
       ]
@@ -352,18 +342,25 @@
           ]
         },
         {
+          "group": "Cloud & Infrastructure",
+          "pages": [
+            "managed-secrets/aws",
+            "managed-secrets/cloudflare",
+            "managed-secrets/vercel"
+          ]
+        },
+        {
           "group": "Developer Tools",
           "pages": [
             "managed-secrets/clerk",
-            "managed-secrets/cloudflare",
             "managed-secrets/cursor",
             "managed-secrets/github",
             "managed-secrets/gitlab",
             "managed-secrets/posthog",
             "managed-secrets/shortcut",
+            "managed-secrets/stripe",
             "managed-secrets/supabase",
             "managed-secrets/terraform",
-            "managed-secrets/vercel",
             "managed-secrets/workos"
           ]
         },
@@ -386,18 +383,6 @@
           "pages": [
             "managed-secrets/recharge",
             "managed-secrets/shopify"
-          ]
-        },
-        {
-          "group": "Payments",
-          "pages": [
-            "managed-secrets/stripe"
-          ]
-        },
-        {
-          "group": "Cloud",
-          "pages": [
-            "managed-secrets/aws"
           ]
         }
       ]

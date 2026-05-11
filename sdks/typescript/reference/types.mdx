@@ -49,7 +49,7 @@ Principals (`UserPrincipal`, `GroupPrincipal`, `SystemPrincipal`, `AgentPrincipa
 | `SystemPrincipal` | `type: "system"` | `label` |
 | `AgentPrincipal` | `type: "agent"` | `label` |
 
-`AgentPrincipal` carries no `agentId` — the backend resolves the calling agent from the HMAC-verified API key on the request.
+`AgentPrincipal` carries no `agentId` — the backend resolves the calling agent from the API key on the request.
 
 Used as the `principal` field on `createManagedSecretGrant()`.
 

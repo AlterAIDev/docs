@@ -1,21 +1,27 @@
 ---
 title: 'Identity Providers Overview'
-description: 'How Alter verifies end users from JWTs issued by Auth0, Clerk, Okta, Keycloak, WorkOS, or any OIDC provider.'
+description: 'How Alter verifies end users from JWTs issued by Auth0, Clerk, Okta, or a standards-compliant OIDC provider.'
 icon: 'building-shield'
 ---
 
 *An [Identity Provider (IDP)](/reference/glossary#identity-provider-idp) is the external service that authenticates an app's end users.* When one is configured per app, Alter verifies the JWTs the IDP issues, resolves which user is making each call, and looks up that user's grants automatically.
 
-This page covers the IDP model. For the runtime SDK pattern, see [JWT identity](/oauth/jwt-identity). For step-by-step setup of a specific provider, see the per-IDP guides:
+This page covers the IDP model. For the runtime SDK pattern, see [JWT identity](/oauth/jwt-identity). For step-by-step setup, pick a provider:
 
-<CardGroup cols={3}>
+<CardGroup cols={2}>
   <Card title="Auth0" icon="shield" href="/oauth/identity-providers/auth0" />
   <Card title="Clerk" icon="shield" href="/oauth/identity-providers/clerk" />
   <Card title="Okta" icon="shield" href="/oauth/identity-providers/okta" />
-  <Card title="Keycloak" icon="shield" href="/oauth/identity-providers/keycloak" />
-  <Card title="WorkOS" icon="shield" href="/oauth/identity-providers/workos" />
   <Card title="Custom OIDC" icon="shield" href="/oauth/identity-providers/custom-oidc" />
 </CardGroup>
+
+## What's supported
+
+| Provider | Path |
+|---|---|
+| Auth0, Clerk, Okta | First-class — pick the per-provider guide above. |
+| Other standards-compliant OIDC providers | Use **Custom OIDC** — supply the issuer URL, JWKS URL, audience, and claim mappings. |
+| Keycloak, Microsoft Entra ID, Amazon Cognito, Firebase Auth, Supabase Auth | **Not supported directly** — must be brokered through Auth0, Clerk, or Okta. Use the broker's enterprise-connection feature (e.g., Auth0 Enterprise Connections, Okta Inbound Federation) and point Alter at the broker. The issuer URLs of these providers are rejected at validation time. |
 
 ## What an IDP integration provides
 
@@ -59,7 +65,8 @@ The user-ID claim, group claim, and role claim **cannot be changed** after the f
 
 Pasting an issuer URL into the developer portal and clicking **Discover** triggers detection:
 
-- **Auth0**, **Clerk**, **Okta**, **Keycloak**, **WorkOS** are recognized from the URL pattern; sensible claim mappings are pre-filled.
+- **Auth0**, **Clerk**, **Okta** are recognized from the URL pattern; sensible claim mappings are pre-filled.
+- Issuer URLs from the unsupported set above (Keycloak, Entra, Cognito, Firebase, Supabase) are rejected with a hint pointing to brokering.
 - Anything else falls back to `custom_oidc` and uses standard OIDC defaults (`sub` for user ID).
 
 Any mapping can be overridden before saving.

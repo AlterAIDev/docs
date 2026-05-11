@@ -90,7 +90,7 @@ async createConnectSession(options?: {
 }): Promise<ConnectSession>
 ```
 
-`requiredScopes` lets a session ask for a narrower per-provider scope set than the app's Dev Portal default (must be a subset of the Dev Portal allowlist). `agent` delegates the resulting OAuth grant to a managed agent — when combined with user consent at the Connect UI, the callback creates both the OAuth grant under the user's principal AND the agent-delegation row.
+`requiredScopes` lets a session ask for a narrower per-provider scope set than the app's Dev Portal default (must be a subset of the Dev Portal allowlist). `agent` delegates the resulting OAuth grant to a managed agent — when combined with user consent at the Connect UI, the OAuth grant is created under the user's principal and the named agent is granted access to it.
 
 ### Returns
 

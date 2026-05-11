@@ -44,7 +44,7 @@ from alter_sdk import (
 | `SystemPrincipal` | `type="system"` | `label` |
 | `AgentPrincipal` | `type="agent"` | `label` |
 
-`AgentPrincipal` carries no `agent_id` — the backend resolves the calling agent from the HMAC-verified API key on the request.
+`AgentPrincipal` carries no `agent_id` — the backend resolves the calling agent from the API key on the request.
 
 Used as the `principal=` argument to `create_managed_secret_grant()`.
 

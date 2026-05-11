@@ -51,7 +51,7 @@ app code              Alter SDK                Alter backend            Provider
    │◀── response ──────────│                         │                          │
 ```
 
-The token never leaves the backend. The SDK only ever holds a short-lived HMAC key for signing — derived once at construction, discarded after use.
+The token never leaves the vault. Application code only ever holds an API key.
 
 ## What's no longer required to build
 
@@ -60,7 +60,7 @@ The token never leaves the backend. The SDK only ever holds a short-lived HMAC k
 - Per-user scoping (grants are bound to principals; the SDK resolves them)
 - Audit logging (every call writes a row with caller, principal, provider, status)
 - Revocation UX (end users get [Alter Wallet](https://wallet.alterauth.com) for free)
-- Policy enforcement ([Cerbos-backed rules](/reference/policies) on every retrieval)
+- Policy enforcement ([rules engine](/reference/policies) on every retrieval)
 
 ## Where to go next
 

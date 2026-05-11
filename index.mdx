@@ -41,11 +41,11 @@ Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enfor
 
 ## Why Alter Vault
 
-- **Zero token exposure.** Tokens never leave the backend. The SDK only ever holds a short-lived HMAC key, derived once at construction.
-- **Identity-aware authorization.** Every credential access is checked against both the end-user identity and the agent identity. One [policy layer](/reference/policies) governs which actors get access to which credentials.
-- **Dual-identity audit logging.** Every access is logged with both the end-user identity and the actor identity. Answer "what was Alice's data used for?" and "what did Agent X access?"
-- **Fail-closed by design.** When authorization cannot be enforced, credential access is denied. Built for SOC 2, GDPR, and HIPAA compliance.
-- **Drop-in replacement.** `vault.request()` acts as the application's HTTP client — same surface as `httpx` or `fetch`, with the credential injected automatically.
+- **Zero token exposure.** Credentials never leave the vault. Application code only ever holds an API key.
+- **Identity-aware authorization.** Every credential access is checked against both the end-user identity and the workload identity. One [policy layer](/reference/policies) governs which callers reach which credentials.
+- **Dual-identity audit logging.** Every access is logged with both the end-user identity and the caller identity. Answer "what was Alice's data used for?" and "what did Agent X access?"
+- **Fail-closed by design.** When authorization cannot be evaluated, credential access is denied.
+- **Drop-in replacement.** `vault.request()` is the application's HTTP client — same surface as `httpx` or `fetch`, with the credential injected automatically.
 
 ## Quick example
 

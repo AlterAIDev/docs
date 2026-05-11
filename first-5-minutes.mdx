@@ -144,7 +144,7 @@ No auth code is required. The SDK call shown below is the same call that ships t
 
 ## What just happened
 
-`vault.request()` looked up the Slack grant, fetched a fresh token from the vault, signed an HMAC-authenticated call to the Alter backend, injected the token into the outgoing Slack call, and returned the response. Application code never touched a token.
+`vault.request()` looked up the Slack grant, fetched a fresh token from the vault, injected it into the outgoing Slack call, and returned the response. Application code never touched a token.
 
 ## Where next
 

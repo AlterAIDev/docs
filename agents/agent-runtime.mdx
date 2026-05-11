@@ -114,10 +114,9 @@ await vault.revokeDelegation(grantId);
 
 Removes only the agent's access path; the underlying user grant is untouched. To revoke the underlying grant entirely, an operator must call `App.revoke_grant()` — see [Managing grants](/oauth/managing-grants).
 
-## Identity-blending rules
+## Picking the right class
 
-- **Per-agent key + `user_token` is rejected.** Returns HTTP 400. Agents do not impersonate users.
-- **For agent code that runs inside a user session**, use `App(caller=AGENT_UUID, user_token_getter=...)` instead of `Agent`. See [Agents overview](/agents/overview).
+For agent code that runs inside a user session — handling a request on behalf of a specific logged-in user — construct `App(caller=AGENT_UUID, user_token_getter=...)` rather than `Agent`. The `App` shape attributes the call to the user; `Agent` attributes it to the workload identity. See [Agents overview](/agents/overview).
 
 ## See also
 

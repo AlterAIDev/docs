@@ -186,23 +186,13 @@ Every credential access logs the policy evaluation result:
 - **Denied** — which specific rule failed (time restriction, IP allowlist, or connection TTL)
 - **Policy context** — the policy configuration that was evaluated
 
-This makes it easy to investigate access patterns, debug policy violations, and demonstrate compliance during audits. See the [Security Policies](/reference/policies) guide for configuring policies.
+This makes it easy to investigate access patterns and debug policy violations. See the [Security Policies](/reference/policies) guide for configuring policies.
 
 ## Trace Context
 
-Every audit log entry includes a `trace_id` field that correlates with the request's correlation ID. When a W3C `traceparent` header is sent, the trace ID and span ID from the distributed tracing system (OpenTelemetry, Zipkin, AWS X-Ray) are automatically captured. This enables linking audit log entries directly to traces in the observability platform.
+Every audit log entry includes a `trace_id` field that correlates with the request's correlation ID. When a W3C `traceparent` header is sent, the trace ID from the distributed tracing system is captured automatically, linking audit entries directly to traces in the observability platform.
 
-## Compliance
-
-Audit logs are designed for compliance out of the box:
-
-| Standard | What Audit Logs Provide |
-|----------|------------------------|
-| **SOC 2** | Evidence of access controls, change management, and monitoring |
-| **GDPR** | Complete data access records for right-of-access requests |
-| **HIPAA** | Full audit trail of PHI access through OAuth grants and managed secrets |
-
-### Common Compliance Queries
+## Common Queries
 
 | Question | How to Find It |
 |----------|---------------|
@@ -214,7 +204,7 @@ Audit logs are designed for compliance out of the box:
 
 ## Data Retention
 
-The default retention period is 12 months. Each audit log entry includes a `retention_until` field and an optional `legal_hold` flag. Records under legal hold are never deleted regardless of retention policy. Retention can be extended per-record for regulatory requirements (e.g., 6 years for HIPAA). A daily background job enforces the retention policy by deleting expired records. Contact support for custom archival policies.
+The default retention period is 12 months. Each audit log entry includes a `retention_until` field and an optional `legal_hold` flag. Records under legal hold are never deleted regardless of retention policy. Retention can be extended per-record. Expired records are removed automatically. Contact support for custom archival policies.
 
 ## Next Steps
 

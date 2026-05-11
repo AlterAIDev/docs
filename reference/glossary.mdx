@@ -60,13 +60,9 @@ The UUID that identifies a grant. Returned from OAuth flows (`vault.connect()`, 
 
 A grant whose owner is an IDP group (a set of users defined in the identity provider). Members of the group inherit the grant. Created by an operator binding a managed secret to a group identifier.
 
-## HMAC signing
-
-How the SDK authenticates calls to the Alter backend. Every outgoing SDK call is cryptographically signed; the wire never carries the API key in plaintext.
-
 ## Identity Provider (IDP)
 
-The external service that authenticates an app's end users (Auth0, Clerk, Okta, Keycloak, WorkOS). Configured per-app in the developer portal. When configured, Alter validates JWTs from the IDP to resolve which user is making a request. See [OAuth → Identity Providers → Overview](/oauth/identity-providers/overview).
+The external service that authenticates an app's end users (Auth0, Clerk, Okta). Configured per-app in the developer portal. When configured, Alter validates JWTs from the IDP to resolve which user is making a request. See [Identity Providers → Overview](/oauth/identity-providers/overview).
 
 ## JWT
 

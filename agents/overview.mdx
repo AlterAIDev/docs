@@ -53,13 +53,11 @@ See [Creating agents](/agents/creating-agents) for `App.agents.list()`, `App.age
 
 An agent can hold **many** grants — operators map as many as the agent needs (one for Slack, one for Stripe, one for Drive). Each mapping is explicit. The agent can reach **only** the grants the operator mapped to *this specific agent* — not grants belonging to other agents, not grants belonging to users, not generic system grants. The filter is enforced server-side per request, regardless of which SDK shape signed it.
 
-## Identity-blending rules
+## Picking the right shape
 
-These are common gotchas — keep them in mind:
-
-- **Per-agent key + JWT is forbidden.** Calling with an `alter_key_agent_…` key and a `user_token` in the same request returns HTTP 400. Agents are not user impersonators. If a flow needs both an agent identity and a user identity, run two separate requests.
-- **App key + agent UUID + JWT is the "agent code path inside a user session" pattern.** Use `App(api_key=APP_KEY, caller=AGENT_UUID, user_token_getter=…)`. JWT wins (the user is the principal); the agent UUID becomes audit attribution.
-- **Bad agent UUID in `caller` is rejected.** A UUID-shaped `caller` that doesn't match an active managed agent in the calling app returns HTTP 404. Free-form (non-UUID) `caller` values are not subject to this check.
+- **Agent acting on its own behalf** — construct `Agent(api_key=AGENT_KEY)`. The call is attributed to the agent identity; the agent's mapped grants are the only credentials reachable.
+- **Agent code path inside a user session** — construct `App(api_key=APP_KEY, caller=AGENT_UUID, user_token_getter=…)`. The user is the principal; the agent name is carried as audit attribution so the trail still answers "which workload did this on Alice's behalf."
+- **Bad agent UUID in `caller` is rejected.** A UUID-shaped `caller` that doesn't match an active managed agent in the calling app returns HTTP 404. Free-form (non-UUID) `caller` values are audit labels and not subject to this check.
 
 ## "But the agent code path is acting on behalf of a user…"
 
