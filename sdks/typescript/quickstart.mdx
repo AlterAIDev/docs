@@ -74,7 +74,7 @@ const vault = new AlterVault({
 });
 ```
 
-Use `CallerType.SERVICE` for backend infrastructure callers that should not appear in the Developer Portal Agents tab.
+Use `CallerType.SERVICE` for backend infrastructure callers that should be tagged as service-to-service traffic in the audit log rather than as an agent identity.
 
 Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
 

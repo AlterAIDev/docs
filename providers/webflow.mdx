@@ -18,16 +18,20 @@ Connect your users to Webflow for website management, CMS collections, page cont
 ## Step 1: Create a Webflow OAuth App
 
 <Steps>
-  <Step title="Go to the Webflow Developer Portal">
-    Navigate to [developers.webflow.com](https://developers.webflow.com/) and sign in.
+  <Step title="Open the Webflow workspace">
+    Sign in to [webflow.com/dashboard](https://webflow.com/dashboard) as a workspace **Admin** (only workspace admins can create apps and view client secrets).
   </Step>
 
-  <Step title="Create a new app">
-    Click **Create New App**, enter the app name, and fill in the app details.
+  <Step title="Open Apps & Integrations">
+    Go to **Workspace Settings** → **Apps & Integrations** → **App Development** and click **Create an App**.
+  </Step>
+
+  <Step title="Fill in app details and enable Data Client">
+    Enter Name, Description, Homepage URL (HTTPS), and Icon. Enable the **Data Client** capability so the app can use OAuth.
   </Step>
 
   <Step title="Configure the redirect URI">
-    Under **OAuth Settings**, add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URIs** field.
+    Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URI** field (must be HTTPS) and select the required scopes.
   </Step>
 
   <Step title="Get your credentials">

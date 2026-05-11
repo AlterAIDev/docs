@@ -1,0 +1,256 @@
+---
+title: 'Principals — User, App, and Agent'
+description: 'Three runtime modes for who is calling. Choose based on who owns the access decision and whether the call is user-driven, headless, or agent-driven.'
+icon: 'user-shield'
+---
+
+Every call to a provider goes through one of three runtime modes, distinguished by **who the principal is** — the identity the request is acting as. The principal kind decides whether the call must pass a `grant_id` explicitly or whether the SDK can resolve one automatically.
+
+## Quick decision guide
+
+```
+Is an END USER taking the action right now?
+├── Yes → User principal
+│         Frontend / backend acts on behalf of the logged-in user.
+│         The user's JWT identifies them; the SDK auto-resolves
+│         to their grant for the requested provider.
+│
+└── No  → Is the action coming from a NAMED, OPERATOR-PROVISIONED workload?
+         ├── Yes → Agent principal
+         │         A managed agent (e.g. "research-bot") provisioned
+         │         on the dashboard. Two SDK shapes produce identical
+         │         backend behavior — pick one based on isolation
+         │         needs:
+         │           (a) Per-agent API key — for sandboxed workloads
+         │               where exposing the master key is unsafe.
+         │           (b) Master key + caller=<agent UUID> — for
+         │               monolithic backends where the master key
+         │               already lives in a single trusted process.
+         │               UUID comes from `vault.agents.list()`.
+         │         Operator pre-maps grants to the agent on the
+         │         dashboard; agent passes those grant_ids at runtime.
+         │
+         └── No  → App principal (system mode)
+                  Headless backend, cron job, internal worker.
+                  App authenticates itself; calls reference grants
+                  the operator stored on the dashboard.
+```
+
+## The three modes side-by-side
+
+| | User | App (system) | Agent |
+|---|---|---|---|
+| **Who's calling** | An end user authorized via the configured IDP (Clerk, Auth0, Okta, …) | The application's backend, with no human | A named managed agent (operator-provisioned) |
+| **SDK auth device** | App API key + user's JWT (via `userTokenGetter`) | App API key only | Either (a) an agent API key (`alter_key_…` — same wire prefix as the app key; agent identity is resolved server-side, not encoded in the prefix) for workload isolation, or (b) the app API key with `caller` set to the managed agent's `id` (from `vault.agents.list()`). Both produce the same backend identity. |
+| **`grant_id` required at runtime?** | **No** — SDK auto-resolves from `(user, provider)` | **Yes** — operator-provisioned grant_id | **Yes** — operator-mapped grant_id |
+| **Cardinality** | At most ONE active grant per user per provider account | Many grants, typically one per managed secret in the catalog | Many grants — operator maps as many as the agent needs |
+| **How a grant is created** | User completes OAuth via Alter Connect | Developer stores credentials in the Developer Portal | Operator binds a managed secret to the agent on the agent detail page |
+| **Identity proof** | JWT (cryptographically signed by the IDP) | Cryptographically signed request; identity established server-side from the app credential | Cryptographically signed request; agent identity comes from either the key's binding (path a) or a server-side lookup of the `caller` UUID against the calling app's managed agents (path b) |
+| **`user_token` on the wire** | Required (auto-attached by the SDK) | Not used | **Path (a) forbids it** — agent key + `user_token` returns HTTP 400. **Path (b) accepts it** — app key + `user_token` + `caller=<agent UUID>` resolves as user-principal-with-agent-attribution (JWT wins; agent UUID becomes audit attribution, not a principal change) |
+
+## When to use which
+
+### User principal — for any end-user-facing flow
+
+Use this when **a logged-in user is the reason for the call**. Examples:
+- A Gmail integration that lists *their* emails.
+- A scheduling assistant that reads *their* calendar.
+- A "Connect Slack" feature where each user has their own workspace grant.
+
+```python
+# Construct ONCE at app boot. The userTokenGetter pulls the JWT
+# from the auth library on every call.
+vault = AlterVault(
+    api_key=ALTER_API_KEY,
+    user_token_getter=lambda: clerk.get_jwt(),
+)
+
+# No grant_id — the SDK resolves the user's Google grant automatically.
+resp = await vault.request("GET", url, provider="google")
+```
+
+**Cardinality rule.** A user has **at most one active grant per provider account**. If Alice authorizes her work Google account *and* her personal Google account, those are two separate grants (each tied to a distinct provider account). The SDK's `account` parameter disambiguates when it matters; otherwise the most recent one resolves. Re-authorizing the same provider account doesn't create a duplicate — it replaces the existing grant.
+
+### App principal (system mode) — for headless backend code
+
+Use this when **the application's backend is the reason for the call** and there's no end user in the loop. Examples:
+- A nightly cron job that pushes data to a billing system.
+- A webhook handler reacting to incoming events.
+- An internal worker that calls a third-party API on behalf of the app itself.
+
+```python
+vault = AlterVault(api_key=ALTER_API_KEY)   # NO user_token_getter
+
+# grant_id required — operator stored a Stripe API key in the
+# Developer Portal and copied this grant_id into application config.
+resp = await vault.request("GET", url, grant_id=STRIPE_GRANT_ID)
+```
+
+**Cardinality rule.** An app can hold **many** managed-secret grants — one per stored credential in the Developer Portal catalog. Each grant has its own `grant_id`. There is no auto-resolution; the application reads the relevant `grant_id` from configuration (env vars, secrets manager, etc.) and passes it explicitly.
+
+### Agent principal — for named workloads with their own access set
+
+Use this when **a specific agent identity is doing the work**, distinct from the app itself. Examples:
+- A multi-agent system where each agent (researcher, writer, reviewer) needs its own audit trail.
+- A workload that should be revocable or rotatable independently of the app key.
+- An automation where operators want to bind a specific access set to a named identity ("billing-bot can read Stripe and Slack, nothing else").
+
+After the operator provisions the agent on the dashboard, the SDK reaches it through one of two shapes. **Both produce the same backend behavior** — the same agent-scoped audit attribution, the same per-agent grant filter, the same access boundary. Pick based on whether workload isolation is needed, not based on which one is "the right way."
+
+#### Shape (a) — per-agent API key (use when isolation matters)
+
+```python
+# Agent API key is provisioned on the dashboard (shown once at creation).
+# Use this shape when the agent runs in a sandbox / container / less-trusted
+# environment where exposing the master key would be too dangerous.
+vault = AlterVault(api_key=AGENT_API_KEY)   # NO user_token_getter
+
+# grant_id required — operator mapped these specific grants to the
+# agent on the dashboard's agent detail page. The agent reads the
+# grant_id from its config and passes it.
+resp = await vault.request("GET", url, grant_id=GRANT_THE_OPERATOR_MAPPED)
+```
+
+**Identity-blending is forbidden in this shape.** An agent API key cannot be combined with a `user_token` in the same request — the backend rejects the combination with HTTP 400. Agents are not user impersonators; if a flow needs both an agent identity and a user identity, run them as two separate requests.
+
+#### Shape (b) — master key + `caller=<managed agent UUID>` (use when monolithic)
+
+```python
+# Discover managed agent UUIDs once at boot. The list method returns
+# every managed agent provisioned for the calling app, with stable
+# UUIDs and human-readable names.
+boot_vault = AlterVault(api_key=APP_API_KEY)
+agents_by_name = {a.name: str(a.id) for a in await boot_vault.agents.list()}
+
+# Construct a per-agent vault with the managed agent's UUID as the caller.
+# Use this shape in monolithic backends where the master key already
+# lives in a single trusted process and per-agent keys would not
+# meaningfully reduce blast radius.
+researcher_vault = AlterVault(
+    api_key=APP_API_KEY,                    # master key, NOT a per-agent key
+    caller=agents_by_name["researcher"],    # managed agent UUID
+)
+
+# Same audit row, same access boundary, same grant-resolution behavior
+# as shape (a). The backend recognizes the caller value as an active
+# managed agent in the calling app and treats the request as
+# agent-asserting.
+resp = await researcher_vault.request("GET", url, grant_id=GRANT)
+```
+
+Unlike shape (a), this shape **accepts** a `user_token` alongside the agent UUID. When both are present the JWT-overrides rule applies: the user is the principal and owns the grant resolution; the agent UUID becomes audit attribution (not an access-boundary change). This is the "agent code path running inside a user session" pattern with full managed-agent attribution — see the next section.
+
+There is **no** separate constructor option for the agent identity. All managed-agent UUIDs flow through the unified `caller=` parameter; the backend disambiguates free-form labels from managed-agent UUIDs server-side on each request.
+
+#### Cardinality and access boundary (both shapes)
+
+An agent can hold **many** grants — operators map as many as the agent needs (e.g. one for Slack, one for Stripe, one for Google Drive). Each mapping is explicit in the dashboard. The agent can reach **only** the grants the operator mapped to *this specific agent* — not grants belonging to other agents, not grants belonging to users, not generic system grants. The filter is enforced server-side per request, regardless of whether the request signed with the agent key or the master key + caller UUID.
+
+#### Discovering agent UUIDs
+
+`vault.agents.list()` returns every managed agent provisioned for the calling app. Each item has `id` (UUID), `name` (human-readable label), `version`, and `status`. Typical pattern: list once at boot, build a `name → id` map, then construct one vault per agent with `caller=` set to the matching UUID. The list method itself works with the app API key (no agent key needed); it's a discovery endpoint that returns metadata only — no secrets.
+
+## "But the agent code path is acting on behalf of a user…"
+
+A common pattern: an LLM agent runs server-side as part of an end-user-driven request (chat session, scheduled job kicked off by a user action, etc.). The right model for that is **NOT a separate agent principal** — it's the **user principal flow** with the agent's name carried as audit metadata.
+
+The principal IS the user (Alice). The agent is a *code path* in the application that responds to Alice's request. Use Alice's JWT for authentication; tag the agent's name into the `caller` field so the audit trail records both who the principal was AND which code path made the call.
+
+The right value for `caller` depends on whether the agent has been provisioned on the dashboard. Both shapes produce the same access boundary (Alice's grants); the difference is purely in how the agent's identity is attributed in the audit trail.
+
+### Free-form caller — agent is NOT a managed agent
+
+```python
+# Backend code, inside the user-driven request handler:
+vault = AlterVault(
+    api_key=APP_KEY,                                  # APP key, not agent key
+    user_token_getter=lambda: get_user_jwt_from_request(),
+    caller="email-research-bot",                      # free-form name
+)
+
+# Calls go out with Alice's identity; audit attribution records
+# "email-research-bot" as the caller while the principal stays Alice.
+resp = await vault.request("GET", gmail_url, provider="google")
+```
+
+The audit trail records: principal — Alice (her user identity, resolved from her JWT); caller — `"email-research-bot"` (registered as a named caller label on first sight, stable thereafter). The dashboard's audit log views surface this label so operators can query "calls attributed to email-research-bot" without anything else needing to be provisioned.
+
+### Managed-agent caller — agent IS provisioned on the dashboard
+
+When the same code path is provisioned as a managed agent, switch `caller=` from the free-form name to the agent's UUID. Same user-principal flow, same access boundary, but the audit attribution now points at the provisioned managed-agent identity instead of registering a transient caller label.
+
+```python
+# Boot-time discovery (once per app boot):
+boot_vault = AlterVault(api_key=APP_KEY)
+agent = await boot_vault.agents.get_by_name("email-research-bot")
+if agent is None:
+    raise RuntimeError("Managed agent 'email-research-bot' not found")
+
+# Per-request, inside the user-driven handler:
+vault = AlterVault(
+    api_key=APP_KEY,                                          # APP key, not agent key
+    user_token_getter=lambda: get_user_jwt_from_request(),
+    caller=str(agent.id),                                     # managed agent UUID
+)
+resp = await vault.request("GET", gmail_url, provider="google")
+```
+
+The audit trail records: principal — Alice (her user identity); caller — the managed agent `email-research-bot` (referenced by its stable provisioned UUID). The agent identity now survives caller-label edits and shows up natively under the same dashboard entry as autonomous calls from the same agent.
+
+Both shapes are the right answer whenever **the agent runs while the user is present** — i.e., the agent's lifecycle is bounded by a user-driven session. Free-form is fine for code paths that haven't been provisioned yet; managed gives audit queries a stable handle on the agent identity that survives label edits. The dashboard's audit log views surface both, and a free-form caller label can be **promoted** to a managed agent on the dashboard once the workload outgrows the embedded code-path pattern — audit queries can then unify pre- and post-promotion calls.
+
+When does the agent become a separate principal (rather than a code path inside a user session)? **Only when it acts when the user is NOT present** — autonomous workloads, scheduled jobs, multi-tenant agent fleets where each agent has its own access boundary. That's when the Agent principal flow above (shape (a) per-agent key, or shape (b) master key + caller UUID without `userTokenGetter`) is the right model.
+
+### One `caller` parameter, two audit shapes
+
+There is **one** SDK parameter for "who is calling": `caller`. The backend disambiguates by attempting a managed-agent lookup against the calling app on each request:
+
+- If `caller` is a free-form string (or a UUID that does not match any managed agent for the calling app), it is recorded as a free-form caller label.
+- If `caller` is a UUID matching an active managed agent in the calling app, it is recorded as a managed-agent reference. (Per-agent API keys produce the same managed-agent attribution shape regardless of what `caller` is set to.)
+
+When both a `user_token` and a managed-agent identity are present on the same request, the **user wins**: the principal is the user, the user owns the grant resolution, and the managed-agent identity becomes audit attribution only — not an access-boundary change. Precedence:
+
+```
+JWT  >  managed-agent UUID in caller  >  free-form caller / nothing
+```
+
+A UUID-shaped `caller` that does **not** match any active managed agent for the calling app is rejected with HTTP 404 — that's a fail-closed signal so a mistyped, deleted, or cross-tenant UUID cannot smuggle through with broader access than intended. Free-form (non-UUID) `caller` values are not subject to this check.
+
+A free-form caller label can be **promoted** to a managed agent on the dashboard once the workload outgrows the embedded code-path pattern. After promotion, audit queries that want a unified view can correlate pre- and post-promotion calls — going forward, the SDK call site typically switches from a free-form name to the managed-agent UUID so subsequent calls record the managed-agent attribution directly.
+
+## Cardinality summary
+
+| Principal | How many active grants per principal? | Per what? |
+|---|---|---|
+| User | **One** | Per provider account (Alice's work Google ≠ Alice's personal Google) |
+| App (system) | **Many** | One per managed secret stored in the Developer Portal |
+| Agent | **Many** | One per managed-secret mapping the operator created on the agent detail page |
+
+The user constraint is intentional — re-authorizing a provider account replaces the old grant rather than creating a duplicate. App and agent principals can hold as many grants as the operator provisions; each is referenced by its own `grant_id`.
+
+## Workflow per mode
+
+| Mode | Provisioning step (one-time, by the operator) | Runtime step (every call) |
+|---|---|---|
+| **User** | User signs up via the configured IDP and completes OAuth Connect to authorize a provider account. The grant is created automatically and bound to their app user. | Frontend / backend ships the user's JWT via `userTokenGetter`; calls `vault.request(provider="…")`. |
+| **App (system)** | Developer stores credentials in the Developer Portal under a managed secret. Operator creates a system-bound grant and copies the `grant_id`. | Backend reads `grant_id` from env / config; calls `vault.request(grant_id=…)`. |
+| **Agent** | Operator creates an agent on the dashboard. The agent gets a stable `id` (UUID) and a per-agent API key (shown once at creation; optional to use). Operator binds managed secrets to the agent on the agent detail page; each binding produces a `grant_id`. | Two equivalent runtime shapes — pick based on isolation needs: **(a)** the agent reads its per-agent API key from env / config and calls `vault.request(grant_id=…)`; or **(b)** the application uses the app API key, calls `vault.agents.list()` once at boot to discover the agent's `id`, and constructs an `AlterVault` with `caller=<id>` for that agent — then calls `vault.request(grant_id=…)`. |
+
+## Common picks by use case
+
+| Use case | Pick |
+|---|---|
+| A SaaS product where users connect their own accounts | **User principal** |
+| A "send to Slack" feature where every customer authorizes their workspace | **User principal** |
+| A nightly billing reconciler that calls Stripe with a stored API key | **App principal** |
+| A webhook handler that posts to a single Slack channel for the whole app | **App principal** |
+| An internal automation that calls Notion with a developer-owned token | **App principal** |
+| A multi-step research workflow where each step is audited under its own name | **Agent principal** |
+| A sub-system that needs an access set rotatable / revocable independently of the app key | **Agent principal** |
+| A LangGraph supervisor with named sub-agents (researcher, writer, …) | **Agent principal** — one per agent role |
+
+## Why the distinction matters
+
+- **Audit attribution.** Every call writes an audit row tagged with the principal kind. User flows are attributable to a specific app user; system flows to the app; agent flows to a named agent identity. That distinction matters at incident review.
+- **Rotation and revocation.** Agent and app credentials are rotated on different cadences and by different teams. Modeling them as distinct principals means revoking an agent's access does not affect the app, and rotating an app key does not touch agents.
+- **Per-principal scoping.** Each principal kind has its own access boundary. A user can only reach grants tied to *their* IDP identity. An agent can only reach grants the operator *explicitly mapped to it* on the dashboard. The app key is the broadest — it can use any grant the operator stored under the app — and is therefore the most sensitive credential to protect.

@@ -15,23 +15,19 @@ Connect your users to Dialpad for business phone systems, video conferencing, an
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
-## Step 1: Create a Dialpad OAuth App
+## Step 1: Register a Dialpad OAuth App
 
 <Steps>
-  <Step title="Go to the Dialpad Developer Portal">
-    Navigate to [Dialpad Developer Portal](https://dialpad.com/developer) and sign in.
+  <Step title="Open Dialpad's OAuth registration guide">
+    Visit the [Dialpad OAuth guide](https://developers.dialpad.com/docs/oauth) — Dialpad does not have a self-serve OAuth app console.
   </Step>
 
-  <Step title="Create a new application">
-    Create a new application and enter the application name and description.
+  <Step title="Submit the OAuth registration form">
+    Follow the registration form linked from the OAuth guide. Provide the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) as the **Redirect URI** and request any non-default scopes you need.
   </Step>
 
-  <Step title="Configure the redirect URI">
-    Add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) to the **Redirect URI** field.
-  </Step>
-
-  <Step title="Get your credentials">
-    Copy the **Client ID** and **Client Secret**.
+  <Step title="Wait for credentials">
+    After Dialpad approves the registration, they will email the **Client ID** and **Client Secret**.
   </Step>
 </Steps>
 
@@ -78,4 +74,5 @@ Connect your users to Dialpad for business phone systems, video conferencing, an
 
 - Select only the scopes your application needs. For basic call analytics, `calls` and `users` are typically sufficient.
 - The `recordings` scope provides access to call recordings, which may contain sensitive data. Request this only when needed.
-- See the [Dialpad API documentation](https://developers.dialpad.com/docs/oauth2) for more details on available endpoints.
+- Non-default scopes (`recordings_export`, `message_content_export`, `calls:list`, `fax_message`, `offline_access`) require Dialpad approval. Request them in the registration form or by emailing `api@dialpad.com`.
+- See the [Dialpad API documentation](https://developers.dialpad.com/docs/oauth) for more details on available endpoints.

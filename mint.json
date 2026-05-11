@@ -56,7 +56,8 @@
         "quickstart",
         "oauth-overview",
         "managed-secrets-overview",
-        "choosing-credential-type"
+        "choosing-credential-type",
+        "choosing-principal"
       ]
     },
     {

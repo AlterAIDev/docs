@@ -18,16 +18,20 @@ Connect your users to Miro for collaborative whiteboards, visual project plannin
 ## Step 1: Create a Miro OAuth App
 
 <Steps>
-  <Step title="Go to the Miro Developer Portal">
-    Navigate to [developers.miro.com/page/manage-your-apps](https://developers.miro.com/page/manage-your-apps) and sign in.
+  <Step title="Open Miro Apps settings">
+    Sign in to Miro and go to [miro.com/app/settings/user-profile/apps](https://miro.com/app/settings/user-profile/apps).
+  </Step>
+
+  <Step title="Create a Developer team">
+    If you don't already have one, create a Developer team — Miro requires app development to happen inside a sandboxed Developer team.
   </Step>
 
   <Step title="Create a new app">
-    Click **Create new app**, enter an app name, and select a team.
+    Click **+ Create new app**, enter an app name, and assign it to your Developer team.
   </Step>
 
   <Step title="Configure the redirect URI">
-    Under **App credentials**, add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URI** field.
+    Open the new app's settings, add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URI for OAuth2.0** field, and select the required scopes.
   </Step>
 
   <Step title="Get your credentials">
