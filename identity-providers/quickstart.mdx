@@ -44,9 +44,9 @@ When the application makes API calls through Alter Vault, include the end user's
 <CodeGroup>
 
 ```python Python SDK
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-agent",
     user_token_getter=lambda: get_user_jwt(),  # Returns JWT from the identity provider
@@ -61,9 +61,9 @@ response = await vault.request(
 ```
 
 ```typescript TypeScript SDK
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
   userTokenGetter: () => getUserJwt(), // Returns JWT from the identity provider
@@ -132,9 +132,9 @@ Clerk's JWT issuer URL follows the pattern `https://your-app.clerk.accounts.dev`
 <CodeGroup>
 
 ```python Python SDK
-from alter_sdk import AlterVault
+from alter_sdk import App
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-agent",
 )
@@ -145,9 +145,9 @@ print(auth_result.user_info)  # User profile from the IDP
 ```
 
 ```typescript TypeScript SDK
-import { AlterVault } from "@alter-ai/alter-sdk";
+import { App } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
 });

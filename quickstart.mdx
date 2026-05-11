@@ -47,10 +47,10 @@ The fastest way to get started. Everything happens in Python -- the SDK opens a 
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
 async def main():
-    vault = AlterVault(
+    vault = App(
         api_key="alter_key_...",
         caller="my-agent",
     )
@@ -175,11 +175,11 @@ The backend calls `create_connect_session()` which returns:
 ```python Flask (Python SDK)
 import asyncio
 from flask import Flask, request, jsonify, redirect
-from alter_sdk import AlterVault
+from alter_sdk import App
 
 app = Flask(__name__)
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-flask-app",
 )
@@ -205,11 +205,11 @@ def create_oauth_session():
 
 ```javascript Express (TypeScript SDK)
 const express = require('express');
-const { AlterVault } = require('@alter-ai/alter-sdk');
+const { App } = require('@alter-ai/alter-sdk');
 
 const app = express();
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: 'alter_key_...',
   caller: 'my-express-app',
 });
@@ -371,10 +371,10 @@ Now use the SDK to make API calls with automatic token injection:
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
 async def fetch_calendar_events(user_id: str):
-    vault = AlterVault(
+    vault = App(
         api_key="alter_key_...",
         caller="my-agent",
     )
@@ -412,7 +412,7 @@ asyncio.run(fetch_calendar_events("alice"))
 ### Using Context Managers
 
 ```python
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:
@@ -428,7 +428,7 @@ async with AlterVault(
 ### POST Requests and URL Templating
 
 ```python
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:
@@ -487,7 +487,7 @@ except ProviderAPIError as e:
 If you're building AI agents, add actor tracking for full observability:
 
 ```python
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="email-assistant-v2",
 )
@@ -512,11 +512,11 @@ Here's a full example showing a Flask API that fetches calendar events:
 ```python
 import asyncio
 from flask import Flask, jsonify, request
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 from alter_sdk.exceptions import GrantNotFoundError
 
 app = Flask(__name__)
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-flask-app",
 )
@@ -578,9 +578,9 @@ Use the exact same `vault.request()` method -just pass the managed secret's `gra
 <CodeGroup>
 
 ```python Python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:
@@ -596,9 +596,9 @@ async with AlterVault(
 ```
 
 ```typescript TypeScript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
 });

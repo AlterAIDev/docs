@@ -78,7 +78,7 @@ The application already signs users in through the IDP and holds a JWT. Pass tha
 
 <CodeGroup>
 ```python Python
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-agent",
     user_token_getter=lambda: get_current_user_jwt(),
@@ -92,7 +92,7 @@ response = await vault.request(
 ```
 
 ```typescript TypeScript
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
   userTokenGetter: () => getCurrentUserJwt(),

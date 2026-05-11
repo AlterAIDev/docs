@@ -26,7 +26,7 @@ Is an END USER taking the action right now?
          │           (b) Master key + caller=<agent UUID> — for
          │               monolithic backends where the master key
          │               already lives in a single trusted process.
-         │               UUID comes from `vault.agents.list()`.
+         │               UUID comes from `app.agents.list()`.
          │         Operator pre-maps grants to the agent on the
          │         dashboard; agent passes those grant_ids at runtime.
          │
@@ -41,7 +41,7 @@ Is an END USER taking the action right now?
 | | User | App (system) | Agent |
 |---|---|---|---|
 | **Who's calling** | An end user authorized via the configured IDP (Clerk, Auth0, Okta, …) | The application's backend, with no human | A named managed agent (operator-provisioned) |
-| **SDK auth device** | App API key + user's JWT (via `userTokenGetter`) | App API key only | Either (a) an agent API key (`alter_key_…` — same wire prefix as the app key; agent identity is resolved server-side, not encoded in the prefix) for workload isolation, or (b) the app API key with `caller` set to the managed agent's `id` (from `vault.agents.list()`). Both produce the same backend identity. |
+| **SDK auth device** | `App` constructed with the app API key + user's JWT (via `user_token_getter`) | `App` constructed with the app API key | Either (a) `Agent` constructed with an agent API key (`alter_key_agent_…`) for workload isolation, or (b) `App(...).get_agent(agent_id)` returning an `Agent` whose underlying client carries `caller=<agent_uuid>`. Both produce the same backend identity. |
 | **`grant_id` required at runtime?** | **No** — SDK auto-resolves from `(user, provider)` | **Yes** — operator-provisioned grant_id | **Yes** — operator-mapped grant_id |
 | **Cardinality** | At most ONE active grant per user per provider account | Many grants, typically one per managed secret in the catalog | Many grants — operator maps as many as the agent needs |
 | **How a grant is created** | User completes OAuth via Alter Connect | Developer stores credentials in the Developer Portal | Operator binds a managed secret to the agent on the agent detail page |
@@ -60,7 +60,7 @@ Use this when **a logged-in user is the reason for the call**. Examples:
 ```python
 # Construct ONCE at app boot. The userTokenGetter pulls the JWT
 # from the auth library on every call.
-vault = AlterVault(
+vault = App(
     api_key=ALTER_API_KEY,
     user_token_getter=lambda: clerk.get_jwt(),
 )
@@ -79,7 +79,7 @@ Use this when **the application's backend is the reason for the call** and there
 - An internal worker that calls a third-party API on behalf of the app itself.
 
 ```python
-vault = AlterVault(api_key=ALTER_API_KEY)   # NO user_token_getter
+vault = App(api_key=ALTER_API_KEY)   # NO user_token_getter
 
 # grant_id required — operator stored a Stripe API key in the
 # Developer Portal and copied this grant_id into application config.
@@ -103,7 +103,7 @@ After the operator provisions the agent on the dashboard, the SDK reaches it thr
 # Agent API key is provisioned on the dashboard (shown once at creation).
 # Use this shape when the agent runs in a sandbox / container / less-trusted
 # environment where exposing the master key would be too dangerous.
-vault = AlterVault(api_key=AGENT_API_KEY)   # NO user_token_getter
+vault = Agent(api_key=AGENT_API_KEY)   # NO user_token_getter
 
 # grant_id required — operator mapped these specific grants to the
 # agent on the dashboard's agent detail page. The agent reads the
@@ -113,23 +113,22 @@ resp = await vault.request("GET", url, grant_id=GRANT_THE_OPERATOR_MAPPED)
 
 **Identity-blending is forbidden in this shape.** An agent API key cannot be combined with a `user_token` in the same request — the backend rejects the combination with HTTP 400. Agents are not user impersonators; if a flow needs both an agent identity and a user identity, run them as two separate requests.
 
-#### Shape (b) — master key + `caller=<managed agent UUID>` (use when monolithic)
+#### Shape (b) — master key + `app.get_agent(uuid)` (use when monolithic)
 
 ```python
 # Discover managed agent UUIDs once at boot. The list method returns
-# every managed agent provisioned for the calling app, with stable
-# UUIDs and human-readable names.
-boot_vault = AlterVault(api_key=APP_API_KEY)
-agents_by_name = {a.name: str(a.id) for a in await boot_vault.agents.list()}
+# an AgentListResult; iterate `.agents` for the items (the wrapper
+# also exposes `total`, `limit`, `offset`, `has_more` for pagination).
+app = App(api_key=APP_API_KEY)
+result = await app.agents.list()
+agents_by_name = {a.name: str(a.id) for a in result.agents}
 
-# Construct a per-agent vault with the managed agent's UUID as the caller.
+# Construct a per-agent vault from the app key. `get_agent()` pins
+# `caller=<agent_uuid>` on a fresh client and returns an Agent.
 # Use this shape in monolithic backends where the master key already
 # lives in a single trusted process and per-agent keys would not
 # meaningfully reduce blast radius.
-researcher_vault = AlterVault(
-    api_key=APP_API_KEY,                    # master key, NOT a per-agent key
-    caller=agents_by_name["researcher"],    # managed agent UUID
-)
+researcher_vault = app.get_agent(agents_by_name["researcher"])
 
 # Same audit row, same access boundary, same grant-resolution behavior
 # as shape (a). The backend recognizes the caller value as an active
@@ -138,9 +137,9 @@ researcher_vault = AlterVault(
 resp = await researcher_vault.request("GET", url, grant_id=GRANT)
 ```
 
-Unlike shape (a), this shape **accepts** a `user_token` alongside the agent UUID. When both are present the JWT-overrides rule applies: the user is the principal and owns the grant resolution; the agent UUID becomes audit attribution (not an access-boundary change). This is the "agent code path running inside a user session" pattern with full managed-agent attribution — see the next section.
+Unlike shape (a), the underlying `caller=<uuid>` mechanism **accepts** a `user_token` alongside the agent UUID. When both are present the JWT-overrides rule applies: the user is the principal and owns the grant resolution; the agent UUID becomes audit attribution (not an access-boundary change). This is the "agent code path running inside a user session" pattern with full managed-agent attribution — for that pattern, construct an `App` with `caller=<uuid>` and a `user_token_getter` (NOT `app.get_agent()`, which is for autonomous-agent flows). See the next section.
 
-There is **no** separate constructor option for the agent identity. All managed-agent UUIDs flow through the unified `caller=` parameter; the backend disambiguates free-form labels from managed-agent UUIDs server-side on each request.
+There is **no** separate constructor option for the agent identity. All managed-agent UUIDs flow through the unified `caller=` parameter; the backend disambiguates free-form labels from managed-agent UUIDs server-side on each request. The `app.get_agent(uuid)` factory is a convenience wrapper around the same `caller=` mechanism for the autonomous-agent flow.
 
 #### Cardinality and access boundary (both shapes)
 
@@ -148,7 +147,7 @@ An agent can hold **many** grants — operators map as many as the agent needs (
 
 #### Discovering agent UUIDs
 
-`vault.agents.list()` returns every managed agent provisioned for the calling app. Each item has `id` (UUID), `name` (human-readable label), `version`, and `status`. Typical pattern: list once at boot, build a `name → id` map, then construct one vault per agent with `caller=` set to the matching UUID. The list method itself works with the app API key (no agent key needed); it's a discovery endpoint that returns metadata only — no secrets.
+`app.agents.list()` returns an `AgentListResult` whose `.agents` field holds the managed agents provisioned for the calling app. Each item has `id` (UUID), `name` (human-readable label), `version`, and `status`. Typical pattern: list once at boot, build a `name → id` map from `result.agents`, then call `app.get_agent(uuid)` per agent (or, for the user-session pattern below, construct an `App` with `caller=` set to the matching UUID). The list method itself works with the app API key (no agent key needed); it's a discovery endpoint that returns metadata only — no secrets. Use `result.has_more` + `offset` to page through additional agents if the directory is large enough to span pages.
 
 ## "But the agent code path is acting on behalf of a user…"
 
@@ -162,7 +161,7 @@ The right value for `caller` depends on whether the agent has been provisioned o
 
 ```python
 # Backend code, inside the user-driven request handler:
-vault = AlterVault(
+vault = App(
     api_key=APP_KEY,                                  # APP key, not agent key
     user_token_getter=lambda: get_user_jwt_from_request(),
     caller="email-research-bot",                      # free-form name
@@ -181,13 +180,13 @@ When the same code path is provisioned as a managed agent, switch `caller=` from
 
 ```python
 # Boot-time discovery (once per app boot):
-boot_vault = AlterVault(api_key=APP_KEY)
-agent = await boot_vault.agents.get_by_name("email-research-bot")
+boot_app = App(api_key=APP_KEY)
+agent = await boot_app.agents.get_by_name("email-research-bot")
 if agent is None:
     raise RuntimeError("Managed agent 'email-research-bot' not found")
 
 # Per-request, inside the user-driven handler:
-vault = AlterVault(
+vault = App(
     api_key=APP_KEY,                                          # APP key, not agent key
     user_token_getter=lambda: get_user_jwt_from_request(),
     caller=str(agent.id),                                     # managed agent UUID
@@ -234,7 +233,7 @@ The user constraint is intentional — re-authorizing a provider account replace
 |---|---|---|
 | **User** | User signs up via the configured IDP and completes OAuth Connect to authorize a provider account. The grant is created automatically and bound to their app user. | Frontend / backend ships the user's JWT via `userTokenGetter`; calls `vault.request(provider="…")`. |
 | **App (system)** | Developer stores credentials in the Developer Portal under a managed secret. Operator creates a system-bound grant and copies the `grant_id`. | Backend reads `grant_id` from env / config; calls `vault.request(grant_id=…)`. |
-| **Agent** | Operator creates an agent on the dashboard. The agent gets a stable `id` (UUID) and a per-agent API key (shown once at creation; optional to use). Operator binds managed secrets to the agent on the agent detail page; each binding produces a `grant_id`. | Two equivalent runtime shapes — pick based on isolation needs: **(a)** the agent reads its per-agent API key from env / config and calls `vault.request(grant_id=…)`; or **(b)** the application uses the app API key, calls `vault.agents.list()` once at boot to discover the agent's `id`, and constructs an `AlterVault` with `caller=<id>` for that agent — then calls `vault.request(grant_id=…)`. |
+| **Agent** | Operator creates an agent on the dashboard. The agent gets a stable `id` (UUID) and a per-agent API key (shown once at creation; optional to use). Operator binds managed secrets to the agent on the agent detail page; each binding produces a `grant_id`. | Two equivalent runtime shapes — pick based on isolation needs: **(a)** the agent reads its per-agent API key from env / config and constructs `Agent(api_key=AGENT_KEY)`; or **(b)** the application uses the app API key, calls `app.agents.list()` once at boot to discover the agent's `id`, and calls `app.get_agent(id)` to obtain an `Agent` for that agent — then calls `vault.request(grant_id=…)`. |
 
 ## Common picks by use case
 

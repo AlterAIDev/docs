@@ -16,10 +16,10 @@ pip install 'alter-sdk[mcp]'
 
 ```python
 from fastmcp import FastMCP
-from alter_sdk import AlterVault
+from alter_sdk import App
 from alter_sdk.mcp import AlterMCP, AlterContext
 
-vault = AlterVault(api_key="alter_key_...", caller="my-mcp-server")
+vault = App(api_key="alter_key_...", caller="my-mcp-server")
 alter = AlterMCP(vault)
 mcp = FastMCP("my-server")
 
@@ -172,11 +172,11 @@ async def send_message(ctx: AlterContext, channel: str, text: str) -> str:
 ```python
 import asyncio
 from fastmcp import FastMCP
-from alter_sdk import AlterVault
+from alter_sdk import App
 from alter_sdk.mcp import AlterMCP, AlterContext
 from alter_sdk.mcp.auth import AlterAuthProvider
 
-vault = AlterVault(api_key="alter_key_...", caller="calendar-mcp")
+vault = App(api_key="alter_key_...", caller="calendar-mcp")
 alter = AlterMCP(vault)
 
 auth = AlterAuthProvider(vault, base_url="http://localhost:8000/mcp", providers={"google": ["calendar.events"]})

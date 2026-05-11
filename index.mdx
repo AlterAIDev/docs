@@ -97,10 +97,10 @@ Alter Vault manages two types of credentials -**OAuth grants** and **managed sec
 
 ```python Python (Headless)
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
 async def main():
-    vault = AlterVault(
+    vault = App(
         api_key="alter_key_...",
         caller="my-agent",
     )
@@ -150,9 +150,9 @@ async function connectProvider() {
 ```
 
 ```python Backend (Session Creation)
-from alter_sdk import AlterVault
+from alter_sdk import App
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-app",
 )

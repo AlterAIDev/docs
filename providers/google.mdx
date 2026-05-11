@@ -101,9 +101,9 @@ Connect your users to Google Workspace services including Gmail, Google Calendar
 After a user connects via [Alter Connect](/sdks/javascript/quickstart), use the returned `grant_id` to make API calls:
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:

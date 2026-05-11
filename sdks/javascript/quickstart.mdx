@@ -75,10 +75,11 @@ Create a backend endpoint to generate session tokens:
 <CodeGroup>
 
 ```javascript Node.js/Express (TypeScript SDK)
-const { AlterVault } = require('@alter-ai/alter-sdk');
+const { App } = require('@alter-ai/alter-sdk');
 
-const vault = new AlterVault({
-  apiKey: process.env.ALTER_API_KEY,  // Never expose this!
+// Load the API key from a secret store / config — never inline it.
+const vault = new App({
+  apiKey: getAlterApiKey(),
   caller: 'my-express-app',
 });
 
@@ -92,13 +93,12 @@ app.post('/api/alter/session', async (req, res) => {
 ```
 
 ```python FastAPI (Python SDK)
-import os
-
 from fastapi import Depends
-from alter_sdk import AlterVault
+from alter_sdk import App
 
-vault = AlterVault(
-    api_key=os.environ["ALTER_API_KEY"],  # Never expose this!
+# Load the API key from a secret store / config — never inline it.
+vault = App(
+    api_key=get_alter_api_key(),
     caller="my-fastapi-app",
 )
 

@@ -15,10 +15,10 @@ pip install 'alter-sdk[langchain]'
 ## Quick Start
 
 ```python
-from alter_sdk import AlterVault
+from alter_sdk import App
 from alter_sdk.langchain import alter_tool
 
-vault = AlterVault(api_key="alter_key_...", caller="my-agent")
+vault = App(api_key="alter_key_...", caller="my-agent")
 
 
 @alter_tool(vault, provider="google")
@@ -48,7 +48,7 @@ The decorator wraps an async function as a `StructuredTool` with automatic crede
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `vault` | `AlterVault` | required | Alter Vault client instance |
+| `vault` | `App \| Agent` | required | Alter Vault client instance (operator or workload — both expose `request()`) |
 | `provider` | `str` | required | OAuth provider ID (e.g., `"google"`, `"github"`) |
 | `name` | `str` | function name | Custom tool name |
 | `description` | `str` | function docstring | Custom tool description |
@@ -142,10 +142,10 @@ All other exceptions (network errors, provider API errors, etc.) propagate norma
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 from alter_sdk.langchain import alter_tool
 
-vault = AlterVault(api_key="alter_key_...", caller="email-agent")
+vault = App(api_key="alter_key_...", caller="email-agent")
 
 
 @alter_tool(vault, provider="google", name="search_emails")

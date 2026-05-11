@@ -56,10 +56,10 @@ await vault.request("GET", url, { grantId });
 ### List Tasks
 
 ```typescript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
 async function listTasks(grantId: string) {
-  const vault = new AlterVault({
+  const vault = new App({
     apiKey: "alter_key_...",
     caller: "my-agent",
   });
@@ -92,7 +92,7 @@ async function listTasks(grantId: string) {
 
 ```typescript
 async function listUsers(grantId: string) {
-  const vault = new AlterVault({
+  const vault = new App({
     apiKey: "alter_key_...",
     caller: "my-agent",
   });
@@ -122,7 +122,7 @@ async function listUsers(grantId: string) {
 For APIs where the credentials are already available (API keys, service tokens), use Managed Secrets. The `grantId` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
 
 ```typescript
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
 });
@@ -157,9 +157,9 @@ Policy enforcement, audit logging, and error handling all work identically for b
 Pass a `caller` string at SDK initialization to identify this SDK instance in audit logs:
 
 ```typescript
-import { AlterVault } from "@alter-ai/alter-sdk";
+import { App } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "email-assistant-v2",  // Optional: Unique identifier for this SDK instance
 });
@@ -189,16 +189,16 @@ The TypeScript SDK currently exposes the core credential-access surface only. De
 
 ### Multi-Agent Deployments
 
-Each agent must create its own `AlterVault` instance with a unique caller identity. Do not share a single instance across agents -- audit logs, policies, and caller registration are tied to each instance.
+Each agent must create its own `App` instance with a unique caller identity. Do not share a single instance across agents -- audit logs, policies, and caller registration are tied to each instance.
 
 ```typescript
 // Each agent gets its own vault instance
-const emailAgent = new AlterVault({
+const emailAgent = new App({
   apiKey: "alter_key_...",
   caller: "email-assistant-v2",
 });
 
-const calendarAgent = new AlterVault({
+const calendarAgent = new App({
   apiKey: "alter_key_...",
   caller: "calendar-agent-v1",
 });
@@ -289,10 +289,10 @@ Returns `ConnectSession` with `sessionToken`, `connectUrl`, `expiresIn`, `expire
 
 ### Scoping grant operations to the authenticated user
 
-In user-facing applications — where many end users share a single `AlterVault` instance — configure `userTokenGetter` so every grant operation is tied to the caller's identity. The SDK forwards the end user's IDP JWT and the backend resolves each call against that user's own grants.
+In user-facing applications — where many end users share a single `App` instance — configure `userTokenGetter` so every grant operation is tied to the caller's identity. The SDK forwards the end user's IDP JWT and the backend resolves each call against that user's own grants.
 
 ```typescript
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   userTokenGetter: () => getCurrentUserJwt(),
 });
@@ -383,6 +383,92 @@ const session = await vault.createConnectSession({
 });
 ```
 
+## Agent workloads (per-user delegation)
+
+The examples above use `App` (app key, `alter_key_app_*`). `App` is the application surface: it covers admin operations (managing grants, running Connect) *and* general application workloads where the backend acts under stored `grantId`s. For **AI agent workloads** with their own identity-scoped access set, use the `Agent` class instead (agent key, `alter_key_agent_*`). The agent can only reach credentials explicitly bound to it — either user-delegated OAuth grants (`oauth_grant_agent_delegations` rows, written when a user completes Connect with `agent=<this-agent>`) or agent-owned managed secrets (operator-provisioned in the Developer Portal, no user in the loop). The agent never sees tokens or grant IDs — Alter resolves the right credential at the boundary.
+
+### Agent class basics
+
+```typescript
+import { Agent, HttpMethod } from "@alter-ai/alter-sdk";
+
+const agent = new Agent({ apiKey: "alter_key_agent_..." });
+
+// Provider + end-user identity resolves to the right user-delegated grant.
+const response = await agent.request(
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  {
+    provider: "google",
+    appUserId: "user_abc",     // operator's internal id for the end user
+    userToken: endUserJwt,     // signed JWT proving the end user authorized this call
+  },
+);
+```
+
+If the end user has not delegated `google` access to this agent, `agent.request()` throws `NoDelegatedGrantError` (HTTP 404). Surface this to the application so it can run a Connect flow that includes `agent: "<agent_id>"`.
+
+### Operator runs Connect for an agent
+
+```typescript
+// Operator-driven: app provisions a Connect session that creates a delegation
+// from the end user to a specific agent in one step.
+const session = await app.createConnectSession({
+  allowedProviders: ["google"],
+  appUserId: "user_abc",
+  agent: "<agent_uuid>",
+});
+// Hand session.connectUrl to the end user.
+```
+
+### Agent self-Connect
+
+If the agent itself triggers a Connect flow (the LangChain/MCP integrations do this automatically on `NoDelegatedGrantError`):
+
+```typescript
+const session = await agent.createConnectSession({
+  allowedProviders: ["google"],
+  appUserId: "user_abc",
+  userToken: endUserJwt,
+});
+```
+
+The backend records the delegation as `end user → this agent → provider`.
+
+### Run scoping for audit trails
+
+Wrap a logical multi-call execution in `agent.trace(...)` to stamp every outgoing request with the same `runId` (and optional `threadId`/`metadata`) in the audit log:
+
+```typescript
+await agent.trace({ runId: "run_42", threadId: "thread_abc" }, async () => {
+  await agent.request(HttpMethod.GET, "https://api.example.com/a", { provider: "google", ... });
+  await agent.request(HttpMethod.POST, "https://api.example.com/b", { provider: "google", ... });
+});
+```
+
+### Revoking a delegation
+
+There are three independent revocation paths:
+
+| Who | Method | What it revokes |
+|-----|--------|-----------------|
+| Operator (admin) | `app.revokeDelegation(grantId, agentId)` | Any one delegation |
+| Agent (self) | `agent.revokeDelegation(grantId)` | The agent's own delegation for that grant |
+| End user (wallet) | Wallet UI / Wallet API | All delegations on grants the user owns |
+
+### Impersonation for audit attribution
+
+To investigate or replay actions an agent took, operators can impersonate the agent. Calls run as the agent for token retrieval, but audit logs record the operator API key as the actor:
+
+```typescript
+const agent = app.getAgent("<agent_uuid>");
+await agent.request(HttpMethod.GET, url, {
+  provider: "google",
+  appUserId: "user_abc",
+  userToken: endUserJwt,
+});
+```
+
 ## Error Handling
 
 <Warning>
@@ -415,7 +501,7 @@ AlterSDKError (base — also thrown for input validation: invalid apiKey, URL va
 ### Complete Error Handling Example
 
 ```typescript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
 import {
   ReAuthRequiredError,
   PolicyViolationError,
@@ -426,7 +512,7 @@ import {
 } from "@alter-ai/alter-sdk";
 
 async function safeApiCall(grantId: string) {
-  const vault = new AlterVault({
+  const vault = new App({
     apiKey: "alter_key_...",
     caller: "my-agent",
   });

@@ -230,28 +230,73 @@ await alterConnect.open({
 
 ### 2. Backend: Use the Connection
 
-```python
-from alter_sdk import AlterVault, HttpMethod
+Pick the principal that matches the caller. The SDK exposes two
+classes — `App` (app keys, `alter_key_app_*`) and `Agent` (agent keys,
+`alter_key_agent_*`). Both are workload-capable; both have `request()`.
+The difference is the **principal kind on the wire** — and therefore
+which authorization path the backend uses.
 
-vault = AlterVault(
-    api_key="alter_key_...",
+**Application backend (app key)** — the application server acts on
+behalf of any end user it stored a `grant_id` for. `App` is also the
+surface for admin operations (provisioning agents, minting Connect
+sessions, managing grants). Use `App`:
+
+```python
+from alter_sdk import App, HttpMethod
+
+app = App(
+    api_key="alter_key_app_...",
     caller="my-service",
 )
 
-# OAuth: grant_id from your DB (stored when user completed Alter Connect)
+# OAuth: grant_id from the application database (stored when user completed Alter Connect)
 grant_id = db.get_grant(user_id="alice", provider="google")
-response = await vault.request(
+response = await app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=grant_id,
 )
 events = response.json()
 
-# Managed secret: grant_id from Developer Portal (stored in your config)
-response = await vault.request(
+# Managed secret: grant_id from Developer Portal (stored in application config)
+response = await app.request(
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
     grant_id=os.environ["LOYALTY_API_GRANT_ID"],
+)
+```
+
+**AI agent workload (agent key)** — an agent with its own
+identity-scoped access set. The agent can only reach credentials
+explicitly bound to it, via either user-delegated OAuth grants
+(`oauth_grant_agent_delegations`, written when a user completes
+Connect with `agent=<this-agent>`) or agent-owned managed-secret
+grants (operator-provisioned in the Developer Portal, no user in the
+loop). Use `Agent`:
+
+```python
+from alter_sdk import Agent, HttpMethod
+
+agent = Agent(api_key="alter_key_agent_...")
+
+# OAuth: agent reaches a user-delegated grant by provider. The
+# delegation row in oauth_grant_agent_delegations is what authorizes
+# the call — agent.request never bypasses it.
+response = await agent.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google",
+    # Optional disambiguator when the agent holds delegations from
+    # multiple users on the same provider:
+    # app_user_id=alice_user_id,
+)
+events = response.json()
+
+# Managed secret: agent-owned, also reached by provider.
+response = await agent.request(
+    HttpMethod.GET,
+    "https://api.internal.com/v1/loyalty/points",
+    provider="loyalty",
 )
 ```
 

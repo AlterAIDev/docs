@@ -69,10 +69,10 @@ response = await vault.request(
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
 async def main():
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -104,7 +104,7 @@ asyncio.run(main())
 
 ```python
 async def main():
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -129,7 +129,7 @@ async def main():
 ```python
 async def create_resource(grant_id: str, name: str, description: str):
     """Use an existing grant_id (e.g., from a database) to create a resource."""
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -152,7 +152,7 @@ async def create_resource(grant_id: str, name: str, description: str):
 
 ```python
 async def create_item(grant_id: str):
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -172,7 +172,7 @@ Some APIs require version headers or custom metadata:
 
 ```python
 async def query_notion(grant_id: str):
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -192,7 +192,7 @@ async def query_notion(grant_id: str):
 For APIs where the credentials are already available (API keys, service tokens), use Managed Secrets. The `grant_id` comes from the **Developer Portal** (not from an end user), and usage is identical to OAuth via `vault.request()`:
 
 ```python
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:
@@ -231,9 +231,9 @@ Caller tracking answers these questions automatically.
 Pass `caller` at SDK initialization:
 
 ```python
-from alter_sdk import AlterVault
+from alter_sdk import App
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="email-assistant-v2",  # Optional: Unique identifier for this SDK instance
 )
@@ -267,10 +267,10 @@ Integration packages populate `context` automatically with framework-specific fi
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
 async def run_email_agent(grant_id: str):
-    vault = AlterVault(
+    vault = App(
         api_key="alter_key_...",
         caller="email-assistant-v2",
     )
@@ -295,16 +295,16 @@ asyncio.run(run_email_agent("GRANT_ID"))  # from Alter Connect
 
 ### Multi-Agent Deployments
 
-Each agent must create its own `AlterVault` instance with a unique caller identity. Do not share a single instance across agents -- audit logs, policies, and caller registration are tied to each instance.
+Each agent must create its own `App` instance with a unique caller identity. Do not share a single instance across agents -- audit logs, policies, and caller registration are tied to each instance.
 
 ```python
 # Each agent gets its own vault instance
-email_agent = AlterVault(
+email_agent = App(
     api_key="alter_key_...",
     caller="email-assistant-v2",
 )
 
-calendar_agent = AlterVault(
+calendar_agent = App(
     api_key="alter_key_...",
     caller="calendar-agent-v1",
 )
@@ -394,10 +394,10 @@ Returns `ConnectSession` with `session_token`, `connect_url`, `expires_in`, `exp
 
 ### Scoping grant operations to the authenticated user
 
-In user-facing applications — where many end users share a single `AlterVault` instance — configure `user_token_getter` so every grant operation is tied to the caller's identity. The SDK forwards the end user's IDP JWT and the backend resolves each call against that user's own grants.
+In user-facing applications — where many end users share a single `App` instance — configure `user_token_getter` so every grant operation is tied to the caller's identity. The SDK forwards the end user's IDP JWT and the backend resolves each call against that user's own grants.
 
 ```python
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     user_token_getter=lambda: get_current_user_jwt(),
 )
@@ -487,6 +487,85 @@ session = await vault.create_connect_session(
 )
 ```
 
+## Agent workloads (per-user delegation)
+
+The examples above use `App` (app key, `alter_key_app_*`). `App` is the application surface: it covers admin operations (managing grants, running Connect) *and* general application workloads where the backend acts under stored `grant_id`s. For **AI agent workloads** with their own identity-scoped access set, use the `Agent` class instead (agent key, `alter_key_agent_*`). The agent can only reach credentials explicitly bound to it — either user-delegated OAuth grants (`oauth_grant_agent_delegations` rows, written when a user completes Connect with `agent=<this-agent>`) or agent-owned managed secrets (operator-provisioned in the Developer Portal, no user in the loop). The agent never sees tokens or grant IDs — Alter resolves the right credential at the boundary.
+
+### Agent class basics
+
+```python
+from alter_sdk import Agent, HttpMethod
+
+agent = Agent(api_key="alter_key_agent_...")
+
+# Provider + end-user identity resolves to the right user-delegated grant.
+response = await agent.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google",
+    app_user_id="user_abc",      # operator's internal id for the end user
+    user_token=end_user_jwt,     # signed JWT proving the end user authorized this call
+)
+```
+
+If the end user has not delegated `google` access to this agent, `agent.request()` raises `NoDelegatedGrantError` (HTTP 404). Surface this to the application so it can run a Connect flow that includes `agent="<agent_id>"`.
+
+### Operator runs Connect for an agent
+
+```python
+# Operator-driven: app provisions a Connect session that creates a delegation
+# from the end user to a specific agent in one step.
+session = await app.create_connect_session(
+    allowed_providers=["google"],
+    app_user_id="user_abc",
+    agent="<agent_uuid>",
+)
+# Hand session.connect_url to the end user.
+```
+
+### Agent self-Connect
+
+If the agent itself triggers a Connect flow (e.g. the LangChain/MCP tool decorators do this automatically on `NoDelegatedGrantError`):
+
+```python
+session = await agent.create_connect_session(
+    allowed_providers=["google"],
+    app_user_id="user_abc",
+    user_token=end_user_jwt,
+)
+```
+
+The backend records the delegation as `end user → this agent → provider`.
+
+### Run scoping for audit trails
+
+Wrap a logical multi-call execution in `agent.trace(...)` to stamp every outgoing request with the same `run_id` (and optional `thread_id`/`metadata`) in the audit log:
+
+```python
+async with agent.trace(run_id="run_42", thread_id="thread_abc"):
+    await agent.request(HttpMethod.GET, "https://api.example.com/a", provider="google", ...)
+    await agent.request(HttpMethod.POST, "https://api.example.com/b", provider="google", ...)
+```
+
+### Revoking a delegation
+
+There are three independent revocation paths:
+
+| Who | Method | What it revokes |
+|-----|--------|-----------------|
+| Operator (admin) | `app.revoke_delegation(grant_id, agent_id)` | Any one delegation |
+| Agent (self) | `agent.revoke_delegation(grant_id)` | The agent's own delegation for that grant |
+| End user (wallet) | Wallet UI / Wallet API | All delegations on grants the user owns |
+
+### Impersonation for audit attribution
+
+To investigate or replay actions an agent took, operators can impersonate the agent. Calls run as the agent for token retrieval, but audit logs record the operator API key as the actor:
+
+```python
+agent = app.get_agent("<agent_uuid>")
+await agent.request(HttpMethod.GET, url, provider="google", app_user_id="user_abc", user_token=jwt)
+```
+
 ## Error Handling
 
 <Warning>
@@ -521,7 +600,7 @@ AlterSDKError (base — also raised for input validation: invalid api_key, URL v
 ### Complete Error Handling Example
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 from alter_sdk.exceptions import (
     ReAuthRequiredError,
     PolicyViolationError,
@@ -533,7 +612,7 @@ from alter_sdk.exceptions import (
 )
 
 async def safe_api_call(grant_id: str):
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -602,7 +681,7 @@ async def safe_api_call(grant_id: str):
   <Accordion title="Always Use Context Managers" icon="code">
     ```python
     # GOOD - Automatic cleanup
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
@@ -610,7 +689,7 @@ async def safe_api_call(grant_id: str):
     # Clients automatically closed
 
     # BAD - Manual cleanup required
-    vault = AlterVault(
+    vault = App(
         api_key="alter_key_...",
         caller="my-agent",
     )

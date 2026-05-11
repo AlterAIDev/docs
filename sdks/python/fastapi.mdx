@@ -47,7 +47,7 @@ async def connect(vault=Depends(alter)):
 
 `Depends(alter)` does two things per request:
 1. Extracts the `Authorization: Bearer <token>` header (returns 403 if missing)
-2. Returns the configured `AlterVault` instance with the token available for identity resolution
+2. Returns the configured SDK client (`App` for app keys, `Agent` for agent keys — selected at construction time from the API-key prefix) with the token available for identity resolution
 
 ## How It Works
 
@@ -58,7 +58,7 @@ This replaces the manual pattern that previously required writing a ContextVar, 
 ```python
 # Before (manual boilerplate):
 _token: ContextVar[str | None] = ContextVar("token", default=None)
-vault = AlterVault(api_key=..., user_token_getter=lambda: _token.get())
+vault = App(api_key=..., user_token_getter=lambda: _token.get())
 
 @app.post("/chat")
 async def chat(authorization: str = Header(...)):
@@ -105,7 +105,7 @@ async def list_resources(ctx: AlterContext, max_results: int = 10) -> list[dict]
     return resp.json()
 ```
 
-Both paths share the same `AlterVault` instance and identity resolution — the REST path captures tokens via `Depends(alter)`, and the MCP path captures them via `auth.verify_token()`.
+Both paths share the same SDK client and identity resolution — the REST path captures tokens via `Depends(alter)`, and the MCP path captures verified tokens through the auth provider callback.
 
 ## API Reference
 
@@ -117,11 +117,14 @@ Creates a FastAPI-integrated vault wrapper.
 |-----------|------|-------------|
 | `api_key` | `str` | Alter Vault API key |
 | `caller` | `str \| None` | Caller identifier for audit logs |
-| `**kwargs` | | Additional arguments passed to `AlterVault` (except `user_token_getter`) |
+| `**kwargs` | | Additional arguments passed to the constructed SDK client (`App` or `Agent`), except `user_token_getter` |
 
 ### `alter.vault`
 
-The underlying `AlterVault` instance. Use this when a function needs the vault directly (e.g., `@alter_tool(alter.vault, provider=...)`).
+The underlying SDK client (`App | Agent`). Use this when a
+function needs the vault directly (e.g., `@alter_tool(alter.vault, provider=...)`).
+For principal-specific access, `alter.app` and `alter.agent` raise
+`AlterSDKError` when accessed against the wrong principal kind.
 
 ### `alter.set_user_token(token)`
 

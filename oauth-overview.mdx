@@ -44,9 +44,9 @@ Use OAuth grants when:
 <CodeGroup>
 
 ```python Python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:
@@ -61,9 +61,9 @@ async with AlterVault(
 ```
 
 ```typescript TypeScript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
 });
@@ -96,9 +96,65 @@ See the [Quickstart](/quickstart#choosing-an-oauth-trigger-method) for full exam
 - **Grant policy (TTL)** -- set maximum grant lifetimes with `grant_policy`
 - **Per-user grants** -- each user who authorizes gets their own `grant_id`
 - **Multi-account support** -- users can connect multiple accounts to the same provider (e.g., personal + work Gmail)
-- **Wallet visibility** -- users can see and revoke their connections via the Wallet Dashboard
+- **Agent delegation** -- a user can authorize a named agent to call providers on their behalf without sharing the underlying OAuth tokens
+- **Wallet visibility** -- users can see and revoke their connections (and agent delegations) via the Wallet Dashboard
 - **[Policy enforcement](/reference/policies)** -- time-based and IP-based access rules on every token retrieval
 - **[Full audit trail](/reference/audit-logs)** -- every token access is logged with actor identity, method, URL, and reason
+
+## Agent Delegation
+
+When a user consents at the Connect UI, the resulting OAuth grant can be authorized for use by a specific managed agent. The agent calls providers on the user's behalf via its own API key — the user's OAuth tokens never leave the backend, and the agent's access can be revoked independently of the underlying connection.
+
+**Operator-initiated delegation** — an `App` creates a Connect session with `agent` set:
+
+```python
+session = await app.create_connect_session(
+    allowed_providers=["slack"],
+    agent="customer-success-bot",  # UUID or managed-agent name
+)
+```
+
+The Connect UI banner names the agent on the consent screen. After the user authorizes, the agent can call Slack via `agent.request(provider="slack")` — no `grant_id` needed; the SDK resolves the user's grant through the delegation row.
+
+**Agent-initiated delegation** — an `Agent` constructed with a `user_token_getter` calls `create_connect_session()` with no `agent` argument. The agent delegates to itself; the user consents to "give this specific agent access to my Slack."
+
+**Disambiguation** — when an agent has delegations from multiple users on the same provider, the caller passes a disambiguator on the per-call `Agent.request`:
+
+```python
+# JWT-authenticated path
+await agent.request(method, url, provider="slack", user_token=jwt)
+
+# Asserted UUID path (skips JWT validation)
+await agent.request(method, url, provider="slack", app_user_id=user_id)
+```
+
+The JWT is a *disambiguator only* — it picks among delegations the agent already holds. An agent presenting a JWT for a user it has no delegation for sees `GrantNotFoundError`, not a successful token.
+
+**Ambiguity recovery** — calling without a disambiguator when multiple delegated users exist raises `AmbiguousGrantError`. The exception carries `app_user_ids` (UUIDs only — no emails or names, to avoid leaking user identity across tenants):
+
+```python
+from alter_sdk import AmbiguousGrantError
+
+try:
+    await agent.request(method, url, provider="slack")
+except AmbiguousGrantError as e:
+    # Pick one of the candidate users and retry. UUIDs only — the
+    # SDK consumer is expected to know how to render them (e.g.
+    # by joining against an app-side user table).
+    chosen_user_id = pick_user_from(e.app_user_ids)
+    await agent.request(method, url, provider="slack", app_user_id=chosen_user_id)
+```
+
+For the related "agent has no access path at all" case (no delegation AND no managed-secret grant for the provider), catch `NoDelegatedGrantError` instead — the recovery is to run a Connect session with `agent=` set so a user can consent.
+
+**Revocation** — both classes expose `revoke_delegation`:
+
+```python
+await app.revoke_delegation(grant_id, agent_id)  # operator path
+await agent.revoke_delegation(grant_id)          # agent self-revoke
+```
+
+The OAuth grant itself stays active — only the agent's access path is removed. Users can also revoke delegations from the Wallet Dashboard's "Delegated agents" section on each connection.
 
 ## Supported OAuth Providers
 

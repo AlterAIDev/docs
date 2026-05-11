@@ -66,10 +66,10 @@ The fastest way to get started: `connect()` opens a browser, the user authorizes
 
 ```python
 import asyncio
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
 async def main():
-    vault = AlterVault(
+    vault = App(
         api_key="alter_key_...",
         caller="my-agent",
     )
@@ -108,9 +108,9 @@ asyncio.run(main())
 ## Configuration
 
 ```python
-from alter_sdk import AlterVault, CallerType
+from alter_sdk import App, CallerType
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",              # Required: API key from dashboard
     caller="my-agent",                    # Optional: Caller identity for audit logs
     caller_type=CallerType.AGENT,         # Optional: AGENT (default) or SERVICE
@@ -131,9 +131,9 @@ If the application uses an external IDP (Okta, Entra ID, Auth0, Clerk, Keycloak,
 **Per-request wiring (SDK):** pass a `user_token_getter` that returns the end user's IDP-issued JWT. The SDK attaches it to every token request so the backend can resolve the user from the JWT claims.
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="my-agent",
     # Called before every request — return a fresh JWT for the current user.
@@ -153,7 +153,7 @@ response = await vault.request(
 **Two resolution modes** — pass `grant_id=` when the caller already knows the exact grant, or pass `provider=` with an active end-user token source so the backend can resolve the grant from the JWT's `sub` claim. The token source can come from constructor `user_token_getter` or from a token cached via `vault.authenticate()`.
 </Info>
 
-**End-user login flow (optional):** if the application does not already have a JWT for the user, call `vault.authenticate()` to open a browser-based OIDC login through the IDP and receive the user profile. The SDK caches the resulting token internally and installs it as the active token source for that `AlterVault` instance. If constructor `user_token_getter` was set earlier, `vault.authenticate()` overrides it for subsequent `provider=` requests. Configure the IDP's wallet/SDK client credentials in the Developer Portal first.
+**End-user login flow (optional):** if the application does not already have a JWT for the user, call `vault.authenticate()` to open a browser-based OIDC login through the IDP and receive the user profile. The SDK caches the resulting token internally and installs it as the active token source for that `App` instance. If constructor `user_token_getter` was set earlier, `vault.authenticate()` overrides it for subsequent `provider=` requests. Configure the IDP's wallet/SDK client credentials in the Developer Portal first.
 
 ```python
 auth_result = await vault.authenticate()
@@ -162,12 +162,12 @@ print(auth_result.user_info)  # { sub, email, name, ... } from the IDP
 
 ## Connecting Without an IDP
 
-The SDK does not require an identity provider. When `AlterVault` is constructed without a `user_token_getter`, every Connect session it produces creates a **system-principal** grant — bound to the app, not to any end user, and addressed by `grant_id`. This is the path for server-to-server jobs, CLI tools, fixture provisioning, and any environment where there is no signed-in user.
+The SDK does not require an identity provider. When `App` is constructed without a `user_token_getter`, every Connect session it produces creates a **system-principal** grant — bound to the app, not to any end user, and addressed by `grant_id`. This is the path for server-to-server jobs, CLI tools, fixture provisioning, and any environment where there is no signed-in user.
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-vault = AlterVault(api_key="alter_key_...")  # no user_token_getter
+vault = App(api_key="alter_key_...")  # no user_token_getter
 
 # Start the OAuth flow. With no user_token, the resulting grant is system-principal.
 session = await vault.create_connect_session(allowed_providers=["google"])
@@ -187,6 +187,82 @@ response = await vault.request(
 ```
 
 System-principal grants do not appear in any end user's Wallet Dashboard. Revoke them from the Developer Portal or via SDK with the `grant_id`. A runnable example covering custom managed secrets, AWS, Cloudflare, and non-IDP OAuth lives at `examples/system-principal-sandbox/`.
+
+## Agent workloads (per-user delegation)
+
+`App` (app key) is the application surface — it runs admin operations *and* general application workloads where the backend acts under stored `grant_id`s. For **AI agent workloads** with their own identity-scoped access set, use the `Agent` class instead. Each agent is provisioned in the Developer Portal with its own API key (`alter_key_agent_...`), and the agent can only reach credentials explicitly bound to it — either user-delegated OAuth grants (`oauth_grant_agent_delegations` rows) or agent-owned managed secrets (operator-provisioned in the Developer Portal, no user in the loop).
+
+```python
+from alter_sdk import Agent, HttpMethod
+
+agent = Agent(api_key="alter_key_agent_...")
+
+# Resolve a user's delegated OAuth grant by provider. The SDK joins
+# against the delegation table — no `grant_id` needed.
+response = await agent.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google",
+    # Optional disambiguator if the agent holds delegations from
+    # multiple users on the same provider:
+    # app_user_id="usr_alice",
+    # OR: user_token=jwt,
+)
+events = response.json()
+```
+
+**Delegating to an agent.** Operators or agents themselves create a delegation by passing `agent` to `App.create_connect_session()`:
+
+```python
+# Operator delegates a user's grant to a named agent
+session = await app.create_connect_session(
+    allowed_providers=["google"],
+    user_token=jwt,                     # the consenting user
+    agent="research-agent",             # name or UUID
+)
+# After the user authorizes, an oauth_grant_agent_delegations row is written.
+
+# Agents in chat surfaces can delegate to themselves
+agent = Agent(
+    api_key="alter_key_agent_...",
+    user_token_getter=lambda: jwt,
+)
+session = await agent.create_connect_session(allowed_providers=["google"])
+```
+
+**Scoping audit identity per run.** Wrap nested tool calls in `agent.trace()` so every `request()` inside the block carries the same `run_id`, `thread_id`, and ambient `parent_agent` link:
+
+```python
+async with agent.trace(run_id="run_abc", thread_id="conv-42"):
+    await agent.request(...)  # audit row carries run_id + thread_id
+    async with researcher.run():
+        # parent_agent automatically set to the outer agent
+        await researcher.request(...)
+```
+
+**Revoking a delegation** — three actor-attributed paths:
+
+```python
+# Operator revokes the delegation (records revoked_by_actor='operator')
+await app.revoke_delegation(grant_id="...", agent_id="...")
+
+# Agent self-revoke (records revoked_by_actor='agent')
+await agent.revoke_delegation(grant_id="...")
+
+# Wallet user revokes from the Wallet Dashboard (records revoked_by_actor='user')
+```
+
+The underlying OAuth grant stays active in all three cases — only the agent's access path is removed.
+
+**Impersonation for audit attribution.** `App.get_agent(uuid)` returns an `Agent` whose API calls appear in the audit log under that agent's identity but use the operator's app key for authentication. This is for attribution, NOT for restricting access (the operator could reach the same grants directly).
+
+```python
+researcher = app.get_agent("agent-uuid-here")
+async with researcher.run():
+    await researcher.request(...)  # audit shows researcher; auth is app key
+```
+
+See [oauth-overview](/oauth-overview) for the full delegation flow, including the consent screen and disambiguation rules.
 
 ## Quick Error Handling
 
@@ -241,14 +317,14 @@ print(f"Revoked at {result.revoked_at}")
 
 `revoke_grant()` raises `GrantNotFoundError` if the grant does not exist or is already revoked.
 
-When the `AlterVault` instance has `user_token_getter` configured (including the [`AlterFastAPI`](/sdks/python/fastapi) dependency), `revoke_grant()` targets a grant owned by the authenticated caller — passing a `grant_id` that belongs to someone else raises `GrantNotFoundError`. See [Scoping grant operations to the authenticated user](/sdks/python/overview#scoping-grant-operations-to-the-authenticated-user) in the overview.
+When the `App` instance has `user_token_getter` configured (including the [`AlterFastAPI`](/sdks/python/fastapi) dependency), `revoke_grant()` targets a grant owned by the authenticated caller — passing a `grant_id` that belongs to someone else raises `GrantNotFoundError`. See [Scoping grant operations to the authenticated user](/sdks/python/overview#scoping-grant-operations-to-the-authenticated-user) in the overview.
 
 ## Provisioning Managed-Secret Grants
 
 `create_managed_secret_grant()` ties a managed secret to a specific principal (user, IDP group, or system). Use it when an admin or backend job needs to provision access without sending the end user through Alter Connect.
 
 ```python
-from alter_sdk import AlterVault, GroupPrincipal, UserPrincipal, SystemPrincipal
+from alter_sdk import App, GroupPrincipal, UserPrincipal, SystemPrincipal
 
 # Tie the secret to an IDP group — every member with a verified JWT gets access
 grant = await vault.create_managed_secret_grant(

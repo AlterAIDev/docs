@@ -128,9 +128,9 @@ The reason appears in the audit log detail view, making it easy to understand wh
 When using AI agents, audit logs automatically capture actor context:
 
 ```python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-vault = AlterVault(
+vault = App(
     api_key="alter_key_...",
     caller="email-assistant-v2",
 )

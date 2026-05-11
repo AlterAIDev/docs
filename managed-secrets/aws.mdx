@@ -74,9 +74,9 @@ Use `vault.request()` when you want a lightweight approach with no AWS SDK depen
 <CodeGroup>
 
 ```python Python
-from alter_sdk import AlterVault, HttpMethod
+from alter_sdk import App, HttpMethod
 
-async with AlterVault(
+async with App(
     api_key="alter_key_...",
     caller="my-agent",
 ) as vault:
@@ -105,9 +105,9 @@ async with AlterVault(
 ```
 
 ```typescript TypeScript
-import { AlterVault, HttpMethod } from "@alter-ai/alter-sdk";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new AlterVault({
+const vault = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
 });
@@ -156,10 +156,10 @@ pip install 'alter-sdk[aws]'
 
 ```python
 import asyncio
-from alter_sdk import AlterVault
+from alter_sdk import App
 
 async def main():
-    async with AlterVault(
+    async with App(
         api_key="alter_key_...",
         caller="my-agent",
     ) as vault:
