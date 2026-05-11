@@ -9,7 +9,7 @@ Alter Vault is the credential and authorization layer for AI agents that serve m
 
 ### Two Paths, One API
 
-Alter Vault supports two types of credentials, both accessed through the same `vault.request()` method:
+Alter Vault supports two types of credentials, both accessed through the same `alter_app.request()` method:
 
 - **OAuth Connections** — for third-party services where users authorize access (Google, Slack, GitHub)
 - **Managed Secrets** — for internal APIs where credentials are already available (API keys, service tokens)
@@ -19,7 +19,7 @@ graph LR
     A1[User Authorizes] --> B1[OAuth Flow]
     B1 --> C[Credentials Encrypted in Vault]
     A2[Developer Stores Secret] --> C
-    C --> D[vault.request]
+    C --> D[alter_app.request]
     D --> E[Credential Injected Automatically]
     E --> F[API Response Returned]
 ```
@@ -37,7 +37,7 @@ Application code **never sees or stores credentials**. Here is what happens inst
     All credentials are encrypted (AES-256-GCM) and stored in a secure vault
   </Step>
 
-  <Step title="Call vault.request()">
+  <Step title="Call alter_app.request()">
     The SDK retrieves and injects credentials into API calls automatically
   </Step>
 
@@ -68,7 +68,7 @@ Application code **never sees or stores credentials**. Here is what happens inst
 
 ## Grant ID: The Universal Handle
 
-Every credential in Alter Vault has a unique `grant_id` (UUID). Usage is identical via `vault.request()` regardless of credential type. The key difference is **where the `grant_id` comes from**:
+Every credential in Alter Vault has a unique `grant_id` (UUID). Usage is identical via `alter_app.request()` regardless of credential type. The key difference is **where the `grant_id` comes from**:
 
 | Credential Type | Where `grant_id` Comes From | Who Creates It |
 |---|---|---|
@@ -79,7 +79,7 @@ Every credential in Alter Vault has a unique `grant_id` (UUID). Usage is identic
 # OAuth grant — grant_id from end user completing Alter Connect
 # (stored in your DB, mapped to your user)
 oauth_grant_id = db.get_grant(user_id="alice", provider="google")
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=oauth_grant_id,
@@ -87,7 +87,7 @@ response = await vault.request(
 
 # Managed secret — grant_id from Developer Portal
 # (stored in your config/env vars, same for all users)
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
     grant_id=os.environ["LOYALTY_API_GRANT_ID"],

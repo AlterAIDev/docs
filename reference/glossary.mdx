@@ -1,0 +1,117 @@
+---
+title: 'Glossary'
+description: 'Every Alter Vault term in one A–Z page. Other pages link here on first use.'
+icon: 'book-open'
+---
+
+## Agent
+
+A named, operator-provisioned workload identity (e.g. "research-bot"). Has its own API key, audit trail, and bound grants. Created in the developer portal under **Agents**. SDK class: `Agent`. See [Agents → Overview](/agents/overview).
+
+## Agent principal
+
+A grant whose owner is an agent. Resolved from the agent's API key (or `App.get_agent(uuid)` impersonation). An agent can only reach grants the operator explicitly mapped to it. See [Agents → Creating agents](/agents/creating-agents).
+
+## App
+
+A registered application within an organization. Has its own API key, OAuth providers, identity provider config, and grant isolation. SDK class: `App`. See [SDK → Client](/sdks/python/reference/client).
+
+## API key
+
+The credential that authenticates SDK calls to Alter. Two prefixes: `alter_key_app_…` (for the `App` class) and `alter_key_agent_…` (for the `Agent` class). Shown once at mint time, never recoverable. Rotation is performed in the developer portal.
+
+## Caller
+
+Free-form audit attribution — *what code path* made a call. Set at SDK construction (`App(api_key=KEY, caller="email-bot")`), immutable for the instance. Not an access boundary. See [Concepts → Principals and grants](/concepts/principals-and-grants#caller).
+
+## Connect SDK
+
+The optional browser-side SDK (`@alter-ai/connect`) that opens the Alter Connect UI in a popup with `onSuccess`/`onError` callbacks. Server-rendered apps and CLIs do not need it. See [SDKs → Connect.js](/sdks/connect-js/quickstart).
+
+## Connection
+
+Informal name for an OAuth credential row — the stored credential binding an app to a provider for one principal. Not an SDK term; appears in the developer portal and Wallet UIs.
+
+## Context
+
+Free-form per-call audit metadata. A map of strings passed to `vault.request(..., context={...})`. Typical fields: tool name, run ID, thread ID. See [Concepts → Principals and grants](/concepts/principals-and-grants#context).
+
+## Delegation
+
+A pointer that says *this agent may use this user's grant*. Created when an end user consents at the Connect UI with an agent named on the consent screen. Revoking a delegation removes the agent's access path without touching the underlying user grant. See [Agents → Approvals](/agents/approvals).
+
+## Developer Portal
+
+The web UI at [portal.alterauth.com](https://portal.alterauth.com) for managing apps, OAuth providers, identity providers, agents, managed secrets, and audit logs.
+
+## End user
+
+The human whose credentials are being stored. Distinct from "developer" (who integrates Alter). End users see [Alter Wallet](https://wallet.alterauth.com) and revoke grants there.
+
+## Grant
+
+A stored consent record that lets a principal call a third-party API through Alter. Identified by a UUID (`grant_id`). The unit passed to `vault.request()`. See [Concepts → Principals and grants](/concepts/principals-and-grants#grant).
+
+## `grant_id`
+
+The UUID that identifies a grant. Returned from OAuth flows (`vault.connect()`, Connect SDK `onSuccess`) and from managed-secret provisioning. Passed to `vault.request(grant_id=...)` for the explicit identity-resolution mode. See [Concepts → Identity resolution](/concepts/identity-resolution).
+
+## Group principal
+
+A grant whose owner is an IDP group (a set of users defined in the identity provider). Members of the group inherit the grant. Created by an operator binding a managed secret to a group identifier.
+
+## HMAC signing
+
+How the SDK authenticates calls to the Alter backend. Every outgoing SDK call is cryptographically signed; the wire never carries the API key in plaintext.
+
+## Identity Provider (IDP)
+
+The external service that authenticates an app's end users (Auth0, Clerk, Okta, Keycloak, WorkOS). Configured per-app in the developer portal. When configured, Alter validates JWTs from the IDP to resolve which user is making a request. See [OAuth → Identity Providers → Overview](/oauth/identity-providers/overview).
+
+## JWT
+
+JSON Web Token — what the IDP issues to authenticate end users. Alter verifies the JWT signature against the IDP's JWKS, extracts the `sub` claim, and looks up grants for that user. See [OAuth → JWT identity](/oauth/jwt-identity).
+
+## Managed secret
+
+A backend-only credential (API key, service-account token) for internal or developer-owned APIs. Stored in the same vault as OAuth tokens. No end-user OAuth flow — the developer provisions it directly. See [Managed Secrets → Overview](/managed-secrets/overview).
+
+## OAuth credential
+
+The stored parent record holding the actual OAuth tokens (access token, refresh token, expiry). Lives in the secrets vault. Multiple grants can reference the same credential. SDK code interacts with grants, not credentials.
+
+## Operator
+
+A human in the developer portal — the role that creates apps, mints API keys, configures providers, provisions agents, and binds managed secrets. The operator is one of the developer-side personas these docs serve.
+
+## Organization
+
+A company account on Alter. Developers, billing, and OAuth applications all live at the organization level. Multiple apps share the same organization but are isolated for tokens and grants.
+
+## Principal
+
+The owner of a grant. Four kinds: User, Group, System, Agent. Never interchangeable. See [Concepts → Principals and grants](/concepts/principals-and-grants#principal).
+
+## Provider
+
+A third-party service whose API the app calls (Google, Slack, GitHub, Stripe, …). Alter ships 100+ providers pre-configured with endpoint URLs and scope guidelines; the developer supplies the OAuth client_id/client_secret. Browse the [provider directory](/providers/google).
+
+## System principal
+
+A grant with no human or agent owner — the app itself is the owner. Created when an operator provisions a managed secret without binding it to a user, group, or agent. Used for cron jobs, webhook handlers, and app-wide service credentials.
+
+## User principal
+
+A grant whose owner is an end user, identified by a JWT from the configured IDP. The most common principal kind. The SDK auto-resolves grants for the user when `user_token_getter` is set.
+
+## User token
+
+The JWT passed to the SDK via `user_token_getter` (or per-call `user_token=`). Verified against the configured IDP on every call. See [OAuth → JWT identity](/oauth/jwt-identity).
+
+## Vault
+
+The encrypted backend store that holds OAuth tokens and managed secrets. Tokens are resolved server-side and injected into outgoing provider calls; SDK code never sees them.
+
+## Wallet
+
+The end-user-facing dashboard at [wallet.alterauth.com](https://wallet.alterauth.com) where users see all of their grants across all apps and revoke any of them. See [Wallet → Overview](/wallet/overview).

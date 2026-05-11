@@ -60,7 +60,7 @@ Use WhatsApp Business credentials to make authenticated API calls through Alter 
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.POST,
     "https://graph.facebook.com/YOUR_API_VERSION/YOUR_PHONE_NUMBER_ID/messages",
     grant_id="YOUR_GRANT_ID",

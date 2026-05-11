@@ -1,0 +1,111 @@
+---
+title: 'Identity Resolution'
+description: 'The three ways the SDK figures out which grant to use. Pick one per call site.'
+icon: 'fingerprint'
+---
+
+*Identity resolution is how the SDK decides which grant backs a `vault.request()` call.*
+
+Three modes. They appear in this order everywhere in these docs because that's the order to consider them in:
+
+1. **JWT** — recommended for apps with an IDP and logged-in users
+2. **`grant_id`** — for scripts, batch jobs, and managed secrets
+3. **Headless** — for CLIs, notebooks, and agents bootstrapping their own grants
+
+The same `vault.request()` method serves all three. Only the wiring differs.
+
+## 1. JWT — recommended for user-driven flows
+
+Configure an [Identity Provider](/oauth/identity-providers/overview), pass a `user_token_getter` at construction, and the SDK resolves the user's grant from their JWT on every call.
+
+<CodeGroup>
+```python Python
+vault = App(
+    api_key=ALTER_API_KEY,
+    user_token_getter=lambda: get_jwt_from_request(),
+)
+
+# No grant_id — the backend resolves Alice's Google grant from her JWT.
+response = await vault.request("GET", url, provider="google")
+```
+
+```typescript TypeScript
+const vault = new App({
+  apiKey: ALTER_API_KEY,
+  userTokenGetter: () => getJwtFromRequest(),
+});
+
+const response = await vault.request("GET", url, { provider: "google" });
+```
+</CodeGroup>
+
+**When to use:** any flow where a logged-in user is the reason for the call. SaaS products, agentic apps with a user session, anything that already has a JWT in scope.
+
+**Why it's the default:** the app stops tracking `grant_id` in its own database. Deprovisioning a user in the IDP automatically locks them out of grants they own.
+
+[Full setup →](/oauth/jwt-identity)
+
+## 2. `grant_id` — for scripts, batch jobs, and managed secrets
+
+Pass an explicit `grant_id` per call. Use this when:
+
+- The call has no end user (cron jobs, webhook handlers).
+- A managed secret (developer-owned credential) is in use.
+- Explicit control over which grant a request uses is needed.
+
+<CodeGroup>
+```python Python
+vault = App(api_key=ALTER_API_KEY)
+
+response = await vault.request("GET", url, grant_id=STRIPE_GRANT_ID)
+```
+
+```typescript TypeScript
+const vault = new App({ apiKey: ALTER_API_KEY });
+
+const response = await vault.request("GET", url, { grantId: STRIPE_GRANT_ID });
+```
+</CodeGroup>
+
+[Full setup →](/oauth/grant-id-identity)
+
+## 3. Headless — for CLIs, notebooks, and agent bootstrap
+
+`vault.connect()` and `vault.authenticate()` open a browser, walk through OAuth, and return a `grant_id` usable immediately. No frontend, no callback URL.
+
+<CodeGroup>
+```python Python
+vault = App(api_key=ALTER_API_KEY)
+results = await vault.connect(providers=["github"])
+grant_id = results[0].grant_id
+```
+
+```typescript TypeScript
+const vault = new App({ apiKey: ALTER_API_KEY });
+const results = await vault.connect({ providers: ["github"] });
+const grantId = results[0].grantId;
+```
+</CodeGroup>
+
+**When to use:** local scripts, Jupyter notebooks, server-side agents bootstrapping a long-lived grant, the [First 5 Minutes](/first-5-minutes) walkthrough.
+
+[Full setup →](/oauth/headless)
+
+## Picking one — the short version
+
+```
+Is there a logged-in user with a JWT?
+├── Yes → JWT
+└── No  → Is a grant_id already available?
+         ├── Yes → grant_id
+         └── No  → Headless (vault.connect())
+```
+
+Modes can be mixed in one app — different SDK instances for different code paths. What's not allowed is combining an Agent API key with a JWT in the same request; that combination is rejected. See [Agents → Overview](/agents/overview).
+
+## See also
+
+- [Principals and grants](/concepts/principals-and-grants) — the concepts each mode produces a principal for
+- [OAuth → JWT identity](/oauth/jwt-identity) — full JWT setup
+- [OAuth → grant_id identity](/oauth/grant-id-identity) — explicit `grant_id` flows
+- [OAuth → Headless](/oauth/headless) — `connect()` and `authenticate()`

@@ -18,13 +18,13 @@ pip install 'alter-sdk[langchain]'
 from alter_sdk import App
 from alter_sdk.langchain import alter_tool
 
-vault = App(api_key="alter_key_...", caller="my-agent")
+alter_app = App(api_key="alter_key_...", caller="my-agent")
 
 
-@alter_tool(vault, provider="google")
+@alter_tool(alter_app, provider="google")
 async def list_emails(query: str) -> str:
     """Search emails by query string."""
-    response = await vault.request(
+    response = await alter_app.request(
         "GET",
         "https://gmail.googleapis.com/gmail/v1/users/me/messages",
         provider="google",
@@ -57,7 +57,7 @@ The decorator wraps an async function as a `StructuredTool` with automatic crede
 
 1. The decorator creates a `StructuredTool` from the function's signature and docstring
 2. LangChain's `config` kwarg is automatically consumed -- the tool extracts `run_id` and `thread_id` from it
-3. An ambient audit `ContextVar` is set with `{"tool": "<name>", "framework": "langchain", "run_id": "...", "thread_id": "..."}` so every `vault.request()` call inside the tool is automatically tagged
+3. An ambient audit `ContextVar` is set with `{"tool": "<name>", "framework": "langchain", "run_id": "...", "thread_id": "..."}` so every `alter_app.request()` call inside the tool is automatically tagged
 4. If no OAuth grant exists, the tool returns a human-readable message with a Connect URL
 5. If scopes are outdated, the tool returns a re-authorization message
 
@@ -121,10 +121,10 @@ If any check fails, the request is forwarded without the bearer header (the down
 The decorator automatically handles two error types:
 
 ```python
-@alter_tool(vault, provider="google")
+@alter_tool(alter_app, provider="google")
 async def my_tool(query: str) -> str:
     """Tool that makes an API call."""
-    response = await vault.request(
+    response = await alter_app.request(
         "GET",
         "https://api.example.com/v1/data",
         provider="google",
@@ -145,13 +145,13 @@ import asyncio
 from alter_sdk import App, HttpMethod
 from alter_sdk.langchain import alter_tool
 
-vault = App(api_key="alter_key_...", caller="email-agent")
+alter_app = App(api_key="alter_key_...", caller="email-agent")
 
 
-@alter_tool(vault, provider="google", name="search_emails")
+@alter_tool(alter_app, provider="google", name="search_emails")
 async def search_emails(query: str, max_results: int = 10) -> str:
     """Search Gmail for emails matching a query."""
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.GET,
         "https://gmail.googleapis.com/gmail/v1/users/me/messages",
         provider="google",
@@ -161,10 +161,10 @@ async def search_emails(query: str, max_results: int = 10) -> str:
     return f"Found {len(messages)} emails matching '{query}'"
 
 
-@alter_tool(vault, provider="github", name="list_repos")
+@alter_tool(alter_app, provider="github", name="list_repos")
 async def list_repos(org: str) -> str:
     """List repositories for a GitHub organization."""
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.GET,
         "https://api.github.com/orgs/{org}/repos",
         provider="github",
@@ -192,7 +192,7 @@ async def main():
     )
     print(result["messages"][-1].content)
 
-    await vault.close()
+    await alter_app.close()
 
 
 asyncio.run(main())

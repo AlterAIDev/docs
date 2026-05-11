@@ -23,7 +23,7 @@ Always create sessions on the backend:
 
 ```javascript
 // YOUR backend - never expose API keys
-const session = await vault.createConnectSession({
+const session = await alterApp.createConnectSession({
   allowedProviders: ['google', 'slack'],
   allowedOrigin: 'https://yourapp.com',  // Optional, see below
 });
@@ -75,8 +75,8 @@ Configure the widget when opening:
 ```javascript
 await alterConnect.open({
   // Required
-  token: sessionToken,             // From your backend
-  onSuccess: (connections) => {}, // Called with array of Connection objects
+  token: sessionToken,            // From the backend
+  onSuccess: (grants) => {},      // Called with array of Grant objects
 
   // Optional
   onError: (error) => {},        // Error callback
@@ -85,21 +85,21 @@ await alterConnect.open({
 });
 ```
 
-## Connections Array
+## Grants Array
 
-`onSuccess` receives an array of `Connection` objects (multi-provider flow). Users can connect multiple providers in a single session.
+`onSuccess` receives an array of `Grant` objects (multi-provider flow). Users can connect multiple providers in a single session.
 
 ```typescript
-interface Connection {
-  grant_id: string;           // Unique ID for this grant
+interface Grant {
+  grant_id: string;            // Unique ID for this grant
   provider: string;            // Provider ID (e.g., 'google')
   provider_name: string;       // Display name (e.g., 'Google')
   account_identifier: string;  // User's email/username
   timestamp: string;           // ISO 8601 timestamp
   operation: 'creation' | 'reauth';  // How the grant was established
-  scopes: string[];           // OAuth scopes granted
+  scopes: string[];            // OAuth scopes granted
   status: 'active' | 'pending' | 'error';
-  metadata?: {                // Optional provider-specific data
+  metadata?: {                 // Optional provider-specific data
     account_display_name?: string;
     account_email?: string;
   };
@@ -113,10 +113,10 @@ Handle errors gracefully:
 ```javascript
 await alterConnect.open({
   token: sessionToken,
-  onSuccess: (connections) => {
+  onSuccess: (grants) => {
     // User completed OAuth! Save each grant_id to your database, mapped to your user.
-    for (const conn of connections) {
-      saveConnection(currentUser.id, conn.grant_id, conn.provider);
+    for (const grant of grants) {
+      saveGrant(currentUser.id, grant.grant_id, grant.provider);
     }
   },
   onError: (error) => {
@@ -168,7 +168,7 @@ Full TypeScript support included:
 import AlterConnect, {
   AlterConnectConfig,
   OpenOptions,
-  Connection,
+  Grant,
   AlterError
 } from '@alter-ai/connect';
 
@@ -205,7 +205,7 @@ Listen to SDK events:
 // Analytics events via onEvent callback
 await alterConnect.open({
   token: sessionToken,
-  onSuccess: (connections) => { /* ... */ },
+  onSuccess: (grants) => { /* ... */ },
   onEvent: (eventName, metadata) => {
     console.log('Event:', eventName, metadata);
     // Fires: 'connect_opened' when popup opens
@@ -213,8 +213,8 @@ await alterConnect.open({
 });
 
 // Or use the on() method for global listeners
-alterConnect.on('success', (connections) => {
-  console.log('Connection successful:', connections);
+alterConnect.on('success', (grants) => {
+  console.log('Connection successful:', grants);
 });
 
 alterConnect.on('error', (error) => {
@@ -226,7 +226,7 @@ alterConnect.on('error', (error) => {
 
 Customize the Alter Connect UI to match the application's look and feel. Branding is configured in the Developer Portal and applied automatically when users open the Connect flow.
 
-### What You Can Customize
+### Customizable properties
 
 | Property | Description | Requirements |
 |----------|-------------|--------------|

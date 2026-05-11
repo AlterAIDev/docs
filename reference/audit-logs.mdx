@@ -70,7 +70,7 @@ Alter Vault logs six categories of events automatically:
 
 <AccordionGroup>
   <Accordion title="Token & Secret Access" icon="key">
-    Every time a credential is retrieved via `vault.request()` — both OAuth tokens and managed secrets. Includes provider, scopes, policy decision, actor, reason, and request intent (HTTP method and URL the caller plans to use).
+    Every time a credential is retrieved via `alter_app.request()` — both OAuth tokens and managed secrets. Includes provider, scopes, policy decision, actor, reason, and request intent (HTTP method and URL the caller plans to use).
   </Accordion>
 
   <Accordion title="Connection Lifecycle" icon="link">
@@ -113,7 +113,7 @@ Every audit log entry includes a standard set of fields:
 Add a `reason` parameter to API calls for richer audit context:
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id="GRANT_ID",  # grant_id (UUID)
@@ -130,12 +130,12 @@ When using AI agents, audit logs automatically capture actor context:
 ```python
 from alter_sdk import App, HttpMethod
 
-vault = App(
+alter_app = App(
     api_key="alter_key_...",
     caller="email-assistant-v2",
 )
 
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
     grant_id="GRANT_ID",  # grant_id (UUID)
@@ -170,7 +170,7 @@ These fields let you trace exactly which caller, in which execution context, mad
 
 Managed secret access is logged with the same detail as OAuth token access:
 
-- **Credential retrieved** — a managed secret was used via `vault.request()`
+- **Credential retrieved** — a managed secret was used via `alter_app.request()`
 - **Access denied** — access was blocked by a policy violation (time, IP, or TTL)
 - **Secret stored** — a new secret was stored in the Developer Portal
 - **Secret rotated** — a secret value was replaced

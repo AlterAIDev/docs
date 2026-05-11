@@ -60,7 +60,7 @@ Use GitLab credentials to make authenticated API calls through Alter Vault witho
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://YOUR_GITLAB_HOST/api/v4/projects",
     grant_id="YOUR_GRANT_ID",  # Use gitlab.com for cloud or your self-hosted hostname

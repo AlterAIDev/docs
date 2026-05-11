@@ -57,7 +57,7 @@ Use Clerk credentials to make authenticated API calls through Alter Vault withou
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://api.clerk.com/v1/users",
     grant_id="YOUR_GRANT_ID",

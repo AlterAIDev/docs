@@ -1,0 +1,74 @@
+---
+title: 'What is Alter Vault?'
+description: 'A one-page mental model. Read this once before anything else.'
+icon: 'compass'
+---
+
+*Alter Vault is the credential and authorization layer for apps and AI agents that call third-party APIs on behalf of users.*
+
+An integration that needs to call Gmail, Slack, GitHub, Stripe, or any of 100+ other services normally means storing OAuth tokens securely, refreshing them, scoping them per user, logging every access for audit, and revoking them on demand. Alter does all of that. Application code becomes:
+
+```python
+response = await vault.request("GET", url, grant_id=...)
+```
+
+No tokens in the application database. No tokens in application memory. No refresh logic. No audit plumbing.
+
+## The three things to work with
+
+<CardGroup cols={3}>
+  <Card title="OAuth grants" icon="user-check" href="/oauth/overview">
+    For credentials that **end users** authorize — Gmail, Slack, GitHub. One grant per user per provider. Created when the user clicks "Connect Google."
+  </Card>
+  <Card title="Managed secrets" icon="key" href="/managed-secrets/overview">
+    For credentials **the developer** owns — API keys, service-account tokens, Stripe keys. Stored in the developer portal, used by the backend or by agents.
+  </Card>
+  <Card title="Agents" icon="robot" href="/agents/overview">
+    For **workloads** that need their own identity, key, and audit trail — chat agents, MCP servers, background jobs. Optional; only when one app key isn't enough.
+  </Card>
+</CardGroup>
+
+## How to choose
+
+| Question | Answer |
+|---|---|
+| Is the credential something a user authorizes for themselves? | **OAuth grant** |
+| Is the credential something the developer provisioned? | **Managed secret** |
+| Are multiple distinct workloads running, each needing its own audit trail? | **Agents** (in addition to one of the above) |
+
+All three can be mixed in one app.
+
+## How a request flows
+
+```
+app code              Alter SDK                Alter backend            Provider (e.g. Slack)
+   │                       │                         │                          │
+   │── vault.request() ───▶│                         │                          │
+   │                       │── signed call ─────────▶│                          │
+   │                       │                         │── inject token ─────────▶│
+   │                       │                         │◀── response ─────────────│
+   │                       │◀── response ────────────│                          │
+   │◀── response ──────────│                         │                          │
+```
+
+The token never leaves the backend. The SDK only ever holds a short-lived HMAC key for signing — derived once at construction, discarded after use.
+
+## What's no longer required to build
+
+- Token storage (encrypted at rest in a dedicated vault, never in the application DB)
+- Token refresh (handled per-provider, automatically)
+- Per-user scoping (grants are bound to principals; the SDK resolves them)
+- Audit logging (every call writes a row with caller, principal, provider, status)
+- Revocation UX (end users get [Alter Wallet](https://wallet.alterauth.com) for free)
+- Policy enforcement ([Cerbos-backed rules](/reference/policies) on every retrieval)
+
+## Where to go next
+
+<CardGroup cols={2}>
+  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
+    Hands-on: post a Slack message from app code in under five minutes.
+  </Card>
+  <Card title="Principals and grants" icon="user-shield" href="/concepts/principals-and-grants">
+    The vocabulary the rest of these docs assume.
+  </Card>
+</CardGroup>

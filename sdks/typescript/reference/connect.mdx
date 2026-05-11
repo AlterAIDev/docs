@@ -1,0 +1,134 @@
+---
+title: 'Connect'
+description: 'connect, authenticate, createConnectSession, verifyUserToken.'
+icon: 'window'
+---
+
+```typescript
+import { App } from "@alter-ai/alter-sdk";
+```
+
+## `connect()`
+
+Run headless OAuth from a CLI or script. Opens a browser, polls until the user finishes.
+
+### Signature
+
+```typescript
+async connect(options: {
+  providers?: Array<string | Provider>;
+  grantPolicy?: GrantPolicyInput;
+  timeout?: number;
+  pollInterval?: number;
+  openBrowser?: boolean;
+}): Promise<ConnectResult[]>
+```
+
+### Parameters
+
+| Name | Default | Notes |
+|---|---|---|
+| `providers` | `undefined` | Restrict the picker. |
+| `grantPolicy` | `undefined` | Set max TTL on the resulting grant. |
+| `timeout` | `300000` | ms to poll before throwing `ConnectTimeoutError`. |
+| `pollInterval` | `2000` | ms between polls. |
+| `openBrowser` | `true` | Set `false` over SSH; SDK prints the URL. |
+
+### Returns
+
+`ConnectResult[]` — one per connected account.
+
+### Throws
+
+`ConnectFlowError`, `ConnectDeniedError`, `ConnectTimeoutError`, `ConnectConfigError`.
+
+### Example
+
+```typescript
+const results = await vault.connect({ providers: ["github"] });
+console.log(results[0].grantId);
+```
+
+## `authenticate()`
+
+Open the IDP's sign-in flow and return the resulting JWT.
+
+### Signature
+
+```typescript
+async authenticate(options?: { timeout?: number }): Promise<AuthResult>
+```
+
+### Returns
+
+`AuthResult` with `userToken` and `userInfo`.
+
+### Example
+
+```typescript
+const auth = await vault.authenticate();
+console.log("user:", auth.userInfo, "jwt:", auth.userToken);
+```
+
+Requires the app's IDP to be configured for OIDC sign-in. See [OAuth → Identity Providers](/oauth/identity-providers/overview).
+
+## `createConnectSession()`
+
+Build a connect URL backend-side; redirect the user there or hand it to a frontend popup SDK.
+
+### Signature
+
+```typescript
+async createConnectSession(options?: {
+  allowedProviders?: Array<string | Provider>;
+  returnUrl?: string;
+  allowedOrigin?: string;
+  metadata?: { ipAddress?: string; userAgent?: string };
+  grantPolicy?: { maxTtlSeconds?: number; defaultTtlSeconds?: number };
+  requiredScopes?: Record<string, string[]>;
+  agent?: string;
+}): Promise<ConnectSession>
+```
+
+`requiredScopes` lets a session ask for a narrower per-provider scope set than the app's Dev Portal default (must be a subset of the Dev Portal allowlist). `agent` delegates the resulting OAuth grant to a managed agent — when combined with user consent at the Connect UI, the callback creates both the OAuth grant under the user's principal AND the agent-delegation row.
+
+### Returns
+
+`ConnectSession` with `sessionToken` and `connectUrl`. Pass `sessionToken` to the [Connect.js SDK](/sdks/connect-js/quickstart) or redirect to `connectUrl`.
+
+### Example
+
+```typescript
+const session = await vault.createConnectSession({
+  allowedProviders: ["google", "slack"],
+  returnUrl: "https://app.example.com/oauth/done",
+});
+res.redirect(session.connectUrl);
+```
+
+## `verifyUserToken()`
+
+Verify a JWT against the configured IDP without making a provider call.
+
+### Signature
+
+```typescript
+async verifyUserToken(token: string): Promise<string | null>
+```
+
+### Returns
+
+The verified `sub` claim, or `null` if invalid.
+
+### Example
+
+```typescript
+const sub = await vault.verifyUserToken(jwt);
+if (sub === null) throw new Error("invalid token");
+```
+
+## See also
+
+- [OAuth → Headless](/oauth/headless)
+- [OAuth → JWT identity](/oauth/jwt-identity)
+- [Types](/sdks/typescript/reference/types)

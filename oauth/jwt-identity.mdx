@@ -1,0 +1,158 @@
+---
+title: 'JWT Identity (Recommended)'
+description: 'Resolve grants from an IDP JWT. The production path for apps with logged-in users.'
+icon: 'id-badge'
+---
+
+*This is the recommended primary path for any app with logged-in users.* Configure an [Identity Provider](/oauth/identity-providers/overview), pass a `user_token_getter` at SDK construction, and stop tracking `grant_id` in the application database.
+
+## Why this is the default
+
+| Without JWT identity | With JWT identity |
+|---|---|
+| Store `grant_id` per user in the application DB | Backend resolves grant from JWT `sub` claim |
+| Keep that mapping in sync as users add/remove connections | Auth source is the IDP — Alter follows it |
+| Manually deprovision when a user leaves | Deprovisioning the IDP user revokes their grants |
+
+## Prerequisites
+
+- An app in the developer portal.
+- An IDP configured for that app — see [OAuth → Identity Providers → Overview](/oauth/identity-providers/overview) and the per-IDP guides ([Auth0](/oauth/identity-providers/auth0), [Clerk](/oauth/identity-providers/clerk), [Okta](/oauth/identity-providers/okta), [Keycloak](/oauth/identity-providers/keycloak), [WorkOS](/oauth/identity-providers/workos), [Custom OIDC](/oauth/identity-providers/custom-oidc)).
+- The user has completed OAuth at least once for the target provider.
+
+## The pattern
+
+Construct the SDK once. Pass a `user_token_getter` that returns the current request's JWT. Call `vault.request(...)` with `provider="..."` instead of `grant_id=...`.
+
+<CodeGroup>
+```python Python
+from alter_sdk import App, HttpMethod
+
+vault = App(
+    api_key=ALTER_API_KEY,
+    user_token_getter=lambda: get_jwt_from_current_request(),
+)
+
+# No grant_id. Backend resolves Alice's Google grant from her JWT.
+response = await vault.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google",
+)
+```
+
+```typescript TypeScript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new App({
+  apiKey: ALTER_API_KEY,
+  userTokenGetter: () => getJwtFromCurrentRequest(),
+});
+
+const response = await vault.request(
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { provider: "google" },
+);
+```
+</CodeGroup>
+
+## Wiring `user_token_getter`
+
+`user_token_getter` is called on every request. It should return the JWT for the **currently active** end user. Two common patterns:
+
+### FastAPI (Python)
+
+The Python SDK ships a FastAPI helper that pulls the `Authorization: Bearer …` header into a `ContextVar`:
+
+```python
+from fastapi import FastAPI, Depends
+from alter_sdk import App
+from alter_sdk.fastapi import AlterFastAPI, depends as alter_depends
+
+vault = App(api_key=ALTER_API_KEY)
+alter = AlterFastAPI(vault)
+
+app = FastAPI()
+
+@app.get("/calendar")
+async def list_events(_=Depends(alter_depends(alter))):
+    response = await vault.request("GET", "...", provider="google")
+    return response.json()
+```
+
+See [SDKs → Python → FastAPI](/sdks/python/fastapi).
+
+### Express / generic Node
+
+Stash the JWT in `AsyncLocalStorage` per request, return it from the getter:
+
+```typescript
+import { AsyncLocalStorage } from "node:async_hooks";
+import { App } from "@alter-ai/alter-sdk";
+
+const jwtStore = new AsyncLocalStorage<string>();
+const vault = new App({
+  apiKey: ALTER_API_KEY,
+  userTokenGetter: () => jwtStore.getStore() ?? "",
+});
+
+app.use((req, _res, next) => {
+  const jwt = req.headers.authorization?.replace(/^Bearer /, "") ?? "";
+  jwtStore.run(jwt, next);
+});
+```
+
+## Provider disambiguation
+
+`provider="google"` resolves the user's grant for Google. When a user has multiple accounts on the same provider (work Gmail + personal Gmail), pass `account=` to disambiguate:
+
+```python
+response = await vault.request(
+    HttpMethod.GET, "...", provider="google", account="alice@work.example",
+)
+```
+
+When `account` is omitted and exactly one grant exists, it resolves. When multiple grants exist and no disambiguator is provided, the SDK raises `AmbiguousGrantError` — see [SDK → Errors](/sdks/python/reference/errors).
+
+## What happens on the wire
+
+1. SDK calls `user_token_getter()`, attaches the JWT to the outgoing call.
+2. Backend verifies the JWT signature against the configured IDP's JWKS.
+3. Backend extracts the `sub` claim, looks up grants `(app, user, provider)`.
+4. When exactly one grant matches, the backend retrieves and refreshes the token, injects it into the upstream call.
+5. The provider response is returned to application code unchanged.
+
+The first time Alter sees a JWT for a new user, it lazily creates a user record and syncs group memberships from the JWT claims. Subsequent requests update the user's profile.
+
+## Verifying a JWT directly
+
+Sometimes a JWT must be verified in application code without making a provider call (e.g., in middleware that runs before any `vault.request()`):
+
+<CodeGroup>
+```python Python
+sub = await vault.verify_user_token(jwt)
+if sub is None:
+    raise HTTPException(401, "Invalid token")
+```
+
+```typescript TypeScript
+const sub = await vault.verifyUserToken(jwt);
+if (sub === null) throw new Error("Invalid token");
+```
+</CodeGroup>
+
+Returns the verified `sub` claim or `null`. Uses the same JWKS verification path the backend uses on every request.
+
+## When **not** to use this
+
+- **Cron jobs / webhook handlers** with no end user → [grant_id identity](/oauth/grant-id-identity).
+- **CLIs / notebooks / agent bootstrap** → [Headless](/oauth/headless).
+- **Per-call user override** (rare): pass `user_token=jwt` directly to `vault.request()`.
+
+## See also
+
+- [Concepts → Principals and grants](/concepts/principals-and-grants)
+- [OAuth → Identity Providers](/oauth/identity-providers/overview)
+- [SDK → Connect](/sdks/python/reference/connect) — `verify_user_token()` reference
+- [SDK → Errors](/sdks/python/reference/errors) — `AmbiguousGrantError`, `NoDelegatedGrantError`, `ScopeReauthRequiredError`

@@ -1,0 +1,77 @@
+---
+title: 'Principals and Grants'
+description: 'The vocabulary every other page assumes. Read once.'
+icon: 'user-shield'
+---
+
+*A **grant** is a stored consent record that lets a **principal** call a third-party API through Alter.*
+
+Five terms appear everywhere in Alter docs and SDK. Learn them once here; every other page links back.
+
+## Grant
+
+A row that says *this principal can call this provider with these scopes until this policy expires*. Every call from the SDK passes through a grant.
+
+- Identified by a UUID (`grant_id`).
+- Created when a user completes OAuth, or when an operator provisions a managed secret.
+- Refers to (but does not contain) the encrypted credential in the vault.
+- Revocable independently of the underlying credential.
+
+## Principal
+
+The owner of a grant — *who* is calling. Four kinds, never interchangeable:
+
+| Kind | Who it is | Typical creator |
+|---|---|---|
+| **User** | An end user authenticated via the IDP (Auth0, Clerk, Okta, …) | OAuth flow |
+| **Group** | A set of users defined in the IDP | Operator binds a managed secret to an IDP group |
+| **System** | The app itself, no human or agent | Operator provisions a managed secret with no principal |
+| **Agent** | A named, operator-provisioned workload identity | Operator creates an agent and binds a managed secret to it |
+
+Principal kind decides what the SDK permits. A user-principal call resolves the grant from a JWT; an agent-principal call resolves from the agent's binding; a system-principal call requires `grant_id` to be passed explicitly.
+
+## Caller
+
+Free-form audit attribution — *what code path* made the call. Set once at SDK construction, immutable for the instance:
+
+```python
+vault = App(api_key=KEY, caller="email-research-bot")
+```
+
+Caller is **not** an access boundary. It does not narrow what the principal can do. It exists so audit queries can answer "which feature ran this call?" without threading metadata through every layer.
+
+When `caller` is the UUID of a managed agent, audit rows record the managed-agent attribution. When it's any other string, it's a free-form label. Either is fine.
+
+## Context
+
+Free-form per-call metadata. A dict of strings attached to a single `vault.request()`:
+
+```python
+await vault.request(method, url, grant_id=g, context={"tool": "list_emails", "run_id": "abc"})
+```
+
+Stored in the audit row as JSONB. Use it for tool name, run ID, thread ID — anything worth surfacing when grepping the audit trail later.
+
+## Delegation
+
+A pointer that says *this agent may use this user's grant*. Created when a user consents at the Connect UI with an agent named on the consent screen. Distinct from the underlying OAuth grant: revoking a delegation removes the agent's access path without touching the user's grant.
+
+See [Agents → Approvals](/agents/approvals) for the runtime API and the revocation surface.
+
+## Picking a principal in code
+
+The principal is implied by which class is constructed and how the call is authenticated:
+
+| Construction | With… | Principal at runtime |
+|---|---|---|
+| `App(api_key=APP_KEY)` | nothing else | **System** — pass `grant_id` explicitly |
+| `App(api_key=APP_KEY, user_token_getter=…)` | a JWT per call | **User** — SDK auto-resolves the user's grant |
+| `Agent(api_key=AGENT_KEY)` | nothing else | **Agent** — pass `grant_id` mapped to this agent |
+
+The full decision tree lives in [Identity resolution](/concepts/identity-resolution). The deep operational detail (cardinality rules, when caller becomes attribution, JWT-overrides-agent precedence) lives in [Agents → Overview](/agents/overview) and [OAuth → Managing grants](/oauth/managing-grants).
+
+## See also
+
+- [Identity resolution](/concepts/identity-resolution) — the three ways the SDK figures out which grant to use
+- [First 5 Minutes](/first-5-minutes) — all of this in working code
+- [Glossary](/reference/glossary) — every term in one A–Z page

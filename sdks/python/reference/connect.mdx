@@ -1,0 +1,133 @@
+---
+title: 'Connect'
+description: 'connect, authenticate, create_connect_session, verify_user_token.'
+icon: 'window'
+---
+
+```python
+from alter_sdk import App
+```
+
+## `connect()`
+
+Run headless OAuth from a CLI or notebook. Opens a browser, polls until the user finishes.
+
+### Signature
+
+```python
+async def connect(
+    *,
+    providers: list[str | Provider] | None = None,
+    grant_policy: GrantPolicyInput | None = None,
+    timeout: float = 300.0,
+    poll_interval: float = 2.0,
+    open_browser: bool = True,
+) -> list[ConnectResult]
+```
+
+### Parameters
+
+| Name | Default | Notes |
+|---|---|---|
+| `providers` | `None` | Restrict the picker. `None` = any allowed by the app config. |
+| `grant_policy` | `None` | Set max TTL on the resulting grant. |
+| `timeout` | `300.0` | Seconds to poll before raising `ConnectTimeoutError`. |
+| `poll_interval` | `2.0` | Seconds between polls. |
+| `open_browser` | `True` | Set `False` over SSH; the SDK prints the URL to copy. |
+
+### Returns
+
+`list[ConnectResult]` — one per connected account. Each item carries `grant_id`, `provider_id`, `account_identifier`, `scopes`.
+
+### Raises
+
+`ConnectFlowError`, `ConnectDeniedError`, `ConnectTimeoutError`, `ConnectConfigError`.
+
+### Example
+
+```python
+results = await vault.connect(providers=["github"])
+print(results[0].grant_id)
+```
+
+## `authenticate()`
+
+Open the IDP's sign-in flow and return the resulting JWT.
+
+### Signature
+
+```python
+async def authenticate(*, timeout: float = 300.0) -> AuthResult
+```
+
+### Returns
+
+`AuthResult` with `user_token` and `user_info`.
+
+### Example
+
+```python
+auth = await vault.authenticate()
+print("user:", auth.user_info, "jwt:", auth.user_token)
+```
+
+Requires the app's IDP to be configured for OIDC sign-in. See [OAuth → Identity Providers](/oauth/identity-providers/overview).
+
+## `create_connect_session()`
+
+Build a connect URL backend-side; redirect the user there or hand it to a frontend popup SDK.
+
+### Signature
+
+```python
+async def create_connect_session(
+    *,
+    allowed_providers: list[str | Provider] | None = None,
+    return_url: str | None = None,
+    allowed_origin: str | None = None,
+    metadata: dict[str, str] | None = None,
+    grant_policy: GrantPolicyInput | None = None,
+) -> ConnectSession
+```
+
+### Returns
+
+`ConnectSession` with `session_token` and `connect_url`. Pass `session_token` to the [Connect.js SDK](/sdks/connect-js/quickstart) or redirect to `connect_url`.
+
+### Example
+
+```python
+session = await vault.create_connect_session(
+    allowed_providers=["google", "slack"],
+    return_url="https://app.example.com/oauth/done",
+)
+return RedirectResponse(session.connect_url)
+```
+
+## `verify_user_token()`
+
+Verify a JWT against the configured IDP without making a provider call.
+
+### Signature
+
+```python
+async def verify_user_token(token: str) -> str | None
+```
+
+### Returns
+
+The verified `sub` claim, or `None` if invalid.
+
+### Example
+
+```python
+sub = await vault.verify_user_token(jwt)
+if sub is None:
+    raise HTTPException(401, "invalid token")
+```
+
+## See also
+
+- [OAuth → Headless](/oauth/headless)
+- [OAuth → JWT identity](/oauth/jwt-identity)
+- [Types](/sdks/python/reference/types) — `ConnectResult`, `AuthResult`, `ConnectSession`, `GrantPolicyInput`.

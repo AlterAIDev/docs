@@ -1,0 +1,140 @@
+---
+title: 'Types'
+description: 'Models and dataclasses handled directly.'
+icon: 'sitemap'
+---
+
+```python
+from alter_sdk import (
+    HttpMethod, Provider, CallerType,
+    UserPrincipal, GroupPrincipal, SystemPrincipal, AgentPrincipal,
+    GrantInfo, OAuthGrantItem, ManagedSecretGrantItem,
+    GrantPolicy, GrantPolicyInput,
+    ConnectResult, ConnectSession, AuthResult,
+    PendingApproval, ApprovalStatus, ApprovalStatusValue, ApprovalResult,
+    AgentInfo, AgentKey, AgentListResult, AgentKeyList,
+    AgentCreateResult, AgentKeyMintResult,
+    UnifiedGrantListResult, CreateGrantResult, RevokeGrantResult,
+    APICallAuditLog, RetryInfo, RetryErrorInfo,
+)
+```
+
+## Enums
+
+### `HttpMethod`
+`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+
+### `Provider`
+50+ string-valued providers: `GOOGLE`, `GITHUB`, `SLACK`, `STRIPE`, `AWS`, etc. See the [provider directory](/providers/google).
+
+### `CallerType`
+`AGENT` (default for `App`), `SERVICE`.
+
+### `ApprovalStatusValue`
+`pending`, `approved`, `executing`, `denied`, `expired`, `executed`, `failed`.
+
+## Principals
+
+`Principal` is the union of:
+
+| Class | Required fields | Optional fields |
+|---|---|---|
+| `UserPrincipal` | `type="user"`, `user_token`, `label` | — |
+| `GroupPrincipal` | `type="group"`, `external_group_id`, `idp_id`, `label` | — |
+| `SystemPrincipal` | `type="system"` | `label` |
+| `AgentPrincipal` | `type="agent"` | `label` |
+
+`AgentPrincipal` carries no `agent_id` — the backend resolves the calling agent from the HMAC-verified API key on the request.
+
+Used as the `principal=` argument to `create_managed_secret_grant()`.
+
+## Grants
+
+### `GrantInfo`
+OAuth grant entry from `App.list_grants()` / `Agent.list_grants()` when the backend returns the legacy shape.
+
+Fields: `grant_id`, `provider_id`, `scopes`, `account_identifier`, `account_display_name`, `status`, `scope_mismatch`, `expires_at`, `created_at`, `last_used_at`, `principal_type`.
+
+### `OAuthGrantItem`
+A user-authorized OAuth grant from the unified list response.
+
+Fields: `grant_kind="oauth"`, `grant_id`, `provider_id`, `scopes`, `account_identifier`, `account_display_name`, `status`, `scope_mismatch`, `expires_at`, `created_at`, `last_used_at`, `principal_type` (`"user"` or `"system"`), `delegated_at`, `delegated_agent_ids`.
+
+### `ManagedSecretGrantItem`
+An operator-provisioned managed secret grant.
+
+Fields: `grant_kind="managed_secret"`, `grant_id`, `managed_secret_id`, `managed_secret_slug`, `managed_secret_name`, `agent_id`, `label`, `status`, `grant_policy`, `created_at`, `last_used_at`, `principal_type="agent"`.
+
+Branch on `item.grant_kind` to recover shape-specific fields.
+
+### `GrantPolicy`
+Read-side per-grant policy attached to `ConnectResult`. Fields: `expires_at`, `created_by`, `created_at`.
+
+### `GrantPolicyInput`
+Write-side policy passed to grant-creation APIs. Fields: `expires_at`, `max_ttl_seconds`, `default_ttl_seconds`.
+
+### `CreateGrantResult`
+Returned by `create_managed_secret_grant()`. Fields: `grant_id`, `principal_type`, `label`, `created_at`.
+
+### `RevokeGrantResult`
+Returned by `revoke_grant()`. Fields: `success`, `message`, `grant_id`, `revoked_at`.
+
+### `UnifiedGrantListResult`
+Paginated response from `App.list_grants()` / `Agent.list_grants()`. Fields: `grants: list[OAuthGrantItem | ManagedSecretGrantItem]`, `total`, `limit`, `offset`, `has_more`.
+
+## Connect
+
+### `ConnectResult`
+Returned by headless `connect()`. Fields: `grant_id`, `provider_id`, `account_identifier`, `scopes`, `grant_policy`.
+
+### `ConnectSession`
+Returned by `create_connect_session()`. Fields: `session_token`, `connect_url`, `expires_in`, `expires_at`.
+
+### `AuthResult`
+Returned by `authenticate()`. Fields: `user_token`, `user_info`.
+
+## Approvals
+
+### `PendingApproval`
+Returned by `proxy_request()` when an HITL grant requires approval. Fields: `approval_id`, `status="pending"`, `expires_at`, `expires_in`, `approval_url`.
+
+### `ApprovalStatus`
+Snapshot from `get_approval_status()`. Fields: `approval_id`, `status` (`ApprovalStatusValue`), `expires_at`, `decided_at`, `decision_reason`, `executed_at`, `has_result`.
+
+### `ApprovalResult`
+The proxied provider response, returned by `await_approval()` on the `executed` terminal and by `proxy_request()` synchronously. Fields: `approval_id` (`None` for synchronous calls), `status_code`, `headers`, `body_b64`, `body_truncated`.
+
+Decode helpers: `body_bytes()`, `body_text(encoding="utf-8")`, `body_json()`.
+
+## Agents
+
+### `AgentInfo`
+Fields: `id`, `name`, `display_name`, `type` (`"agent" | "service"`), `status` (`"active" | "inactive" | "revoked"`), `scopes` (per-provider map), `scopes_pending`, `scopes_applies_at`, `policy`, `metadata`, `rate_limit_per_minute`, `version`, `created_at`, `last_used_at`.
+
+### `AgentCreateResult`
+Returned by `agents.create()`. Wraps `AgentInfo` with the plaintext `api_key` (**shown once**).
+
+### `AgentKey`
+Fields: `key_id`, `key_prefix`, `name`, `created_at`, `deprecated_at`, `revoked_at`, `last_used_at`. Derived `status` property returns `"active" | "deprecated" | "revoked"`.
+
+### `AgentKeyMintResult`
+Returned by `agents.mint_key()`. Wraps `AgentKey` with the plaintext `api_key` (**shown once**).
+
+### `AgentListResult`
+Returned by `agents.list()`. Fields: `agents`, `total`, `limit`, `offset`, `has_more`.
+
+### `AgentKeyList`
+Returned by `agents.list_keys()`. Fields: `items`. No pagination — the typical agent holds a handful of keys.
+
+## Audit / Retry
+
+### `APICallAuditLog`
+Internal audit row sent to the backend audit endpoint. Fields: `grant_id`, `provider_id`, `method`, `url`, `request_headers`, `request_body`, `response_status`, `response_headers`, `response_body`, `latency_ms`, `reason`, `context`.
+
+### `RetryInfo`, `RetryErrorInfo`
+Per-call retry metadata available on `response.retry_info`. `RetryInfo` fields: `total_attempts`, `successful_attempt`, `errors`.
+
+## See also
+
+- [Concepts → Principals and grants](/concepts/principals-and-grants)
+- [Errors](/sdks/python/reference/errors)

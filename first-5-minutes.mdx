@@ -1,0 +1,161 @@
+---
+title: 'First 5 Minutes'
+description: 'Sign up, mint a key, and post a Slack message from your code. No JWT, no agent, no policy — just the happy path.'
+icon: 'rocket'
+---
+
+This page is the shortest path from "nothing in place" to "app code just hit a real third-party API through Alter Vault." Demo target: **post a Slack message**. Total time: under five minutes.
+
+No auth code is required. The SDK call shown below is the same call that ships to production.
+
+<Steps>
+  <Step title="Sign up">
+    Create a free account at [portal.alterauth.com](https://portal.alterauth.com).
+
+    <Frame>
+      <img src="/images/first-5-min/01-signup.png" alt="Alter Vault sign-up screen" />
+    </Frame>
+  </Step>
+
+  <Step title="Create an App">
+    In the portal sidebar pick **Apps → New App**, name it `quickstart`, and click **Create**.
+
+    <Frame>
+      <img src="/images/first-5-min/02-create-app.png" alt="Create App dialog" />
+    </Frame>
+  </Step>
+
+  <Step title="Mint an API key">
+    Open the new app, go to **API Keys → Mint key**, copy the value, and export it:
+
+    ```bash
+    export ALTER_API_KEY="alter_key_app_..."
+    ```
+
+    The key is shown **once**. When the plaintext is lost, mint a new one and revoke the old.
+
+    <Frame>
+      <img src="/images/first-5-min/03-mint-key.png" alt="Mint key dialog with one-time secret" />
+    </Frame>
+
+    <Note>
+      For agent workloads, use a per-agent key from the **Agents** tab instead. See [Agents → Keys and rotation](/agents/keys-and-rotation).
+    </Note>
+  </Step>
+
+  <Step title="Install the SDK">
+    <CodeGroup>
+    ```bash Python
+    pip install alter-sdk
+    ```
+
+    ```bash TypeScript
+    npm install @alter-ai/alter-sdk
+    ```
+    </CodeGroup>
+  </Step>
+
+  <Step title="Connect Slack as the developer">
+    Run this once. It opens a browser, walks through Slack OAuth, and prints the `grant_id` used in the next step.
+
+    <CodeGroup>
+    ```python Python
+    import asyncio, os
+    from alter_sdk import App
+
+    async def main():
+        vault = App(api_key=os.environ["ALTER_API_KEY"])
+        results = await vault.connect(providers=["slack"])
+        print("grant_id:", results[0].grant_id)
+        await vault.close()
+
+    asyncio.run(main())
+    ```
+
+    ```typescript TypeScript
+    import { App } from "@alter-ai/alter-sdk";
+
+    const vault = new App({ apiKey: process.env.ALTER_API_KEY! });
+    try {
+      const results = await vault.connect({ providers: ["slack"] });
+      console.log("grantId:", results[0].grantId);
+    } finally {
+      await vault.close();
+    }
+    ```
+    </CodeGroup>
+
+    <Frame>
+      <img src="/images/first-5-min/04-connect-slack.png" alt="Slack OAuth consent screen" />
+    </Frame>
+
+    Save the printed `grant_id` — set it as `SLACK_GRANT_ID` in the environment.
+  </Step>
+
+  <Step title="Send a Slack message">
+    Replace `#general` with an accessible channel:
+
+    <CodeGroup>
+    ```python Python
+    import asyncio, os
+    from alter_sdk import App, HttpMethod
+
+    async def main():
+        vault = App(api_key=os.environ["ALTER_API_KEY"])
+        response = await vault.request(
+            HttpMethod.POST,
+            "https://slack.com/api/chat.postMessage",
+            grant_id=os.environ["SLACK_GRANT_ID"],
+            json={"channel": "#general", "text": "Hello from Alter Vault."},
+        )
+        print(response.status_code, response.json())
+        await vault.close()
+
+    asyncio.run(main())
+    ```
+
+    ```typescript TypeScript
+    import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+    const vault = new App({ apiKey: process.env.ALTER_API_KEY! });
+    try {
+      const response = await vault.request(
+        HttpMethod.POST,
+        "https://slack.com/api/chat.postMessage",
+        {
+          grantId: process.env.SLACK_GRANT_ID!,
+          json: { channel: "#general", text: "Hello from Alter Vault." },
+        },
+      );
+      console.log(response.status, await response.json());
+    } finally {
+      await vault.close();
+    }
+    ```
+    </CodeGroup>
+
+    Check Slack — the message is there.
+
+    <Frame>
+      <img src="/images/first-5-min/05-success.png" alt="Slack channel showing the posted message" />
+    </Frame>
+  </Step>
+</Steps>
+
+## What just happened
+
+`vault.request()` looked up the Slack grant, fetched a fresh token from the vault, signed an HMAC-authenticated call to the Alter backend, injected the token into the outgoing Slack call, and returned the response. Application code never touched a token.
+
+## Where next
+
+<CardGroup cols={3}>
+  <Card title="Production identity (JWT)" icon="id-badge" href="/oauth/jwt-identity">
+    Drop `grant_id` and resolve users from the IDP's JWT. The recommended path for any app with logged-in users.
+  </Card>
+  <Card title="Workload identity (Agents)" icon="robot" href="/agents/overview">
+    Give each agent its own key, audit trail, and access set.
+  </Card>
+  <Card title="Provider directory" icon="puzzle-piece" href="/providers/google">
+    50+ OAuth providers ready to wire up the same way Slack was wired.
+  </Card>
+</CardGroup>

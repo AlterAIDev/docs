@@ -106,9 +106,9 @@ from alter_sdk import App, HttpMethod
 async with App(
     api_key="alter_key_...",
     caller="my-agent",
-) as vault:
+) as alter_app:
     # Use the grant_id returned by Alter Connect
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         grant_id=grant_id,

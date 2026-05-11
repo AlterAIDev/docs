@@ -1,0 +1,115 @@
+---
+title: 'OAuth Grants Overview'
+description: 'How OAuth grants work in Alter Vault — end-user authorization for third-party services.'
+icon: 'link'
+---
+
+*An OAuth [grant](/reference/glossary#grant) is what an end user creates when they click "Connect Google" — a stored consent record that lets the app call Google APIs as that user.*
+
+When a user completes OAuth, Alter Vault stores their tokens encrypted in the vault and returns a `grant_id`. Every subsequent provider call goes through `vault.request(method, url, grant_id=...)`. Application code never sees a token.
+
+## When to use OAuth grants
+
+- **End users** authorize access to **their** accounts (Google Calendar, Slack workspace, GitHub repo).
+- **Per-user** credentials are required.
+- The provider supports OAuth 2.0 and automatic token refresh is desired.
+
+For developer-owned credentials (app-owned API keys, service tokens), use [Managed Secrets](/managed-secrets/overview) instead.
+
+## Lifecycle
+
+<Steps>
+  <Step title="Authorize">
+    The user completes the OAuth flow via Alter Connect. Three triggers exist — see [the trigger comparison](#three-ways-to-trigger-oauth) below. They log into their account and grant the requested scopes.
+  </Step>
+  <Step title="Store">
+    Access tokens, refresh tokens, and expiry are encrypted (AES-256-GCM) and stored in Alter Vault. Never in the application database.
+  </Step>
+  <Step title="Use">
+    Call `vault.request(...)`. The SDK looks up the grant, retrieves and refreshes the token if needed, and injects it into the outgoing call.
+  </Step>
+  <Step title="Revoke">
+    Either the user (in [Wallet](/wallet/overview)) or application code (`vault.revoke_grant()`) ends the grant. Tokens are deleted immediately.
+  </Step>
+</Steps>
+
+## Three identity-resolution modes
+
+Once a grant exists, application code picks **how** the SDK identifies which grant to use on each call. Pages on this site cover the three modes in this canonical order:
+
+| Mode | Best for | Page |
+|---|---|---|
+| **JWT** | Production apps with logged-in users | [JWT identity](/oauth/jwt-identity) |
+| **`grant_id`** | Scripts, batch jobs, explicit control | [grant_id identity](/oauth/grant-id-identity) |
+| **Headless** | CLIs, notebooks, agent bootstrap | [Headless](/oauth/headless) |
+
+See [Concepts → Identity resolution](/concepts/identity-resolution) for the decision tree.
+
+## Three ways to trigger OAuth
+
+Distinct from identity resolution above. This is **how the user reaches the consent screen** — pick one based on the app's frontend stack:
+
+| Method | Best for | How it works |
+|---|---|---|
+| **Headless** (`vault.connect()`) | CLIs, scripts, Jupyter, server-side agents | One SDK call creates a session, opens a browser, polls until complete. |
+| **Redirect** (`vault.create_connect_session()`) | Server-rendered apps, email links | Backend gets a `connect_url`; redirects the user there; receives them at `return_url`. |
+| **Popup** (`@alter-ai/connect`) | SPAs (React, Vue, …) | Backend creates a session, frontend SDK opens a popup with `onSuccess`/`onError`. |
+
+See [SDKs → Connect.js](/sdks/connect-js/quickstart) for popup flows; [Headless](/oauth/headless) for `connect()`.
+
+## Quick example
+
+<CodeGroup>
+```python Python
+from alter_sdk import App, HttpMethod
+
+vault = App(api_key=ALTER_API_KEY)
+
+response = await vault.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id=grant_id,
+    query_params={"maxResults": "10"},
+)
+events = response.json()
+```
+
+```typescript TypeScript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new App({ apiKey: ALTER_API_KEY });
+
+const response = await vault.request(
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  { grantId, queryParams: { maxResults: "10" } },
+);
+const events = await response.json();
+```
+</CodeGroup>
+
+## What's included out of the box
+
+- **Automatic token refresh** before expiry, per-provider.
+- **Multi-account support** — a user can connect personal + work Gmail; each is a separate grant.
+- **Grant policy (TTL)** — set max grant lifetimes when creating a Connect session.
+- **End-user revocation** — users see and revoke grants in [Alter Wallet](/wallet/overview).
+- **[Policy enforcement](/reference/policies)** — time-based, IP-based, and group-based rules on every retrieval.
+- **[Full audit trail](/reference/audit-logs)** — every retrieval logs caller, principal, provider, status.
+
+## See also
+
+<CardGroup cols={2}>
+  <Card title="JWT identity (recommended)" icon="id-badge" href="/oauth/jwt-identity">
+    Drop `grant_id` and resolve users from the IDP's JWT.
+  </Card>
+  <Card title="Managing grants" icon="list-check" href="/oauth/managing-grants">
+    List, revoke, and audit grants programmatically.
+  </Card>
+  <Card title="Identity Providers" icon="building-shield" href="/oauth/identity-providers/overview">
+    Wire Auth0, Clerk, Okta, Keycloak, or WorkOS.
+  </Card>
+  <Card title="Provider directory" icon="puzzle-piece" href="/providers/google">
+    Per-provider setup pages (Google, Slack, GitHub, …).
+  </Card>
+</CardGroup>

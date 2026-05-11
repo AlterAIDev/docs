@@ -1,0 +1,76 @@
+---
+title: 'Approvals'
+description: 'get_approval_status, await_approval.'
+icon: 'circle-check'
+---
+
+```python
+from alter_sdk import App, PendingApproval
+```
+
+Approvals are produced by `proxy_request()` when policy requires human confirmation. See [Agents → Approvals](/agents/approvals) for the conceptual flow.
+
+## `get_approval_status()`
+
+Snapshot the current state of an approval. Non-blocking.
+
+### Signature
+
+```python
+async def get_approval_status(approval_id: str) -> ApprovalStatus
+```
+
+### Returns
+
+`ApprovalStatus` with `approval_id`, `status` (one of `pending`, `approved`, `executing`, `denied`, `expired`, `executed`, `failed`), `expires_at`, `decided_at`, `decision_reason`, `executed_at`, and `has_result` (true once the proxied result is fetchable). The provider response is NOT on `ApprovalStatus` — fetch it via `await_approval()` (which returns an `ApprovalResult` on the `executed` terminal).
+
+### Example
+
+```python
+status = await vault.get_approval_status("apr_xyz")
+if status.status == "executed":
+    final = await vault.await_approval("apr_xyz")
+    print(final.status_code)
+```
+
+## `await_approval()`
+
+Block until an approval reaches a terminal state, then return the proxied result.
+
+### Signature
+
+```python
+async def await_approval(
+    approval_id: str,
+    *,
+    timeout: float = 300.0,       # seconds
+    poll_interval: float = 2.0,    # seconds
+) -> ApprovalResult
+```
+
+### Returns
+
+`ApprovalResult` with `approval_id`, `status_code`, `headers`, `body_b64`, `body_truncated`. The body is base64-encoded; decode with the helper methods `body_bytes()`, `body_text(encoding="utf-8")`, or `body_json()`.
+
+### Raises
+
+`ApprovalDeniedError`, `ApprovalExpiredError`, `ApprovalTimeoutError`, `ApprovalExecutionFailedError`. See [Errors](/sdks/python/reference/errors).
+
+### Example
+
+```python
+result = await vault.proxy_request(
+    HttpMethod.POST, url, grant_id=g, json_body=payload, reason="reason",
+)
+if isinstance(result, PendingApproval):
+    final = await vault.await_approval(result.approval_id, timeout=600.0)
+else:
+    final = result
+print(final.status_code, final.body_text())
+```
+
+## See also
+
+- [Agents → Approvals](/agents/approvals) — full flow.
+- [Request](/sdks/python/reference/request) — `proxy_request` reference.
+- [Types](/sdks/python/reference/types) — `PendingApproval`, `ApprovalStatus`, `ApprovalResult`.

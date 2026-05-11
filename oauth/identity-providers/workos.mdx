@@ -1,0 +1,70 @@
+---
+title: 'WorkOS'
+description: 'Wire WorkOS as the identity provider for an Alter app.'
+icon: 'shield'
+---
+
+This page is the per-provider supplement to the [IDP overview](/oauth/identity-providers/overview). Read that first.
+
+## 1. JWT verification
+
+In the **WorkOS Dashboard**:
+
+1. Issuer URL is `https://api.workos.com/user_management/<workos-client-id>`.
+2. Audience is the WorkOS Client ID (`client_<...>`).
+3. JWKS is at `<issuer>/.well-known/jwks.json`.
+
+In the **Alter developer portal** → app's **Identity** page:
+
+1. Click **Add Identity Provider**.
+2. Paste the issuer URL, click **Discover**. Alter recognizes WorkOS and pre-fills the claim mappings.
+3. Paste the audience.
+4. **For organization-based authorization**, the group claim is `org_id` (single org per JWT) — Alter pre-fills this. Confirm before any user signs in.
+5. Click **Add Provider**.
+
+## 2. OIDC sign-in (optional)
+
+Required only when `vault.authenticate()` or the [Wallet](/wallet/overview) sign-in flow is used.
+
+In the WorkOS Dashboard:
+
+1. **Authentication → Configuration → Redirect URIs** → add both redirect URIs from the Alter portal.
+2. Copy **Client ID** and **API Key** from the dashboard.
+
+In the Alter portal:
+
+1. Open the **User Authentication (OIDC)** section.
+2. Paste **Client ID** as the OIDC client ID and **API Key** as the secret.
+3. **Save**.
+
+## 3. Webhook deprovisioning (optional)
+
+In the Alter portal → Identity page → **Webhooks** section:
+
+1. Click **Enable Webhooks**.
+2. Copy the generated signing secret and the webhook endpoint URL.
+
+In the WorkOS Dashboard:
+
+1. **Webhooks → Endpoints → Add Endpoint**.
+2. **Endpoint URL** = the Alter webhook endpoint.
+3. Subscribe to:
+   - `user.deleted`
+   - `user.updated`
+   - `organization_membership.deleted`
+4. WorkOS displays a **Signing Secret** for the endpoint — paste it into the Alter portal and **Save**.
+
+## Test
+
+1. Sign in as a test user through WorkOS → confirm the user appears in Alter.
+2. Delete the test user → confirm their grants are revoked.
+
+## Common pitfalls
+
+- **Two-step issuer URL.** WorkOS issuer URLs include the Client ID — a generic `https://api.workos.com` value does not work.
+- **AuthKit vs SSO.** This guide assumes WorkOS AuthKit (User Management). For the older WorkOS SSO product, the issuer is `https://api.workos.com/sso/<connection-id>` instead.
+
+## See also
+
+- [IDP overview](/oauth/identity-providers/overview)
+- [JWT identity](/oauth/jwt-identity) — runtime pattern.

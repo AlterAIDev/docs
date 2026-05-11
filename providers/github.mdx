@@ -83,8 +83,8 @@ from alter_sdk import App, HttpMethod
 async with App(
     api_key="alter_key_...",
     caller="my-agent",
-) as vault:
-    response = await vault.request(
+) as alter_app:
+    response = await alter_app.request(
         HttpMethod.GET,
         "https://api.github.com/user/repos",
         grant_id=grant_id,

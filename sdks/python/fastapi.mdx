@@ -23,9 +23,9 @@ app = FastAPI()
 
 
 @app.post("/chat")
-async def chat(vault=Depends(alter)):
+async def chat(alter_app=Depends(alter)):
     """Each request automatically captures the Bearer token."""
-    resp = await vault.request(
+    resp = await alter_app.request(
         "GET",
         "https://api.example.com/v1/resource",
         provider="<provider>",
@@ -34,9 +34,9 @@ async def chat(vault=Depends(alter)):
 
 
 @app.get("/connect")
-async def connect(vault=Depends(alter)):
+async def connect(alter_app=Depends(alter)):
     """Create an Alter Connect session for OAuth authorization."""
-    session = await vault.create_connect_session(
+    session = await alter_app.create_connect_session(
         allowed_providers=["<provider>"],
     )
     return {
@@ -51,27 +51,27 @@ async def connect(vault=Depends(alter)):
 
 ## How It Works
 
-Under the hood, `AlterFastAPI` uses a task-scoped `ContextVar` to isolate tokens across concurrent requests. Each call to `Depends(alter)` captures the Bearer token for that specific request, so the SDK resolves the correct user identity when calling `vault.request(provider=...)`.
+Under the hood, `AlterFastAPI` uses a task-scoped `ContextVar` to isolate tokens across concurrent requests. Each call to `Depends(alter)` captures the Bearer token for that specific request, so the SDK resolves the correct user identity when calling `alter_app.request(provider=...)`.
 
 This replaces the manual pattern that previously required writing a ContextVar, a Bearer extraction helper, and wiring them together:
 
 ```python
 # Before (manual boilerplate):
 _token: ContextVar[str | None] = ContextVar("token", default=None)
-vault = App(api_key=..., user_token_getter=lambda: _token.get())
+alter_app = App(api_key=..., user_token_getter=lambda: _token.get())
 
 @app.post("/chat")
 async def chat(authorization: str = Header(...)):
     token = authorization.removeprefix("Bearer ").strip()
     _token.set(token)
-    resp = await vault.request(...)
+    resp = await alter_app.request(...)
 
 # After (AlterFastAPI handles it):
 alter = AlterFastAPI(api_key=...)
 
 @app.post("/chat")
-async def chat(vault=Depends(alter)):
-    resp = await vault.request(...)
+async def chat(alter_app=Depends(alter)):
+    resp = await alter_app.request(...)
 ```
 
 ## Combined FastAPI + MCP Server
@@ -84,17 +84,17 @@ from alter_sdk.fastapi import AlterFastAPI
 from alter_sdk.mcp import AlterMCP, AlterContext
 
 alter = AlterFastAPI(api_key="alter_key_...", caller="my-app")
-vault = alter.vault
+alter_app = alter.app
 
 # MCP setup — auth_provider() creates a full OAuth 2.0 Authorization Server
-alter_mcp = AlterMCP(vault)
+alter_mcp = AlterMCP(alter_app)
 auth = alter.auth_provider(base_url="http://localhost:8000/mcp", providers={"<provider>": ["scope1", "scope2"]})
 mcp = FastMCP("my-server", auth=auth)
 
 # REST endpoint — uses Depends(alter)
 @app.post("/chat")
-async def chat(vault=Depends(alter)):
-    resp = await vault.request("GET", "https://api.example.com/v1/resource", provider="<provider>")
+async def chat(alter_app=Depends(alter)):
+    resp = await alter_app.request("GET", "https://api.example.com/v1/resource", provider="<provider>")
     return resp.json()
 
 # MCP tool — uses AlterContext

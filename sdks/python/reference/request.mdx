@@ -1,0 +1,143 @@
+---
+title: 'Request'
+description: 'request, proxy_request, boto3_client.'
+icon: 'paper-plane'
+---
+
+```python
+from alter_sdk import App, HttpMethod
+```
+
+## `request()`
+
+Make a token-injected request to a provider API. The most common SDK call.
+
+### Signature
+
+```python
+async def request(
+    method: HttpMethod | str,
+    url: str,
+    *,
+    grant_id: str | None = None,
+    provider: str | None = None,
+    account: str | None = None,
+    json: Any = None,
+    body: bytes | str | None = None,
+    extra_headers: dict[str, str] | None = None,
+    query_params: dict[str, str] | None = None,
+    path_params: dict[str, str] | None = None,
+    reason: str | None = None,
+    context: dict[str, str] | None = None,
+    user_token: str | None = None,
+) -> httpx.Response
+```
+
+### Parameters
+
+| Name | Type | Description |
+|---|---|---|
+| `method` | `HttpMethod \| str` | HTTP method (required). |
+| `url` | `str` | Full upstream URL (required). |
+| `grant_id` | `str \| None` | Explicit grant. Mutually exclusive with `provider`. |
+| `provider` | `str \| None` | Resolves to a grant via `user_token_getter`. Requires JWT mode. |
+| `account` | `str \| None` | Disambiguator when a user has multiple accounts on one provider. |
+| `json` | `Any \| None` | JSON-serialized body. |
+| `body` | `bytes \| str \| None` | Raw body. |
+| `extra_headers` | `dict[str, str] \| None` | Additional headers (Auth header is set by the SDK). |
+| `query_params`, `path_params` | `dict \| None` | Templated URL inputs. |
+| `reason` | `str \| None` | Human-readable explanation, surfaces in audit logs. |
+| `context` | `dict[str, str] \| None` | Per-call audit metadata. |
+| `user_token` | `str \| None` | Per-call JWT override. |
+
+### Returns
+
+An `httpx.Response`. Adds a `retry_info: RetryInfo \| None` attribute carrying retry metadata from this call.
+
+### Raises
+
+`GrantNotFoundError`, `GrantExpiredError`, `GrantRevokedError`, `AmbiguousGrantError`, `NoDelegatedGrantError`, `PolicyViolationError`, `ScopeReauthRequiredError`, `ProviderAPIError`, `NetworkError`. See [Errors](/sdks/python/reference/errors).
+
+### Example
+
+```python
+response = await vault.request(
+    HttpMethod.POST,
+    "https://api.openai.com/v1/chat/completions",
+    grant_id=OPENAI_GRANT_ID,
+    json={"model": "gpt-4", "messages": [{"role": "user", "content": "hi"}]},
+    context={"tool": "summarize"},
+)
+print(response.status_code, response.json())
+```
+
+## `proxy_request()`
+
+Forwards an HTTP exchange through the Alter backend. Use when the call must run server-side (AWS SigV4 with role assumption, approval-gated calls, backend rate limiting).
+
+### Signature
+
+```python
+async def proxy_request(
+    method: HttpMethod | str,
+    url: str,
+    *,
+    grant_id: str,
+    json_body: Any = None,
+    headers: dict[str, str] | None = None,
+    query_params: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> ApprovalResult | PendingApproval
+```
+
+Auth headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) are forbidden — the backend injects credentials at execution time.
+
+### Returns
+
+- `ApprovalResult` if the call ran inline. The body is base64-encoded on `body_b64` — decode with `body_text()` / `body_json()` / `body_bytes()`.
+- `PendingApproval` if policy required human approval. Pass the `approval_id` to `await_approval()`. See [Approvals](/sdks/python/reference/approvals).
+
+### Example
+
+```python
+result = await vault.proxy_request(
+    HttpMethod.POST,
+    "https://api.example.com/v1/refunds",
+    grant_id=GRANT_ID,
+    json_body={"amount": 1000},
+    reason="Customer ticket #4421",
+)
+```
+
+## `boto3_client()`
+
+Returns a boto3 service client whose every call is signed with vault-stored AWS credentials. Python only.
+
+### Signature
+
+```python
+async def boto3_client(
+    service_name: str,
+    *,
+    grant_id: str,
+    region_name: str | None = None,
+    timeout: float | None = None,
+    reason: str | None = None,
+    context: dict[str, str] | None = None,
+) -> Any
+```
+
+### Example
+
+```python
+s3 = await vault.boto3_client("s3", grant_id=AWS_GRANT_ID, region_name="us-west-2")
+result = s3.list_objects_v2(Bucket="my-bucket")
+```
+
+The returned client behaves like a real boto3 client; AWS credentials never enter the process environment.
+
+## See also
+
+- [Grants](/sdks/python/reference/grants) — `list_grants`, `revoke_grant`.
+- [Approvals](/sdks/python/reference/approvals) — `proxy_request` approval flow.
+- [Errors](/sdks/python/reference/errors)

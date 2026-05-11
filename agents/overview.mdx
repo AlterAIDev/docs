@@ -1,0 +1,102 @@
+---
+title: 'Agents Overview'
+description: 'When to use App vs Agent. The mental model for workload identity.'
+icon: 'robot'
+---
+
+*An [agent](/reference/glossary#agent) is a named, operator-provisioned workload identity with its own API key, audit trail, and bound grants.* Use agents when one app key isn't enough — when multiple distinct workloads should be revocable, rotatable, and auditable independently.
+
+## When to use Agents (vs just App)
+
+| Use case | Use… |
+|---|---|
+| Single backend service that calls third-party APIs | `App` |
+| Cron job or webhook handler | `App` |
+| Multi-step research workflow where each step is audited under its own name | **Agent** per role |
+| LangGraph supervisor with named sub-agents (researcher, writer, reviewer) | **Agent** per sub-agent |
+| Workload that should be revocable / rotatable independently of the app key | **Agent** |
+| MCP server running in a sandbox where exposing the master key is unsafe | **Agent** |
+
+The two shapes can be mixed freely. An app can have one `App` instance plus N `Agent` instances, each with its own key.
+
+## Two SDK shapes for the same agent
+
+Once an operator provisions an agent in the developer portal, the SDK can reach it two ways. **Both produce the same backend identity** — same audit attribution, same access boundary, same grant filter. Pick based on isolation needs.
+
+### Shape (a) — per-agent API key (use when isolation matters)
+
+The operator mints a per-agent API key (`alter_key_agent_…`) in the portal. The agent process loads it from env, constructs `Agent`:
+
+```python
+vault = Agent(api_key=AGENT_API_KEY)
+response = await vault.request("GET", url, grant_id=GRANT_ID)
+```
+
+Use this when the agent runs in a sandbox / container / less-trusted environment where exposing the master key would be too dangerous.
+
+### Shape (b) — master key + impersonation (use when monolithic)
+
+The application uses the app key, calls `app.agents.list()` once at boot to discover the agent's UUID, and calls `app.get_agent(uuid)` per agent:
+
+```python
+app = App(api_key=APP_API_KEY)
+agents_by_name = {a.name: str(a.id) for a in (await app.agents.list()).agents}
+researcher = app.get_agent(agents_by_name["researcher"])
+response = await researcher.request("GET", url, grant_id=GRANT_ID)
+```
+
+Use this in monolithic backends where the master key already lives in a single trusted process and per-agent keys would not meaningfully reduce blast radius.
+
+See [Creating agents](/agents/creating-agents) for `App.agents.list()`, `App.agents.get_by_name()`, and the full operator namespace.
+
+## Cardinality and access boundary
+
+An agent can hold **many** grants — operators map as many as the agent needs (one for Slack, one for Stripe, one for Drive). Each mapping is explicit. The agent can reach **only** the grants the operator mapped to *this specific agent* — not grants belonging to other agents, not grants belonging to users, not generic system grants. The filter is enforced server-side per request, regardless of which SDK shape signed it.
+
+## Identity-blending rules
+
+These are common gotchas — keep them in mind:
+
+- **Per-agent key + JWT is forbidden.** Calling with an `alter_key_agent_…` key and a `user_token` in the same request returns HTTP 400. Agents are not user impersonators. If a flow needs both an agent identity and a user identity, run two separate requests.
+- **App key + agent UUID + JWT is the "agent code path inside a user session" pattern.** Use `App(api_key=APP_KEY, caller=AGENT_UUID, user_token_getter=…)`. JWT wins (the user is the principal); the agent UUID becomes audit attribution.
+- **Bad agent UUID in `caller` is rejected.** A UUID-shaped `caller` that doesn't match an active managed agent in the calling app returns HTTP 404. Free-form (non-UUID) `caller` values are not subject to this check.
+
+## "But the agent code path is acting on behalf of a user…"
+
+Common pattern: an LLM agent runs server-side as part of an end-user-driven request. The right model is **NOT a separate agent principal** — it's the **user principal flow** with the agent's name carried as audit metadata.
+
+```python
+vault = App(
+    api_key=APP_KEY,
+    caller="email-research-bot",          # free-form, or AGENT_UUID
+    user_token_getter=lambda: get_jwt(),
+)
+response = await vault.request("GET", url, provider="google")
+```
+
+The principal is the user; the agent is a code path inside the user's request. See [Concepts → Principals and grants](/concepts/principals-and-grants).
+
+The agent becomes a **separate principal** only when it acts when the user is **not** present — autonomous workloads, scheduled jobs, multi-tenant agent fleets. That's when shapes (a) or (b) above apply.
+
+## Roadmap
+
+<Note type="warning">
+**Agent as principal for OAuth grants.** Today, agents own managed-secret grants directly (phases 1–3 shipped). OAuth grants are owned by users, with agents accessing them via [delegations](/reference/glossary#delegation). A future release will let agents own OAuth grants directly. Tracking in the [SDK_REDESIGN](https://github.com/alter-ai/alter-vault/blob/main/docs/planning/SDK_REDESIGN.md) planning doc.
+</Note>
+
+## See also
+
+<CardGroup cols={2}>
+  <Card title="Creating agents" icon="plus" href="/agents/creating-agents">
+    Operator surface: provision, list, update, get-by-name.
+  </Card>
+  <Card title="Keys and rotation" icon="key" href="/agents/keys-and-rotation">
+    Mint, list, deprecate, and revoke per-agent keys.
+  </Card>
+  <Card title="Agent runtime" icon="play" href="/agents/agent-runtime">
+    The Agent class: me(), trace(), authenticate().
+  </Card>
+  <Card title="Approvals" icon="circle-check" href="/agents/approvals">
+    Human-in-the-loop approvals for sensitive calls.
+  </Card>
+</CardGroup>

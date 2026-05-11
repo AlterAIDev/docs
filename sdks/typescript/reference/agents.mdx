@@ -1,0 +1,160 @@
+---
+title: 'Agents'
+description: 'App.getAgent, App.agents.*, Agent.me, Agent.trace.'
+icon: 'robot'
+---
+
+```typescript
+import { App, Agent } from "@alter-ai/alter-sdk";
+```
+
+## `App.getAgent()`
+
+Returns an `Agent` instance backed by the app key, with `caller` pinned to the agent UUID. The "monolithic" shape — see [Agents → Overview](/agents/overview).
+
+### Signature
+
+```typescript
+getAgent(agentId: string): Agent
+```
+
+### Example
+
+```typescript
+const researchBot = app.getAgent("agent_uuid");
+const me = await researchBot.me();
+```
+
+## `App.agents` namespace
+
+Operator surface for managed agents and their keys. All methods async; require the App key.
+
+### `agents.create()`
+
+```typescript
+async create(options: {
+  name: string;
+  displayName?: string;
+  type?: "agent" | "service";
+  scopes?: Record<string, string[]>;
+  metadata?: Record<string, unknown>;
+  policy?: Record<string, unknown>;
+  idempotencyKey?: string;
+}): Promise<AgentCreateResult>
+```
+
+`scopes` is a per-provider allowlist (`{ google: ["gmail.readonly"], slack: ["chat.write"] }`), not a flat list. `AgentCreateResult` extends `AgentInfo` with `apiKey` (plaintext, **shown once**).
+
+### `agents.list()`
+
+```typescript
+async list(options?: {
+  limit?: number;       // default 100, max 1000
+  offset?: number;      // default 0
+  includeRevoked?: boolean;  // default false
+}): Promise<AgentListResult>
+```
+
+### `agents.get()`, `agents.getByName()`
+
+```typescript
+async get(agentId: string): Promise<AgentInfo>
+async getByName(name: string): Promise<AgentInfo | null>
+```
+
+### `agents.update()`
+
+```typescript
+async update(agentId: string, options: {
+  displayName?: string;
+  scopes?: Record<string, string[]>;
+  metadata?: Record<string, unknown>;
+  policy?: Record<string, unknown>;
+}): Promise<AgentInfo>
+```
+
+`scopes` must be the FULL desired per-provider allowlist — the backend rejects narrowing (any provider key dropped, or any scope removed from an existing provider's list) with `AgentScopeNarrowingNotSupportedError`.
+
+### `agents.delete()`
+
+```typescript
+async delete(agentId: string): Promise<AgentInfo>
+```
+
+Soft-deletes the agent and revokes all its keys.
+
+### `agents.mintKey()`
+
+```typescript
+async mintKey(agentId: string): Promise<AgentKeyMintResult>
+```
+
+`AgentKeyMintResult` extends `AgentKey` with `apiKey` (plaintext, **shown once**).
+
+### `agents.listKeys()`
+
+```typescript
+async listKeys(agentId: string): Promise<AgentKeyList>
+```
+
+Returns metadata only — no plaintext. `AgentKeyList` has a single `items: AgentKey[]` field; no pagination.
+
+### `agents.deprecateKey()`, `agents.undeprecateKey()`
+
+```typescript
+async deprecateKey(agentId: string, keyId: string): Promise<AgentKey>
+async undeprecateKey(agentId: string, keyId: string): Promise<AgentKey>
+```
+
+### `agents.revokeKey()`
+
+```typescript
+async revokeKey(agentId: string, keyId: string, options?: { force?: boolean }): Promise<AgentKey>
+```
+
+`force: true` required when revoking the **last active key** — otherwise throws `LastActiveKeyError`.
+
+## `Agent.me()`
+
+Returns the calling agent's `AgentInfo`. Available on `Agent` only.
+
+### Signature
+
+```typescript
+async me(): Promise<AgentInfo>
+```
+
+## `Agent.trace()`
+
+Runs a callback with `runId` and other tracing fields bound to every request inside the scope. Available on `Agent` only.
+
+### Signature
+
+```typescript
+async trace<T>(
+  options: {
+    runId?: string;
+    threadId?: string;
+    parent?: string | null;
+    [metadataKey: string]: unknown;
+  },
+  callback: () => Promise<T>,
+): Promise<T>
+```
+
+### Example
+
+```typescript
+const agent = app.getAgent("agent_uuid");
+await agent.trace({ runId: "run-abc" }, async () => {
+  await agent.request("GET", url1, { grantId: g1 });
+  await agent.request("POST", url2, { grantId: g2 });
+});
+```
+
+## See also
+
+- [Agents → Creating agents](/agents/creating-agents)
+- [Agents → Keys and rotation](/agents/keys-and-rotation)
+- [Agents → Agent runtime](/agents/agent-runtime)
+- [Errors](/sdks/typescript/reference/errors)

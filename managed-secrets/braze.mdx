@@ -60,7 +60,7 @@ Use Braze credentials to make authenticated API calls through Alter Vault withou
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.POST,
     "https://YOUR_BRAZE_INSTANCE_URL/messages/send",
     grant_id="YOUR_GRANT_ID",

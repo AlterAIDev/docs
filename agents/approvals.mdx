@@ -1,0 +1,120 @@
+---
+title: 'Approvals'
+description: 'Human-in-the-loop confirmation for sensitive agent calls.'
+icon: 'circle-check'
+---
+
+*Approvals let an operator gate specific agent calls behind explicit human confirmation* — a Slack message, a portal click, or a Wallet approval. The agent doesn't make the call until a human approves.
+
+Approvals are an opt-in policy. Most agent calls flow straight through. Use approvals for calls that move money, send messages to customers, or delete data — anything where retroactive auditing isn't enough and a stop point in the path is needed.
+
+## The flow
+
+<Steps>
+  <Step title="Agent submits a request that requires approval">
+    `proxy_request()` returns a `PendingApproval` instead of an `ApprovalResult`. The pending approval carries an `approval_id`, a URL where the human can decide, and an expiry.
+  </Step>
+  <Step title="Approver decides">
+    The human visits the approval URL (in [Wallet](/wallet/overview), the developer portal, or wherever the operator team routes it) and approves or denies.
+  </Step>
+  <Step title="Agent picks up the result">
+    `await_approval(approval_id)` blocks (with a timeout) until the human decides and the proxied call executes, or `get_approval_status(approval_id)` polls. The eventual return value is an `ApprovalResult` carrying the upstream response, or one of `ApprovalDeniedError` / `ApprovalExpiredError` / `ApprovalExecutionFailedError` / `ApprovalTimeoutError`.
+  </Step>
+</Steps>
+
+## Submitting a request that may require approval
+
+<CodeGroup>
+```python Python
+from alter_sdk import PendingApproval
+
+result = await vault.proxy_request(
+    HttpMethod.POST,
+    "https://api.stripe.com/v1/refunds",
+    grant_id=STRIPE_GRANT_ID,
+    json_body={"charge": "ch_...", "amount": "10000"},
+    reason="Customer requested refund (ticket #4421)",
+)
+
+if isinstance(result, PendingApproval):
+    print("Awaiting approval at:", result.approval_url)
+    final = await vault.await_approval(result.approval_id, timeout=600.0)
+else:
+    final = result  # No approval required by policy
+
+print(final.status_code, final.body_text())
+```
+
+```typescript TypeScript
+import { PendingApproval } from "@alter-ai/alter-sdk";
+
+const result = await vault.proxyRequest({
+  method: HttpMethod.POST,
+  url: "https://api.stripe.com/v1/refunds",
+  grantId: STRIPE_GRANT_ID,
+  jsonBody: { charge: "ch_...", amount: "10000" },
+  reason: "Customer requested refund (ticket #4421)",
+});
+
+if (result instanceof PendingApproval) {
+  console.log("Awaiting approval at:", result.approvalUrl);
+  const final = await vault.awaitApproval(result.approvalId, { timeoutMs: 600_000 });
+  console.log(final.statusCode, final.bodyText());
+} else {
+  console.log(result.statusCode, result.bodyText());
+}
+```
+</CodeGroup>
+
+`reason` is mandatory for approvals — it's what the approver sees on the decision screen. The body comes back base64-encoded on `body_b64` / `bodyB64`; use the `body_text()` / `body_json()` / `body_bytes()` helpers to decode it.
+
+## Polling vs awaiting
+
+- `await_approval(id, timeout=...)` blocks the calling task until the proxied call has executed and a result is available. Best for synchronous agent flows where waiting is acceptable.
+- `get_approval_status(id)` returns a snapshot immediately. The provider response is NOT on `ApprovalStatus` — once `status.has_result` is true (terminal status `executed`), call `await_approval` to fetch the `ApprovalResult`.
+
+<CodeGroup>
+```python Python
+status = await vault.get_approval_status(approval_id)
+if status.has_result:
+    final = await vault.await_approval(approval_id)
+    print(final.status_code, final.body_text())
+```
+
+```typescript TypeScript
+const status = await vault.getApprovalStatus(approvalId);
+if (status.hasResult) {
+  const final = await vault.awaitApproval(approvalId);
+  console.log(final.statusCode, final.bodyText());
+}
+```
+</CodeGroup>
+
+## Outcomes
+
+| Status | What it means | Exception (on `await_approval`) |
+|---|---|---|
+| `executed` | Human approved AND the upstream call executed successfully | (returns `ApprovalResult`) |
+| `executing` | Approved; backend is currently running the upstream call | (transient — keep waiting) |
+| `approved` | Approved but not yet executed | (transient — keep waiting) |
+| `denied` | Human denied; upstream call never ran | `ApprovalDeniedError` |
+| `expired` | Approval window passed before a human decided | `ApprovalExpiredError` |
+| `failed` | Approved, but the upstream call itself failed | `ApprovalExecutionFailedError` |
+| `pending` | No decision yet; keep polling or wait | (n/a — `await_approval` keeps waiting) |
+
+## Configuring approval policies
+
+Approval policies are configured per-app in the developer portal under **Policies → Approvals**. Approvals can be required based on:
+
+- HTTP method (e.g., all `DELETE` and `PUT`).
+- URL pattern (e.g., `/v1/refunds`).
+- Caller (e.g., specific agents).
+- Cost-based heuristics (configurable per provider).
+
+See [Reference → Policies](/reference/policies) for the policy model.
+
+## See also
+
+- [Agents overview](/agents/overview)
+- [Reference → Policies](/reference/policies)
+- [SDK → Approvals reference](/sdks/python/reference/approvals)

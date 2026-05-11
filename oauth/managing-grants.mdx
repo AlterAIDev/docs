@@ -1,0 +1,111 @@
+---
+title: 'Managing Grants'
+description: 'List, revoke, and audit OAuth grants programmatically.'
+icon: 'list-check'
+---
+
+*Operator-side surface for OAuth grants.* Build a settings page, run a periodic audit, or revoke a grant when an end user leaves.
+
+End users can also revoke their own grants from [Alter Wallet](/wallet/overview) — that path doesn't need code.
+
+## Listing grants
+
+`list_grants()` returns a paginated `UnifiedGrantListResult` containing both OAuth and managed-secret grants visible to the calling principal.
+
+<CodeGroup>
+```python Python
+page = await app.list_grants(provider_id="google", limit=50, offset=0)
+
+for grant in page.grants:
+    if grant.grant_kind == "oauth":
+        print(grant.grant_id, grant.account_identifier, grant.scopes)
+
+if page.has_more:
+    next_page = await app.list_grants(provider_id="google", limit=50, offset=50)
+```
+
+```typescript TypeScript
+const page = await app.listGrants({ providerId: "google", limit: 50, offset: 0 });
+
+for (const grant of page.grants) {
+  if (grant.grantKind === "oauth") {
+    console.log(grant.grantId, grant.accountIdentifier, grant.scopes);
+  }
+}
+
+if (page.hasMore) {
+  const next = await app.listGrants({ providerId: "google", limit: 50, offset: 50 });
+}
+```
+</CodeGroup>
+
+Each item is either an `OAuthGrantItem` (user-authorized) or a `ManagedSecretGrantItem` (operator-provisioned). Discriminate on the `grant_kind` field (`grantKind` in TypeScript). Full schemas at [SDK → Types](/sdks/python/reference/types). `provider_id` filtering is available on `App.list_grants` only — the `Agent` variant returns the agent's delegated and managed-secret grants without a provider filter.
+
+## Revoking a grant
+
+`revoke_grant()` is **App-only** — agents can only revoke their own delegations (see below).
+
+<CodeGroup>
+```python Python
+result = await vault.revoke_grant(grant_id, reason="user offboarded")
+print(result.revoked_at)
+```
+
+```typescript TypeScript
+const result = await vault.revokeGrant(grantId, { reason: "user offboarded" });
+console.log(result.revokedAt);
+```
+</CodeGroup>
+
+Revocation:
+1. Marks the grant `revoked` immediately.
+2. Deletes the underlying tokens from the vault.
+3. Writes a security audit row with the supplied `reason`.
+
+Subsequent calls with the revoked `grant_id` raise `GrantRevokedError`.
+
+## Revoking a delegation
+
+A [delegation](/reference/glossary#delegation) is an agent's pointer to a user's grant. Revoking a delegation removes the agent's access path **without** revoking the underlying grant.
+
+<CodeGroup>
+```python Python
+# Operator (App): revoke a specific agent's delegation on a grant
+await app.revoke_delegation(grant_id, agent_id)
+
+# Agent (Agent): self-revoke
+await agent.revoke_delegation(grant_id)
+```
+
+```typescript TypeScript
+// Operator (App)
+await app.revokeDelegation(grantId, { agentId });
+
+// Agent (Agent)
+await agent.revokeDelegation(grantId);
+```
+</CodeGroup>
+
+The user keeps their grant and can still use it directly; only the named agent loses its access path.
+
+## Auditing access
+
+Every retrieval writes an audit row. Query them in the developer portal or pull them via the SDK / API:
+
+- **Per-grant**: filter audit logs by `grant_id` to see every call that used it.
+- **Per-user**: filter by `principal.user_id` to answer "what was Alice's data used for?"
+- **Per-agent / caller**: filter by `caller` to answer "what did Agent X access?"
+
+Full audit schema at [Reference → Audit logs](/reference/audit-logs).
+
+## Roadmap
+
+<Note type="warning">
+**Coming soon — agent as principal for OAuth grants.** Today, OAuth grants are owned by users (or, for managed secrets, by users / groups / system / agents). A future release will let agents own OAuth grants directly, without the user-then-delegate hop. The model and migration path are documented in the [SDK_REDESIGN](https://github.com/alter-ai/alter-vault/blob/main/docs/planning/SDK_REDESIGN.md) planning doc; the code surface is unchanged until ship.
+</Note>
+
+## See also
+
+- [SDK → Grants](/sdks/python/reference/grants) — full `list_grants()`, `revoke_grant()`, `revoke_delegation()` reference.
+- [Reference → Audit logs](/reference/audit-logs)
+- [Wallet → Managing grants](/wallet/managing-grants) — what end users see.

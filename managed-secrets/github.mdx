@@ -60,7 +60,7 @@ Use GitHub credentials to make authenticated API calls through Alter Vault witho
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://api.github.com/user/repos",
     grant_id="YOUR_GRANT_ID",

@@ -1,0 +1,137 @@
+---
+title: 'Using Managed-Secret Grants'
+description: 'Developer surface — request(), proxy_request(), boto3_client().'
+icon: 'plug'
+---
+
+*Once a managed-secret grant exists, calling it is identical to calling an OAuth grant — pass `grant_id` to `vault.request()`.* The SDK looks up the secret, injects the right header, and forwards the call.
+
+## `vault.request()` — the default
+
+<CodeGroup>
+```python Python
+from alter_sdk import App, HttpMethod
+
+vault = App(api_key=ALTER_API_KEY)
+
+response = await vault.request(
+    HttpMethod.POST,
+    "https://api.openai.com/v1/chat/completions",
+    grant_id=OPENAI_GRANT_ID,
+    json={"model": "gpt-4", "messages": [{"role": "user", "content": "Hello"}]},
+)
+print(response.status_code, response.json())
+```
+
+```typescript TypeScript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new App({ apiKey: ALTER_API_KEY });
+
+const response = await vault.request(
+  HttpMethod.POST,
+  "https://api.openai.com/v1/chat/completions",
+  {
+    grantId: OPENAI_GRANT_ID,
+    json: { model: "gpt-4", messages: [{ role: "user", content: "Hello" }] },
+  },
+);
+console.log(response.status, await response.json());
+```
+</CodeGroup>
+
+The SDK auto-injects the credential as the appropriate header (`Authorization: Bearer …`, `X-API-Key: …`, `Authorization: Basic …`, or AWS SigV4 signature) based on the credential type configured in the portal.
+
+Full request reference at [SDK → Request](/sdks/python/reference/request).
+
+## `vault.proxy_request()` — when the call must run server-side
+
+`proxy_request()` forwards the entire HTTP exchange through the Alter backend instead of from the SDK. The backend makes the upstream call with the credential injected; the SDK never touches it.
+
+Use cases:
+
+- The credential type requires server-side signing (AWS SigV4 with role assumption).
+- Approval policies must apply to the call — see [Agents → Approvals](/agents/approvals).
+- Backend-side rate limiting / quota enforcement is required.
+
+<CodeGroup>
+```python Python
+result = await vault.proxy_request(
+    HttpMethod.POST,
+    "https://api.example.com/v1/sensitive",
+    grant_id=GRANT_ID,
+    json_body={"action": "delete-everything"},
+    reason="Quarterly cleanup job",
+)
+print(result.status_code, result.body_text())
+```
+
+```typescript TypeScript
+const result = await vault.proxyRequest({
+  method: HttpMethod.POST,
+  url: "https://api.example.com/v1/sensitive",
+  grantId: GRANT_ID,
+  jsonBody: { action: "delete-everything" },
+  reason: "Quarterly cleanup job",
+});
+console.log(result.statusCode, result.bodyText());
+```
+</CodeGroup>
+
+When the call requires approval, `proxy_request()` returns a `PendingApproval` — see [Agents → Approvals](/agents/approvals).
+
+## `vault.boto3_client()` — AWS-native usage (Python only)
+
+For AWS managed secrets that store IAM credentials, the Python SDK ships a boto3 bridge:
+
+```python
+from alter_sdk import App
+
+vault = App(api_key=ALTER_API_KEY)
+s3 = await vault.boto3_client("s3", grant_id=AWS_GRANT_ID, region_name="us-west-2")
+
+# Use s3 like a normal boto3 client. Every call auto-signs with the
+# vault-stored AWS credentials; nothing leaks into the process env.
+result = s3.list_objects_v2(Bucket="my-bucket")
+```
+
+The returned client behaves exactly like a real boto3 client — every signed AWS call goes through the SDK and uses the vault credentials. Set `timeout=` for per-call timeouts; pass `reason=` for an audit annotation.
+
+The TypeScript SDK does not ship a boto3 equivalent. For AWS in Node, use `proxy_request()` with SigV4-typed managed secrets.
+
+## Adding context
+
+Pass `context={...}` per call to enrich the audit trail:
+
+<CodeGroup>
+```python Python
+response = await vault.request(
+    HttpMethod.POST,
+    "https://api.openai.com/v1/chat/completions",
+    grant_id=OPENAI_GRANT_ID,
+    json=payload,
+    context={"tool": "summarize", "thread_id": "t-123"},
+)
+```
+
+```typescript TypeScript
+const response = await vault.request(
+  HttpMethod.POST,
+  "https://api.openai.com/v1/chat/completions",
+  {
+    grantId: OPENAI_GRANT_ID,
+    json: payload,
+    context: { tool: "summarize", thread_id: "t-123" },
+  },
+);
+```
+</CodeGroup>
+
+Stored as JSONB in the audit row. Useful for filtering audit queries later.
+
+## See also
+
+- [Overview](/managed-secrets/overview)
+- [Issuing grants](/managed-secrets/issuing-grants)
+- [SDK → Request](/sdks/python/reference/request) — full `request()`, `proxy_request()`, `boto3_client()` reference.
+- [Agents → Approvals](/agents/approvals)

@@ -1,328 +1,97 @@
 ---
-title: 'Quickstart'
-description: 'Install and start using the Alter TypeScript SDK in minutes'
+title: 'TypeScript SDK Quickstart'
+description: 'Install, instantiate, and make your first call.'
 icon: 'js'
 ---
 
-Get started with the Alter SDK for TypeScript to make authenticated API calls to any OAuth provider, manage connections, and create connect sessions. The SDK supports OAuth tokens, API keys, and custom credentials, all retrieved and injected automatically.
+The 30-second version. For the complete walkthrough — sign-up, key minting, a working Slack call — see [First 5 Minutes](/first-5-minutes).
 
-## Installation
+## Install
 
-Requires Node.js 20 or higher. TypeScript 5.0+ recommended.
+```bash
+npm install @alter-ai/alter-sdk
+```
 
-<Tabs>
-  <Tab title="npm">
-    ```bash
-    npm install @alter-ai/alter-sdk
-    ```
-  </Tab>
+Works with Node.js 18+ and any modern bundler.
 
-  <Tab title="pnpm">
-    ```bash
-    pnpm add @alter-ai/alter-sdk
-    ```
-  </Tab>
+## Instantiate
 
-  <Tab title="yarn">
-    ```bash
-    yarn add @alter-ai/alter-sdk
-    ```
-  </Tab>
-</Tabs>
+```typescript
+import { App } from "@alter-ai/alter-sdk";
 
-## Basic Setup
+const vault = new App({ apiKey: "alter_key_app_..." });
+```
+
+For agents (workload identity), use `Agent` instead:
+
+```typescript
+import { Agent } from "@alter-ai/alter-sdk";
+
+const vault = new Agent({ apiKey: "alter_key_agent_..." });
+```
+
+See [Agents → Overview](/agents/overview) for which class to use when.
+
+## Make a call
 
 ```typescript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({
-  apiKey: "alter_key_...",
-  caller: "my-agent",
-});
-
-const response = await vault.request(
-  HttpMethod.GET,
-  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-  {
-    grantId: "GRANT_ID",  // from Alter Connect (see below)
-    queryParams: { maxResults: "10" },
-  }
-);
-
-const events = await response.json();
-for (const event of events.items ?? []) {
-  console.log(`Event: ${event.summary}`);
-}
-
-await vault.close();
-```
-
-<Note>
-  **Key Principle: Zero Token Exposure** — You never see or handle OAuth tokens. The SDK retrieves them from Alter Vault and injects them automatically. All SDK-to-backend communication is cryptographically secured for integrity, authenticity, and replay protection.
-</Note>
-
-## Configuration
-
-```typescript
-import { App, CallerType } from "@alter-ai/alter-sdk";
-
-const vault = new App({
-  apiKey: "alter_key_...",              // Required: API key from dashboard
-  caller: "my-agent",                  // Optional: Caller identity for audit logs
-  callerType: CallerType.AGENT,        // Optional: AGENT (default) or SERVICE
-  timeout: 30000,                      // Optional: HTTP timeout in milliseconds
-});
-```
-
-Use `CallerType.SERVICE` for backend infrastructure callers that should be tagged as service-to-service traffic in the audit log rather than as an agent identity.
-
-Audit logging is always enabled and cannot be disabled — every API call is automatically logged for compliance. The SDK automatically includes the HTTP method and target URL in the audit trail for each token request.
-
-## Connecting an Identity Provider
-
-If the application uses an external IDP (Okta, Entra ID, Auth0, Clerk, Keycloak, or any OIDC issuer), wire it up to the SDK so every request is scoped to the signed-in end user. This is required for `provider` lookups (identity-based grant resolution) and powers group-based policies and instant deprovisioning.
-
-**One-time setup (Developer Portal):** add the IDP to the application on its Identity page — paste the OIDC issuer URL, click **Discover**, then save. Alter Vault auto-detects the IDP type and claim mappings.
-
-<Info>
-**Single-IDP rule:** each application can have only one active identity provider configuration at a time. To switch providers, remove the current IDP and add the replacement, then update JWT issuer settings and webhook/OIDC credentials for the replacement.
-</Info>
-
-See the [IDP Setup Guide](/identity-providers/quickstart) for per-provider steps.
-
-**Per-request wiring (SDK):** pass a `userTokenGetter` that returns the end user's IDP-issued JWT. The SDK attaches it to every token request so the backend can resolve the user from the JWT claims.
-
-```typescript
-import { App, HttpMethod } from "@alter-ai/alter-sdk";
-
-const vault = new App({
-  apiKey: "alter_key_...",
-  caller: "my-agent",
-  // Called before every request — return a fresh JWT for the current user.
-  // Sync or async functions are both supported.
-  userTokenGetter: () => getCurrentUserJwt(),
-});
-
-// `provider` looks up the grant that belongs to the JWT's user — no grantId needed.
-const response = await vault.request(
-  HttpMethod.GET,
-  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-  { provider: "google" },
-);
-```
-
-<Info>
-**Two resolution modes** — pass `grantId` when the caller already knows the exact grant, or pass `provider` with an active end-user token source so the backend can resolve the grant from the JWT's `sub` claim. The token source can come from constructor `userTokenGetter` or from a token cached via `vault.authenticate()`.
-</Info>
-
-**End-user login flow (optional):** if the application does not already have a JWT for the user, call `vault.authenticate()` to open a browser-based OIDC login through the IDP and receive the user profile. The SDK caches the resulting token internally and installs it as the active token getter for that `App` instance (overriding any constructor-supplied `userTokenGetter`) — configure the IDP's wallet/SDK client credentials in the Developer Portal first.
-
-```typescript
-const authResult = await vault.authenticate();
-console.log(authResult.userInfo); // { sub, email, name, ... } from the IDP
-```
-
-## Agent workloads (per-user delegation)
-
-`App` (app key, `alter_key_app_*`) is the application surface — it covers admin operations (provisioning grants, running Connect) *and* general application workloads where the backend acts under stored `grantId`s. For **AI agent workloads** with their own identity-scoped access set, use the `Agent` class instead (agent key, `alter_key_agent_*`). The agent can only reach credentials explicitly bound to it — either user-delegated OAuth grants (`oauth_grant_agent_delegations` rows, written when a user completes Connect with `agent=<this-agent>`) or agent-owned managed secrets (operator-provisioned in the Developer Portal, no user in the loop). The agent never sees tokens or grant IDs — Alter resolves the right credential at the boundary.
-
-### Agent class basics
-
-```typescript
-import { Agent, HttpMethod } from "@alter-ai/alter-sdk";
-
-const agent = new Agent({ apiKey: "alter_key_agent_..." });
-
-// Provider + end-user identity resolves to the right user-delegated grant.
-const response = await agent.request(
-  HttpMethod.GET,
-  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-  {
-    provider: "google",
-    appUserId: "user_abc",     // operator's internal id for the end user
-    userToken: endUserJwt,     // signed JWT proving the end user authorized this call
-  },
-);
-```
-
-If the end user has not delegated `google` access to this agent, `agent.request()` throws `NoDelegatedGrantError` (HTTP 404). Surface this to the application so it can run a Connect flow that includes `agent: "<agent_id>"`.
-
-### Operator runs Connect for an agent
-
-```typescript
-// Operator-driven: app provisions a Connect session that creates a delegation
-// from the end user to a specific agent in one step.
-const session = await app.createConnectSession({
-  allowedProviders: ["google"],
-  appUserId: "user_abc",
-  agent: "<agent_uuid>",
-});
-// Hand session.connectUrl to the end user.
-```
-
-### Agent self-Connect
-
-If the agent itself triggers a Connect flow (the LangChain/MCP integrations do this automatically on `NoDelegatedGrantError`):
-
-```typescript
-const session = await agent.createConnectSession({
-  allowedProviders: ["google"],
-  appUserId: "user_abc",
-  userToken: endUserJwt,
-});
-```
-
-The backend records the delegation as `end user → this agent → provider`.
-
-### Run scoping for audit trails
-
-Wrap a logical multi-call execution in `agent.trace(...)` to stamp every outgoing request with the same `runId` (and optional `threadId`/`metadata`) in the audit log:
-
-```typescript
-await agent.trace({ runId: "run_42", threadId: "thread_abc" }, async () => {
-  await agent.request(HttpMethod.GET, "https://api.example.com/a", { provider: "google", ... });
-  await agent.request(HttpMethod.POST, "https://api.example.com/b", { provider: "google", ... });
-});
-```
-
-### Revoking a delegation
-
-There are three independent revocation paths:
-
-| Who | Method | What it revokes |
-|-----|--------|-----------------|
-| Operator (admin) | `app.revokeDelegation(grantId, agentId)` | Any one delegation |
-| Agent (self) | `agent.revokeDelegation(grantId)` | The agent's own delegation for that grant |
-| End user (wallet) | Wallet UI / Wallet API | All delegations on grants the user owns |
-
-### Impersonation for audit attribution
-
-To investigate or replay actions an agent took, operators can impersonate the agent. Calls run as the agent for token retrieval, but audit logs record the operator API key as the actor:
-
-```typescript
-const agent = app.getAgent("<agent_uuid>");
-await agent.request(HttpMethod.GET, url, {
-  provider: "google",
-  appUserId: "user_abc",
-  userToken: endUserJwt,
-});
-```
-
-## Quick Error Handling
-
-```typescript
-import {
-  ReAuthRequiredError,
-  ScopeReauthRequiredError,
-  PolicyViolationError,
-  TokenRefreshInProgressError,
-  GrantNotFoundError,
-  AmbiguousGrantError,
-} from "@alter-ai/alter-sdk";
-
+const vault = new App({ apiKey: "alter_key_app_..." });
 try {
-  // Identity mode — the SDK resolves the grant from the configured
-  // userTokenGetter. AmbiguousGrantError can only be raised on this
-  // path; direct (grantId) mode addresses a single grant.
   const response = await vault.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    { provider: "google" },
+    { grantId: "grant_..." },
   );
-  return await response.json();
-} catch (e) {
-  if (e instanceof ScopeReauthRequiredError) {
-    console.log(`Scopes changed — user must re-authorize (provider: ${e.providerId}, connection: ${e.grantId})`);
-  } else if (e instanceof ReAuthRequiredError) {
-    console.log("User must re-authorize via Alter Connect");
-  } else if (e instanceof PolicyViolationError) {
-    console.log(`Access denied by policy: ${e.message} (rule: ${e.policyError})`);
-  } else if (e instanceof TokenRefreshInProgressError) {
-    // Another request is mid-refresh — transient, retry after backoff
-    console.log(`Token refresh in progress for ${e.grantId} — retry after backoff`);
-  } else if (e instanceof AmbiguousGrantError) {
-    // JWT identity resolution matched multiple active grants — supply
-    // `account` to disambiguate. Matching identifiers are exposed on the
-    // exception so the caller can prompt or pick.
-    console.log(`Multiple grants for ${e.providerId}:`, e.accountIdentifiers);
-  } else if (e instanceof GrantNotFoundError) {
-    console.log("User hasn't connected Google yet");
-  } else {
-    throw e;
-  }
+  console.log(await response.json());
 } finally {
   await vault.close();
 }
 ```
 
-## Revoking a Grant
+The SDK is promise-based. Use `await` everywhere.
 
-Permanently revoke a grant when it's no longer needed. Tokens are deleted from Vault and the grant status is set to `revoked`. The user must re-authorize via Alter Connect to restore access.
+## Identity resolution modes
 
-```typescript
-const result = await vault.revokeGrant(grantId, {
-  reason: "Agent cleanup: stale grant", // optional; stored in the audit log
+Three options. Pick per app, or per call:
+
+<CodeGroup>
+```typescript JWT (recommended)
+const vault = new App({
+  apiKey: "alter_key_app_...",
+  userTokenGetter: () => getJwtFromRequest(),
 });
-console.log(`Revoked at ${result.revokedAt}`);
+await vault.request("GET", url, { provider: "google" });
 ```
 
-`revokeGrant()` throws `GrantNotFoundError` if the grant does not exist or is already revoked.
-
-When the `App` instance has `userTokenGetter` configured, `revokeGrant()` targets a grant owned by the authenticated caller — passing a `grantId` that belongs to someone else throws `GrantNotFoundError`. See [Scoping grant operations to the authenticated user](/sdks/typescript/overview#scoping-grant-operations-to-the-authenticated-user) in the overview.
-
-## Provisioning Managed-Secret Grants
-
-`createManagedSecretGrant()` ties a managed secret to a specific principal (user, IDP group, or system). Use it when an admin or backend job needs to provision access without sending the end user through Alter Connect.
-
-```typescript
-import {
-  App,
-  type GroupPrincipal,
-  type UserPrincipal,
-  type SystemPrincipal,
-} from "@alter-ai/alter-sdk";
-
-// Tie the secret to an IDP group — every member with a verified JWT gets access
-const groupGrant = await vault.createManagedSecretGrant("a1b2c3d4-5e6f-7890-abcd-ef0123456789", {
-  principal: {
-    type: "group",
-    idpId: "idp_xyz",
-    externalGroupId: "okta-group-engineering",
-    label: "engineering-prod-stripe",
-  } satisfies GroupPrincipal,
-});
-
-// Tie the secret to a specific end user (validates userToken against the IDP).
-// `label` is required so the wallet can render meaningful copy.
-const userGrant = await vault.createManagedSecretGrant("a1b2c3d4-5e6f-7890-abcd-ef0123456789", {
-  principal: {
-    type: "user",
-    userToken: currentUserJwt,
-    label: "alice-prod-stripe-readonly",
-  } satisfies UserPrincipal,
-});
-
-// Headless system grant — no end-user identity required. `label` is optional
-// because system grants typically don't surface in the wallet.
-const systemGrant = await vault.createManagedSecretGrant("a1b2c3d4-5e6f-7890-abcd-ef0123456789", {
-  principal: { type: "system", label: "cron-stripe-charges" } satisfies SystemPrincipal,
-});
-
-console.log(groupGrant.grantId, groupGrant.principalType);
+```typescript grant_id
+const vault = new App({ apiKey: "alter_key_app_..." });
+await vault.request("GET", url, { grantId: "grant_..." });
 ```
 
-`Principal` is a discriminated union (`type` field is the discriminator). `label` is required on `UserPrincipal` and `GroupPrincipal` (rendered in the wallet) and optional on `SystemPrincipal`. The backend resolves and persists the principal: `UserPrincipal` validates the JWT and binds the grant to the resolved app user; `GroupPrincipal` upserts the IDP group; `SystemPrincipal` records a headless grant — anyone with the grant id and a valid signature for the app can retrieve the credential, so use only for backend flows with no caller user.
+```typescript Headless
+const vault = new App({ apiKey: "alter_key_app_..." });
+const results = await vault.connect({ providers: ["github"] });
+await vault.request("GET", url, { grantId: results[0].grantId });
+```
+</CodeGroup>
 
-## Next Steps
+See [Concepts → Identity resolution](/concepts/identity-resolution).
+
+## Where next
 
 <CardGroup cols={2}>
-  <Card title="SDK Overview" icon="book" href="/sdks/typescript/overview">
-    Core concepts, complete examples, actor tracking, and error handling
+  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
+    Full walkthrough including sign-up and key minting.
   </Card>
-  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
-    Full integration walkthrough with frontend + backend
+  <Card title="Reference → Client" icon="book" href="/sdks/typescript/reference/client">
+    `App` and `Agent` constructor options in full.
   </Card>
-  <Card title="Python SDK" icon="python" href="/sdks/python/quickstart">
-    Python SDK equivalent
+  <Card title="Connect.js" icon="window" href="/sdks/connect-js/quickstart">
+    Optional browser SDK for popup OAuth.
+  </Card>
+  <Card title="Identity resolution" icon="fingerprint" href="/concepts/identity-resolution">
+    JWT vs grant_id vs headless.
   </Card>
 </CardGroup>

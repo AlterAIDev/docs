@@ -1,0 +1,107 @@
+---
+title: 'Errors'
+description: 'Exception hierarchy and retry guidance.'
+icon: 'triangle-exclamation'
+---
+
+```typescript
+import {
+  AlterSDKError,
+  BackendError,
+  GrantNotFoundError,
+  GrantExpiredError,
+  GrantRevokedError,
+  AmbiguousGrantError,
+  NoDelegatedGrantError,
+  PolicyViolationError,
+  ScopeReauthRequiredError,
+  NetworkError,
+  TimeoutError,
+  ConnectFlowError,
+  ApprovalDeniedError,
+  LastActiveKeyError,
+} from "@alter-ai/alter-sdk";
+```
+
+## Hierarchy
+
+Identical to the Python SDK, with TypeScript class names:
+
+```
+AlterSDKError
+├── AlterValueError
+├── BackendError
+│   ├── ReAuthRequiredError
+│   │   ├── GrantExpiredError
+│   │   ├── GrantRevokedError
+│   │   ├── CredentialRevokedError
+│   │   └── GrantDeletedError
+│   ├── GrantNotFoundError
+│   ├── AmbiguousGrantError
+│   ├── NoDelegatedGrantError
+│   ├── PolicyViolationError
+│   └── AgentError
+│       ├── InvalidKeyError
+│       ├── AgentNotFoundError
+│       ├── AgentNameExistsError
+│       ├── AgentInactiveError
+│       ├── AgentRevokedError
+│       ├── KeyRevokedError
+│       ├── KeyAlreadyRevokedError
+│       ├── KeyNotFoundError
+│       ├── LastActiveKeyError
+│       ├── MeRequiresAgentKeyError
+│       ├── AgentCannotMintSubagentsError
+│       ├── AgentScopeNarrowingNotSupportedError
+│       ├── IdempotencyKeyBodyMismatchError
+│       ├── IdempotencyKeyAgentRevokedError
+│       └── IdempotencyKeyAgentInactiveError
+├── ConnectFlowError
+│   ├── ConnectDeniedError
+│   ├── ConnectConfigError
+│   └── ConnectTimeoutError
+├── ProviderAPIError
+│   └── ScopeReauthRequiredError
+├── ApprovalError
+│   ├── ApprovalDeniedError
+│   ├── ApprovalExpiredError
+│   ├── ApprovalTimeoutError
+│   └── ApprovalExecutionFailedError
+└── NetworkError
+    └── TimeoutError
+```
+
+## What to catch
+
+| Error | Likely cause | Action |
+|---|---|---|
+| `AlterValueError` | Bad arguments | Fix the call. Don't retry. |
+| `GrantNotFoundError` | Grant deleted, wrong ID, or JWT identity resolves to no grant | Re-run OAuth. Don't retry. |
+| `GrantExpiredError` | Refresh token expired | Re-run OAuth. |
+| `GrantRevokedError` | Revoked by user or operator | Re-run OAuth. |
+| `AmbiguousGrantError` | JWT identity, multiple grants | Pass `account` to disambiguate. Carries `appUserIds`. |
+| `NoDelegatedGrantError` | Agent has no delegation for this user | Re-run Connect with the agent set. |
+| `PolicyViolationError` | Policy denied | Inspect reason. |
+| `ScopeReauthRequiredError` | Provider rejected for missing scope | Re-run OAuth with broader scopes. |
+| `NetworkError`, `TimeoutError` | Transient | Retry with backoff. |
+| `BackendError` (other 5xx) | Transient | Retry with backoff. |
+
+## Retry guidance
+
+The SDK retries network/timeout errors automatically up to 3 times with exponential backoff. Per-call retry metadata is on `response.retryInfo: RetryInfo | null`:
+
+```typescript
+const response = await vault.request("GET", url, { grantId: g });
+if (response.retryInfo && response.retryInfo.totalAttempts > 1) {
+  console.log(`Recovered after ${response.retryInfo.totalAttempts} attempts`);
+}
+```
+
+The matching Python field is `response.retry_info.total_attempts`.
+
+Avoid wrapping `request()` in an additional retry loop for transient errors — the SDK already retries. Retry application-level transient logic (DB calls, queue publishes) around `BackendError`.
+
+## See also
+
+- [Request](/sdks/typescript/reference/request)
+- [Types](/sdks/typescript/reference/types)

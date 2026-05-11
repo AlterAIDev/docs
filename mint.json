@@ -48,60 +48,133 @@
       "url": "https://alterauth.com/blog"
     }
   ],
+  "redirects": [
+    { "source": "/quickstart", "destination": "/first-5-minutes" },
+    { "source": "/oauth-overview", "destination": "/oauth/overview" },
+    { "source": "/managed-secrets-overview", "destination": "/managed-secrets/overview" },
+    { "source": "/choosing-credential-type", "destination": "/concepts/what-is-alter-vault" },
+    { "source": "/choosing-principal", "destination": "/concepts/principals-and-grants" },
+    { "source": "/identity-providers/overview", "destination": "/oauth/identity-providers/overview" },
+    { "source": "/identity-providers/quickstart", "destination": "/oauth/identity-providers/overview" },
+    { "source": "/identity-providers/supported-providers", "destination": "/oauth/identity-providers/overview" },
+    { "source": "/sdks/python/overview", "destination": "/sdks/overview" },
+    { "source": "/sdks/typescript/overview", "destination": "/sdks/overview" },
+    { "source": "/sdks/javascript/quickstart", "destination": "/sdks/connect-js/quickstart" },
+    { "source": "/sdks/javascript/overview", "destination": "/sdks/connect-js/quickstart" },
+    { "source": "/sdks/javascript/reference", "destination": "/sdks/connect-js/reference" },
+    { "source": "/reference/wallet", "destination": "/wallet/overview" },
+    { "source": "/reference/managed-secrets", "destination": "/managed-secrets/overview" }
+  ],
   "navigation": [
     {
       "group": "Getting Started",
       "pages": [
         "index",
-        "quickstart",
-        "oauth-overview",
-        "managed-secrets-overview",
-        "choosing-credential-type",
-        "choosing-principal"
+        "concepts/what-is-alter-vault",
+        "first-5-minutes",
+        "concepts/principals-and-grants",
+        "concepts/identity-resolution"
       ]
     },
     {
-      "group": "Guides",
+      "group": "OAuth Grants",
       "pages": [
-        "guides/mcp-claude-code"
-      ]
-    },
-    {
-      "group": "SDKs",
-      "pages": [
+        "oauth/overview",
+        "oauth/jwt-identity",
+        "oauth/grant-id-identity",
+        "oauth/headless",
+        "oauth/managing-grants",
         {
-          "group": "Python SDK",
+          "group": "Identity Providers",
           "pages": [
-            "sdks/python/quickstart",
-            "sdks/python/overview",
-            "sdks/python/fastapi",
-            "sdks/python/mcp",
-            "sdks/python/langchain"
-          ]
-        },
-        {
-          "group": "TypeScript SDK",
-          "pages": [
-            "sdks/typescript/quickstart",
-            "sdks/typescript/overview"
-          ]
-        },
-        {
-          "group": "Alter Connect",
-          "pages": [
-            "sdks/javascript/quickstart",
-            "sdks/javascript/overview",
-            "sdks/javascript/reference"
+            "oauth/identity-providers/overview",
+            "oauth/identity-providers/auth0",
+            "oauth/identity-providers/clerk",
+            "oauth/identity-providers/okta",
+            "oauth/identity-providers/keycloak",
+            "oauth/identity-providers/workos",
+            "oauth/identity-providers/custom-oidc"
           ]
         }
       ]
     },
     {
-      "group": "Identity Providers",
+      "group": "Managed Secrets",
       "pages": [
-        "identity-providers/overview",
-        "identity-providers/quickstart",
-        "identity-providers/supported-providers"
+        "managed-secrets/overview",
+        "managed-secrets/issuing-grants",
+        "managed-secrets/using-grants"
+      ]
+    },
+    {
+      "group": "Agents",
+      "pages": [
+        "agents/overview",
+        "agents/creating-agents",
+        "agents/keys-and-rotation",
+        "agents/agent-runtime",
+        "agents/approvals"
+      ]
+    },
+    {
+      "group": "SDKs",
+      "pages": [
+        "sdks/overview",
+        {
+          "group": "Python",
+          "pages": [
+            "sdks/python/quickstart",
+            "sdks/python/fastapi",
+            "sdks/python/mcp",
+            "sdks/python/langchain",
+            {
+              "group": "Reference",
+              "pages": [
+                "sdks/python/reference/client",
+                "sdks/python/reference/request",
+                "sdks/python/reference/grants",
+                "sdks/python/reference/connect",
+                "sdks/python/reference/agents",
+                "sdks/python/reference/approvals",
+                "sdks/python/reference/errors",
+                "sdks/python/reference/types"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "TypeScript",
+          "pages": [
+            "sdks/typescript/quickstart",
+            {
+              "group": "Reference",
+              "pages": [
+                "sdks/typescript/reference/client",
+                "sdks/typescript/reference/request",
+                "sdks/typescript/reference/grants",
+                "sdks/typescript/reference/connect",
+                "sdks/typescript/reference/agents",
+                "sdks/typescript/reference/approvals",
+                "sdks/typescript/reference/errors",
+                "sdks/typescript/reference/types"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "Connect.js",
+          "pages": [
+            "sdks/connect-js/quickstart",
+            "sdks/connect-js/reference"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Guides",
+      "pages": [
+        "guides/mcp-claude-code",
+        "guides/agentic-app-pattern"
       ]
     },
     {
@@ -330,14 +403,21 @@
       ]
     },
     {
-      "group": "Reference",
+      "group": "Platform Reference",
       "pages": [
         "reference/architecture",
-        "reference/managed-secrets",
         "reference/policies",
         "reference/audit-logs",
-        "reference/wallet",
-        "reference/developer-portal"
+        "reference/developer-portal",
+        "reference/glossary"
+      ]
+    },
+    {
+      "group": "End-User Docs",
+      "pages": [
+        "wallet/overview",
+        "wallet/managing-grants",
+        "wallet/security"
       ]
     }
   ],

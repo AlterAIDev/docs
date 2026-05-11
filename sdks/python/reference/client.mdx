@@ -1,0 +1,104 @@
+---
+title: 'Client'
+description: 'App and Agent constructors, lifecycle, base URL, retry metadata.'
+icon: 'box'
+---
+
+```python
+from alter_sdk import App, Agent
+```
+
+## `App`
+
+The operator/admin client. Constructed with an app key (`alter_key_app_…`).
+
+### Signature
+
+```python
+App(
+    api_key: str,
+    *,
+    timeout: float = 30.0,
+    caller: str | None = None,
+    caller_type: CallerType | str = CallerType.SERVICE,
+    user_token_getter: Callable[[], str | Awaitable[str]] | None = None,
+)
+```
+
+### Parameters
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | required | App API key. |
+| `timeout` | `float` | `30.0` | HTTP request timeout in seconds. |
+| `caller` | `str \| None` | `None` | Audit attribution label. Free-form string or a managed-agent UUID. See [Concepts → Caller](/concepts/principals-and-grants#caller). |
+| `caller_type` | `CallerType` | `SERVICE` | `SERVICE` (default) or `AGENT` (shows in dev-portal Agents tab). |
+| `user_token_getter` | callable \| None | `None` | Sync or async callable returning a JWT for [identity resolution](/concepts/identity-resolution). |
+
+### Properties
+
+| Property | Type | Notes |
+|---|---|---|
+| `actor_id` | `str \| None` | Cached actor UUID. |
+| `agents` | `AgentsNamespace` | See [Agents reference](/sdks/python/reference/agents). |
+| `base_url` | `str` | Resolved Alter Vault endpoint. Diagnostic only. |
+| `last_retry_info` | `RetryInfo \| None` | Retry metadata from the most recent `request()`. |
+
+### Example
+
+```python
+from alter_sdk import App
+
+vault = App(
+    api_key="alter_key_app_...",
+    caller="email-research-bot",
+    user_token_getter=lambda: get_jwt(),
+)
+```
+
+## `Agent`
+
+The workload client. Constructed with an agent key (`alter_key_agent_…`).
+
+### Signature
+
+```python
+Agent(
+    api_key: str,
+    *,
+    timeout: float = 30.0,
+    caller: str | None = None,
+    user_token_getter: Callable[[], str | Awaitable[str]] | None = None,
+)
+```
+
+### Parameters
+
+Same as `App`, except `caller_type` is implicit (always `AGENT`). `user_token_getter` is allowed but **per-call combination of an agent key with a `user_token` returns HTTP 400** — see [Agents → Overview](/agents/overview).
+
+### Example
+
+```python
+from alter_sdk import Agent
+
+vault = Agent(api_key="alter_key_agent_...")
+me = await vault.me()
+print(me.id, me.name)
+```
+
+## Lifecycle
+
+Both classes are async-safe. Always call `close()` to release the underlying HTTP pool, or use the async context manager:
+
+```python
+async with App(api_key=KEY) as vault:
+    response = await vault.request("GET", url, grant_id=g)
+# automatically closed
+```
+
+## See also
+
+- [Request](/sdks/python/reference/request)
+- [Connect](/sdks/python/reference/connect)
+- [Agents](/sdks/python/reference/agents)
+- [Errors](/sdks/python/reference/errors)

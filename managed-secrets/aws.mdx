@@ -8,8 +8,8 @@ description: 'Connect AWS to Alter Vault using access keys for secure API access
 Use AWS credentials to make authenticated API calls through Alter Vault without exposing your API keys in code. The SDK computes the full AWS Signature Version 4 (SigV4) signature automatically.
 
 Two ways to call AWS services:
-- **`vault.request()`** -- works in both Python and TypeScript. No AWS SDK dependency; the SDK handles SigV4 signing internally.
-- **`vault.boto3_client()`** -- Python only. Returns a native boto3 service client so you can use the familiar boto3 API (e.g., `client.list_objects_v2(Bucket="...")`), with every call routed through Alter Vault for credential management, policy enforcement, and audit logging.
+- **`alter_app.request()`** -- works in both Python and TypeScript. No AWS SDK dependency; the SDK handles SigV4 signing internally.
+- **`alter_app.boto3_client()`** -- Python only. Returns a native boto3 service client with the familiar boto3 API (e.g., `client.list_objects_v2(Bucket="...")`). Every call is routed through Alter Vault for credential management, policy enforcement, and audit logging.
 
 | Property | Value |
 |----------|-------|
@@ -67,9 +67,9 @@ Two ways to call AWS services:
 
 A single AWS credential works across any AWS service. Just pass the standard AWS endpoint URL -- the SDK detects the region and service from the hostname and signs the request automatically.
 
-### Option A: vault.request() (Python & TypeScript)
+### Option A: alter_app.request() (Python & TypeScript)
 
-Use `vault.request()` when you want a lightweight approach with no AWS SDK dependency. The SDK computes SigV4 signatures internally using standard cryptographic libraries.
+Use `alter_app.request()` for a lightweight approach with no AWS SDK dependency. The SDK computes SigV4 signatures internally using standard cryptographic libraries.
 
 <CodeGroup>
 
@@ -79,16 +79,16 @@ from alter_sdk import App, HttpMethod
 async with App(
     api_key="alter_key_...",
     caller="my-agent",
-) as vault:
+) as alter_app:
     # S3
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.GET,
         "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
         grant_id="YOUR_GRANT_ID",
     )
 
     # Bedrock (same credential, different service and region)
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.POST,
         "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
         grant_id="YOUR_GRANT_ID",
@@ -96,7 +96,7 @@ async with App(
     )
 
     # Lambda
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.POST,
         "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
         grant_id="YOUR_GRANT_ID",
@@ -107,46 +107,46 @@ async with App(
 ```typescript TypeScript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({
+const alterApp = new App({
   apiKey: "alter_key_...",
   caller: "my-agent",
 });
 
 try {
   // S3
-  const s3Response = await vault.request(
+  const s3Response = await alterApp.request(
     HttpMethod.GET,
     "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
     { grantId: "YOUR_GRANT_ID" },
   );
 
   // Bedrock (same credential, different service and region)
-  const bedrockResponse = await vault.request(
+  const bedrockResponse = await alterApp.request(
     HttpMethod.POST,
     "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-3-5-sonnet-20241022-v2:0/invoke",
     { grantId: "YOUR_GRANT_ID", json: { prompt: "Hello" } },
   );
 
   // Lambda
-  const lambdaResponse = await vault.request(
+  const lambdaResponse = await alterApp.request(
     HttpMethod.POST,
     "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
     { grantId: "YOUR_GRANT_ID", json: { key: "value" } },
   );
 } finally {
-  await vault.close();
+  await alterApp.close();
 }
 ```
 
 </CodeGroup>
 
-### Option B: vault.boto3_client() (Python only)
+### Option B: alter_app.boto3_client() (Python only)
 
 <Info>
-  **Python only.** This feature is not available in the TypeScript SDK. TypeScript users should use `vault.request()` above.
+  **Python only.** This feature is not available in the TypeScript SDK. TypeScript users should use `alter_app.request()` above.
 </Info>
 
-If you prefer the native boto3 API, `vault.boto3_client()` returns a standard boto3 service client. Every call made through that client is automatically routed through Alter Vault for credential retrieval, SigV4 signing, policy enforcement, and audit logging. You get the full boto3 experience (response parsing, pagination, error types like `ClientError`) without managing AWS credentials in your code.
+For applications that prefer the native boto3 API, `alter_app.boto3_client()` returns a standard boto3 service client. Every call made through that client is automatically routed through Alter Vault for credential retrieval, SigV4 signing, policy enforcement, and audit logging. This provides the full boto3 experience (response parsing, pagination, error types like `ClientError`) without managing AWS credentials in application code.
 
 Install the optional AWS extra:
 
@@ -162,9 +162,9 @@ async def main():
     async with App(
         api_key="alter_key_...",
         caller="my-agent",
-    ) as vault:
+    ) as alter_app:
         # Create a boto3 S3 client routed through Alter Vault
-        s3 = await vault.boto3_client(
+        s3 = await alter_app.boto3_client(
             "s3",
             grant_id="YOUR_GRANT_ID",
             region_name="us-east-1",
@@ -179,7 +179,7 @@ async def main():
             print(f"{obj['Key']} ({obj['Size']} bytes)")
 
         # Same credential, different service
-        dynamodb = await vault.boto3_client(
+        dynamodb = await alter_app.boto3_client(
             "dynamodb",
             grant_id="YOUR_GRANT_ID",
             region_name="us-east-1",
@@ -211,7 +211,7 @@ asyncio.run(main())
 **Error handling** works natively -- boto3 raises `botocore.exceptions.ClientError` for AWS errors (e.g., `NoSuchBucket`, `AccessDenied`), just like a regular boto3 client. Alter Vault-level errors (closed client, network issues) raise `AlterSDKError`.
 
 <Warning>
-  Responses are fully buffered in memory. For large payloads (e.g., `s3.get_object()` on multi-GB files), use `vault.request()` with httpx streaming instead.
+  Responses are fully buffered in memory. For large payloads (e.g., `s3.get_object()` on multi-GB files), use `alter_app.request()` with httpx streaming instead.
 </Warning>
 
 ## Supported URL Patterns
@@ -234,7 +234,7 @@ The SDK auto-detects region and service from these AWS hostname formats:
 ## Notes
 
 - **One credential, many services** -- a single IAM access key can call S3, Lambda, Bedrock, DynamoDB, CloudWatch, and any other AWS service. The SDK signs each request with the correct service and region from the URL.
-- **No AWS SDK dependency for `vault.request()`** -- the SDK computes SigV4 signatures using only standard cryptographic libraries. You do not need boto3 (Python) or the AWS SDK (Node.js) to use `vault.request()`.
-- **Optional boto3 integration (Python only)** -- if you prefer native boto3 methods and response types, install `alter-sdk[aws]` and use `vault.boto3_client()`. See [Option B](#option-b-vaultboto3_client-python-only) above.
+- **No AWS SDK dependency for `alter_app.request()`** -- the SDK computes SigV4 signatures using only standard cryptographic libraries. boto3 (Python) or the AWS SDK (Node.js) is not required for `alter_app.request()`.
+- **Optional boto3 integration (Python only)** -- for native boto3 methods and response types, install `alter-sdk[aws]` and use `alter_app.boto3_client()`. See [Option B](#option-b-alter_appboto3_client-python-only) above.
 - **Least-privilege IAM** -- always create credentials on an IAM user or role with only the permissions your application needs. Never use root account access keys.
 - **Credential rotation** -- when you rotate your AWS access key, update it in the Developer Portal. All connections using that secret will immediately use the new key.

@@ -1,0 +1,68 @@
+---
+title: 'Wallet Security'
+description: 'What Alter Wallet stores, what it does not, and who can see it.'
+icon: 'shield'
+---
+
+*The short version: tokens stay in the vault. Wallet shows end users metadata about their grants — never the tokens themselves.*
+
+## What Wallet displays
+
+| Visible to the end user | Visible to the app | Visible to Alter staff |
+|---|---|---|
+| Provider, scopes, expiry | Same | Same |
+| Audit log of every API call | Same (in the app's dashboard) | Same |
+| Which agents accessed the user's data | Same | Same |
+| The actual OAuth tokens | **No — tokens never leave the vault** | **No** |
+| Decrypted credentials | **No** | **No** |
+
+Apps see audit data because they made the calls. Alter staff see operational metadata for support and abuse handling, never decrypted credentials.
+
+## How tokens are stored
+
+When an end user authorizes an OAuth flow:
+
+- The provider's tokens are encrypted and stored in a dedicated vault, separate from any app database.
+- The app gets an opaque grant identifier that points to the credential. The app never sees the tokens themselves.
+- When the app calls a third-party API, the Alter backend resolves the credential, signs the upstream call, and returns the response.
+
+## Authentication
+
+Wallet sign-in goes through the **identity provider** the connecting app uses (Auth0, Clerk, Okta, etc.). Alter does not store passwords for end users; the IDP is the source of truth for end-user authentication, and Wallet trusts its JWT to identify the signed-in user.
+
+Whatever authentication factors the IDP enforces (SSO, MFA, hardware keys) apply to Wallet automatically.
+
+## What revoking actually does
+
+When an end user clicks Revoke on a grant:
+
+1. The grant status flips to `revoked` immediately.
+2. The associated credential is removed from the vault.
+3. Any in-flight API call from the app continues; the next call fails with a revocation error.
+4. A security audit row records who revoked, when, and from where (Wallet, SDK, or developer portal).
+
+There is no soft-delete. Revocation is permanent — to restore access the end user must re-authorize the app.
+
+## What apps cannot do
+
+- Apps cannot read tokens, even with their own SDK key.
+- Apps cannot bypass Wallet revocation by caching the token themselves — apps never had the token.
+- An app cannot see another app's grants for the same provider, even if the same end user authorized both apps.
+
+## What Alter cannot do
+
+- Alter staff cannot decrypt vault contents on demand.
+- Alter staff cannot impersonate an end user in Wallet. Wallet signs the user in via the IDP, and the IDP is the source of truth for "who is logged in."
+
+## Reporting a concern
+
+To report apparent misuse of credentials or unexpected agent activity in the audit log:
+
+- **First**: revoke the grant from Wallet. That immediately stops further access.
+- **Then**: email **founders@alterauth.com** with the grant ID and a brief description. The team can pull operational logs to investigate.
+
+## See also
+
+- [Wallet overview](/wallet/overview)
+- [Managing grants](/wallet/managing-grants)
+- [Reference → Architecture](/reference/architecture) — the full security model.

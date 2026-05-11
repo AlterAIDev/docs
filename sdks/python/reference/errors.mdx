@@ -1,0 +1,102 @@
+---
+title: 'Errors'
+description: 'Exception hierarchy and retry guidance.'
+icon: 'triangle-exclamation'
+---
+
+```python
+from alter_sdk import (
+    AlterSDKError,
+    BackendError,
+    GrantNotFoundError,
+    GrantExpiredError,
+    GrantRevokedError,
+    AmbiguousGrantError,
+    NoDelegatedGrantError,
+    PolicyViolationError,
+    ScopeReauthRequiredError,
+    NetworkError,
+    TimeoutError,
+    ConnectFlowError,
+    ApprovalDeniedError,
+    LastActiveKeyError,
+)
+```
+
+## Hierarchy
+
+```
+AlterSDKError
+├── AlterValueError                    # bad arguments before backend call
+├── BackendError                       # backend rejected the call
+│   ├── ReAuthRequiredError            # the grant is no longer usable
+│   │   ├── GrantExpiredError
+│   │   ├── GrantRevokedError
+│   │   ├── CredentialRevokedError
+│   │   └── GrantDeletedError
+│   ├── GrantNotFoundError
+│   ├── AmbiguousGrantError            # JWT identity, multiple matching grants
+│   ├── NoDelegatedGrantError          # agent has no delegation for the user
+│   ├── PolicyViolationError
+│   └── AgentError                     # base for agent / key errors
+│       ├── InvalidKeyError
+│       ├── AgentNotFoundError
+│       ├── AgentNameExistsError
+│       ├── AgentInactiveError
+│       ├── AgentRevokedError
+│       ├── KeyRevokedError
+│       ├── KeyAlreadyRevokedError
+│       ├── KeyNotFoundError
+│       ├── LastActiveKeyError
+│       ├── MeRequiresAgentKeyError
+│       ├── AgentCannotMintSubagentsError
+│       ├── AgentScopeNarrowingNotSupportedError
+│       ├── IdempotencyKeyBodyMismatchError
+│       ├── IdempotencyKeyAgentRevokedError
+│       └── IdempotencyKeyAgentInactiveError
+├── ConnectFlowError                   # vault.connect() failures
+│   ├── ConnectDeniedError
+│   ├── ConnectConfigError
+│   └── ConnectTimeoutError
+├── ProviderAPIError                   # upstream provider returned non-2xx
+│   └── ScopeReauthRequiredError       # provider says scopes are insufficient
+├── ApprovalError
+│   ├── ApprovalDeniedError
+│   ├── ApprovalExpiredError
+│   ├── ApprovalTimeoutError
+│   └── ApprovalExecutionFailedError
+└── NetworkError
+    └── TimeoutError
+```
+
+## What to catch
+
+| Exception | Likely cause | Action |
+|---|---|---|
+| `AlterValueError` | Bad arguments | Fix the call. Don't retry. |
+| `GrantNotFoundError` | Grant deleted, wrong ID, or JWT identity resolves to a user with no grant | Re-run OAuth. Don't retry. |
+| `GrantExpiredError` | Refresh token expired | Re-run OAuth. Don't retry. |
+| `GrantRevokedError` | Revoked by user or operator | Re-run OAuth. Don't retry. |
+| `AmbiguousGrantError` | JWT identity, user has multiple grants | Pass `account=` to disambiguate. Carries `app_user_ids`. |
+| `NoDelegatedGrantError` | Agent has no delegation for this user | Re-run Connect with `agent=` set. |
+| `PolicyViolationError` | Policy denied the call | Inspect policy reason. Don't retry. |
+| `ScopeReauthRequiredError` | Provider rejected for missing scope | Re-run OAuth with broader scopes. |
+| `NetworkError`, `TimeoutError` | Transient | Retry with backoff. |
+| `BackendError` (other 5xx) | Transient | Retry with backoff. |
+
+## Retry guidance
+
+The SDK retries network/timeout errors automatically up to 3 times with exponential backoff. Per-call retry metadata is on `response.retry_info: RetryInfo | None`:
+
+```python
+response = await vault.request("GET", url, grant_id=g)
+if response.retry_info and response.retry_info.total_attempts > 1:
+    print(f"Recovered after {response.retry_info.total_attempts} attempts")
+```
+
+Avoid wrapping `request()` in an additional retry loop for transient errors — the SDK already retries. Retry **application-level** transient logic (DB calls, queue publishes) around `BackendError`.
+
+## See also
+
+- [Request](/sdks/python/reference/request)
+- [Types](/sdks/python/reference/types) — `RetryInfo`, `RetryErrorInfo`.

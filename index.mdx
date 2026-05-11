@@ -1,273 +1,91 @@
 ---
-title: 'Welcome to Alter Vault'
-description: 'The authorization layer for AI agents. Centralized credential management, identity-aware policies, and full audit trails across every downstream service.'
+title: 'Alter Vault'
+description: 'The credential and authorization layer for apps and AI agents that call third-party APIs on behalf of users.'
 ---
 
-## Identity-aware access control for AI agents
-
-Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enforces authorization tied to both end-user and agent identity, and logs every access with full actor context.
+Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enforces identity-aware authorization on every retrieval, and logs every access with full actor context. Application code becomes a single call: `vault.request(method, url, grant_id=...)`.
 
 <CardGroup cols={2}>
-  <Card
-    title="Quickstart"
-    icon="rocket"
-    href="/quickstart"
-  >
-    Get up and running in under 5 minutes
+  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
+    Sign up, mint a key, and post a Slack message from app code. Hands-on, end-to-end, under five minutes.
   </Card>
-  <Card
-    title="Python SDK"
-    icon="python"
-    href="/sdks/python/quickstart"
-  >
-    Install and use our Python SDK
-  </Card>
-  <Card
-    title="Alter Connect"
-    icon="window"
-    href="/sdks/javascript/quickstart"
-  >
-    Frontend SDK for OAuth connection UI
-  </Card>
-  <Card
-    title="Managed Secrets"
-    icon="key"
-    href="/reference/managed-secrets"
-  >
-    Store API keys and service credentials securely
+  <Card title="What is Alter Vault?" icon="compass" href="/concepts/what-is-alter-vault">
+    A one-page mental model. Read this once before anything else.
   </Card>
 </CardGroup>
 
-## Why Alter Vault?
+## Pick a path
 
-### Token Vault for Downstream Providers
-OAuth tokens and API keys are encrypted and stored in a dedicated vault, never in the application database. Token refresh, lifecycle management, and credential injection happen automatically through `vault.request()`.
+<CardGroup cols={2}>
+  <Card title="Developer integrating Alter" icon="code" href="/concepts/what-is-alter-vault">
+    OAuth grants, managed secrets, agents, SDK reference — everything required to ship.
+  </Card>
+  <Card title="End user" icon="user" href="/wallet/overview">
+    See and revoke the apps holding end-user credentials in [Alter Wallet](https://wallet.alterauth.com).
+  </Card>
+</CardGroup>
 
-### Identity-Aware Authorization
-Every credential access is checked against two identities: the end user whose credentials are being used, and the agent requesting them. One [policy layer](/reference/policies) governs which actors get access to which credentials, down to the provider and action level.
+## The three things to work with
 
-### Dual-Identity Audit Logging
-Every access is logged with both the end-user identity and the actor identity: which agent, which tool, which action. Answer "what was Alice's data used for?" and "what did Agent X access across all users?"
+<CardGroup cols={3}>
+  <Card title="OAuth grants" icon="user-check" href="/oauth/overview">
+    For credentials that end users authorize — Gmail, Slack, GitHub.
+  </Card>
+  <Card title="Managed secrets" icon="key" href="/managed-secrets/overview">
+    For credentials the developer provisions — API keys, service tokens.
+  </Card>
+  <Card title="Agents" icon="robot" href="/agents/overview">
+    For workloads that need their own identity, key, and audit trail.
+  </Card>
+</CardGroup>
 
-### Security and Compliance
-Fail-closed by design: if authorization cannot be enforced, credential access is denied. Every access is logged for SOC 2, GDPR, and HIPAA compliance.
+## Why Alter Vault
 
-## How It Works
+- **Zero token exposure.** Tokens never leave the backend. The SDK only ever holds a short-lived HMAC key, derived once at construction.
+- **Identity-aware authorization.** Every credential access is checked against both the end-user identity and the agent identity. One [policy layer](/reference/policies) governs which actors get access to which credentials.
+- **Dual-identity audit logging.** Every access is logged with both the end-user identity and the actor identity. Answer "what was Alice's data used for?" and "what did Agent X access?"
+- **Fail-closed by design.** When authorization cannot be enforced, credential access is denied. Built for SOC 2, GDPR, and HIPAA compliance.
+- **Drop-in replacement.** `vault.request()` acts as the application's HTTP client — same surface as `httpx` or `fetch`, with the credential injected automatically.
 
-Alter Vault manages two types of credentials -**OAuth grants** and **managed secrets** -both accessed through the same `vault.request()` method.
+## Quick example
 
-`vault.request()` **acts as the HTTP client**. Instead of calling `fetch` or `httpx` directly and constructing auth headers manually, call `vault.request()` with a `grant_id` and the target URL. The SDK makes the HTTP request with the correct credential automatically injected. Application code never sees, stores, or handles tokens or secrets, eliminating the risk of accidental leakage through logs, error messages, or insecure storage.
-
-| | OAuth Connections | Managed Secrets |
-|---|---|---|
-| **Use case** | Third-party services (Google, Slack, GitHub) | Internal APIs and services (API keys, service tokens) |
-| **Who provides credentials** | **End user** authorizes via OAuth | **Developer** stores via portal |
-| **Where `grant_id` comes from** | `onSuccess` callback after user completes OAuth | Developer Portal when storing a secret |
-
-<Steps>
-  <Step title="Get a grant_id">
-    **OAuth**: The end user authorizes via Alter Connect UI → `onSuccess` returns a `grant_id`. **Managed Secrets**: Store credentials in the Developer Portal → portal returns a `grant_id`.
-  </Step>
-
-  <Step title="We Encrypt & Store">
-    All credentials are encrypted (AES-256-GCM) and stored in a secure vault, never in the application database
-  </Step>
-
-  <Step title="Call vault.request()">
-    `vault.request()` acts as the HTTP client, making the API call and injecting the right credential automatically. The token never touches application code.
-  </Step>
-
-  <Step title="Alter Handles the Rest">
-    Token refresh, policy enforcement, audit logging, all automatic
-  </Step>
-</Steps>
-
-## Our SDKs
-
-<Info>
-**SDKs and tools:**
-- **Python / TypeScript SDK (`alter-sdk` / `@alter-ai/alter-sdk`)** - Backend SDK for creating OAuth sessions and making authenticated API calls via `vault.request()`. Works with both OAuth grants and managed secrets.
-- **Alter Connect UI** - Hosted page where users complete OAuth. The backend creates a session and gets a `connect_url` that works in any browser. No frontend SDK required.
-- **Connect SDK (`@alter-ai/connect`)** - **Optional** frontend SDK that opens the Alter Connect UI in a popup with `onSuccess`/`onError` callbacks. Useful for SPAs, but not required.
-</Info>
-
-## Quick Example
+This is the call written in [First 5 Minutes](/first-5-minutes). It posts a Slack message; the token never touches application code.
 
 <CodeGroup>
-
-```python Python (Headless)
-import asyncio
+```python Python
 from alter_sdk import App, HttpMethod
 
-async def main():
-    vault = App(
-        api_key="alter_key_...",
-        caller="my-agent",
-    )
-
-    # Open browser → user authorizes → SDK returns connections
-    results = await vault.connect(
-        providers=["google"],
-    )
-
-    # Make API calls with the grant
-    response = await vault.request(
-        HttpMethod.GET,
-        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        grant_id=results[0].grant_id,
-        query_params={"maxResults": "10"},
-    )
-    events = response.json()
-    print(f"Found {len(events.get('items', []))} events")
-
-    await vault.close()
-
-asyncio.run(main())
-```
-
-```javascript JavaScript (Web App)
-import AlterConnect from '@alter-ai/connect';
-
-// Create Connect instance
-const alterConnect = AlterConnect.create();
-
-// Open OAuth flow
-async function connectProvider() {
-    // Call YOUR backend to create a session
-    const { session_token } = await fetch('/api/connect/session')
-        .then(r => r.json());
-
-    await alterConnect.open({
-        token: session_token,
-        onSuccess: (connections) => {
-            // User completed OAuth! Store each grant_id in your DB.
-            for (const conn of connections) {
-                console.log('Connected!', conn.grant_id, conn.provider);
-            }
-        }
-    });
-}
-```
-
-```python Backend (Session Creation)
-from alter_sdk import App
-
-vault = App(
-    api_key="alter_key_...",
-    caller="my-app",
+vault = App(api_key=ALTER_API_KEY)
+response = await vault.request(
+    HttpMethod.POST,
+    "https://slack.com/api/chat.postMessage",
+    grant_id=SLACK_GRANT_ID,
+    json={"channel": "#general", "text": "Hello from Alter Vault."},
 )
-
-# Create session for frontend
-session = await vault.create_connect_session()
-session_token = session.session_token
 ```
 
+```typescript TypeScript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const vault = new App({ apiKey: ALTER_API_KEY });
+const response = await vault.request(
+  HttpMethod.POST,
+  "https://slack.com/api/chat.postMessage",
+  { grantId: SLACK_GRANT_ID, json: { channel: "#general", text: "Hello from Alter Vault." } },
+);
+```
 </CodeGroup>
 
-## Supported Providers
+## Get started
 
-Enforce permissions across the services end users already rely on:
-
-<CardGroup cols={4}>
-  <Card title="Google" icon="google">
-    Gmail, Calendar, Drive, Sheets
+<CardGroup cols={3}>
+  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
+    Hands-on walkthrough.
   </Card>
-  <Card title="Slack" icon="slack">
-    Messages, Channels, Files
+  <Card title="Principals and grants" icon="user-shield" href="/concepts/principals-and-grants">
+    The vocabulary the rest of the docs assume.
   </Card>
-  <Card title="GitHub" icon="github">
-    Repos, Issues, PRs, Actions
-  </Card>
-  <Card title="Asana" icon="list-check">
-    Tasks, Projects, Portfolios
-  </Card>
-  <Card title="Notion" icon="n">
-    Pages, Databases, Workspaces
-  </Card>
-  <Card title="Atlassian" icon="jira">
-    Jira, Confluence
-  </Card>
-  <Card title="Adobe" icon="adobe">
-    Creative Cloud, Document Cloud
-  </Card>
-  <Card title="20+ More" icon="plus">
-    Calendly, ClickUp, Canva, Box, Bitbucket, Apollo, and more
-  </Card>
-</CardGroup>
-
-## Built for Developers
-
-<AccordionGroup>
-  <Accordion title="One Method, Full Enforcement">
-    `vault.request()` handles credential injection, authorization checks, and audit logging in a single call. No custom auth logic in every agent workflow.
-  </Accordion>
-
-  <Accordion title="Works with Any Identity Provider">
-    Propagate user identity from Auth0, Clerk, Supabase, Firebase, or any OIDC provider. Alter Vault enforces policy. The IdP stays the source of truth.
-  </Accordion>
-
-  <Accordion title="Track Every Agent Action">
-    Every credential access is logged with both end-user and agent identity. Know which agent accessed what data, for which user, and when. Export for SOC 2, GDPR, and HIPAA.
-  </Accordion>
-
-  <Accordion title="Scale Confidently">
-    Handle millions of credentials across hundreds of providers with sub-10ms cached retrieval.
-  </Accordion>
-</AccordionGroup>
-
-## Getting Started
-
-<Steps>
-  <Step title="Sign Up">
-    Create a free account at [portal.alterauth.com](https://portal.alterauth.com)
-  </Step>
-
-  <Step title="Create an App">
-    Set up a new application in the Developer Portal
-  </Step>
-
-  <Step title="Configure Providers">
-    Add OAuth credentials for Google, Slack, GitHub, etc.
-  </Step>
-
-  <Step title="Install SDK">
-    Add `alter-sdk` (Python) or `@alter-ai/alter-sdk` (TypeScript)
-  </Step>
-
-  <Step title="Connect Users">
-    Use Alter Connect UI for OAuth authorization
-  </Step>
-</Steps>
-
-## Support
-
-<CardGroup cols={2}>
-  <Card
-    title="Documentation"
-    icon="book"
-    href="/quickstart"
-  >
-    Read our guides and tutorials
-  </Card>
-  <Card
-    title="Audit Logs"
-    icon="clipboard-list"
-    href="/reference/audit-logs"
-  >
-    Compliance and observability
-  </Card>
-  <Card
-    title="Architecture"
-    icon="building"
-    href="/reference/architecture"
-  >
-    Security model and design
-  </Card>
-  <Card
-    title="Email Support"
-    icon="envelope"
-    href="mailto:founders@alterauth.com"
-  >
-    Contact our support team
+  <Card title="Provider directory" icon="puzzle-piece" href="/providers/google">
+    100+ providers, each with a setup page.
   </Card>
 </CardGroup>

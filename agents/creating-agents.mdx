@@ -1,0 +1,132 @@
+---
+title: 'Creating Agents'
+description: 'The operator surface for provisioning and managing agents.'
+icon: 'plus'
+---
+
+*Operator-side surface — provisioning agents, listing them, updating them.* For minting and rotating agent keys, see [Keys and rotation](/agents/keys-and-rotation). For runtime use of the agent identity in code, see [Agent runtime](/agents/agent-runtime).
+
+All methods on this page live under `App.agents` — they require an app API key (`alter_key_app_…`).
+
+## Provisioning an agent
+
+<CodeGroup>
+```python Python
+result = await app.agents.create(
+    name="research-bot",
+    display_name="Research Bot",
+    metadata={"team": "growth"},
+)
+print(result.id, result.api_key)  # api_key shown once
+```
+
+```typescript TypeScript
+const result = await app.agents.create({
+  name: "research-bot",
+  displayName: "Research Bot",
+  metadata: { team: "growth" },
+});
+console.log(result.id, result.apiKey);  // apiKey shown once
+```
+</CodeGroup>
+
+`name` is the stable identifier for the agent (lowercase, dash-separated). `display_name` is the UI label. The result includes both the agent's UUID and an initial API key — the **plaintext key is shown once**; store it immediately. Re-mint with [`mint_key`](/agents/keys-and-rotation) when the original plaintext is lost.
+
+`create` is **idempotent on `name`** when an `idempotency_key` is passed — re-running the call with the same key returns the same agent and the same initial key.
+
+## Listing agents
+
+<CodeGroup>
+```python Python
+result = await app.agents.list(limit=50, offset=0)
+for agent in result.agents:
+    print(agent.id, agent.name, agent.status)
+
+if result.has_more:
+    next_page = await app.agents.list(limit=50, offset=50)
+```
+
+```typescript TypeScript
+const result = await app.agents.list({ limit: 50, offset: 0 });
+for (const agent of result.agents) {
+  console.log(agent.id, agent.name, agent.status);
+}
+
+if (result.hasMore) {
+  const next = await app.agents.list({ limit: 50, offset: 50 });
+}
+```
+</CodeGroup>
+
+Pass `include_revoked=True` to also list revoked agents (default excludes them).
+
+## Looking an agent up
+
+<CodeGroup>
+```python Python
+agent = await app.agents.get(agent_id)              # by UUID
+agent = await app.agents.get_by_name("research-bot")  # by stable name
+```
+
+```typescript TypeScript
+const agent = await app.agents.get(agentId);
+const agent2 = await app.agents.getByName("research-bot");
+```
+</CodeGroup>
+
+`get_by_name` returns `None`/`null` when no agent matches.
+
+## Updating an agent
+
+<CodeGroup>
+```python Python
+agent = await app.agents.update(
+    agent_id,
+    display_name="Research Bot v2",
+    scopes={"google": ["gmail.readonly"], "slack": ["chat.write"]},
+)
+```
+
+```typescript TypeScript
+const agent = await app.agents.update(agentId, {
+  displayName: "Research Bot v2",
+  scopes: { google: ["gmail.readonly"], slack: ["chat.write"] },
+});
+```
+</CodeGroup>
+
+`scopes` is a **per-provider allowlist** (a map of provider → list of OAuth scopes), not a flat list. Pass the FULL desired allowlist — the backend rejects narrowing (any provider key dropped, any scope removed) with `AgentScopeNarrowingNotSupportedError`.
+
+Other editable fields: `display_name`, `metadata`, `policy`. The `name` is immutable — provision a new agent to rename.
+
+## Deleting / revoking an agent
+
+`delete` soft-deletes the agent and revokes all its keys in one call:
+
+<CodeGroup>
+```python Python
+await app.agents.delete(agent_id)
+```
+
+```typescript TypeScript
+await app.agents.delete(agentId);
+```
+</CodeGroup>
+
+To revoke individual keys instead — e.g. rotating one out while leaving the rest active — iterate the key list:
+
+```python
+keys = await app.agents.list_keys(agent_id)
+for key in keys.items:
+    await app.agents.revoke_key(agent_id, key.key_id, force=True)
+```
+
+The agent record stays for audit-trail integrity. Subsequent calls with any of its keys raise `KeyRevokedError`.
+
+See [Keys and rotation](/agents/keys-and-rotation) for the full key surface.
+
+## See also
+
+- [Agents overview](/agents/overview) — when agents are the right fit.
+- [Keys and rotation](/agents/keys-and-rotation) — mint, list, deprecate, revoke keys.
+- [SDK → Agents reference](/sdks/python/reference/agents) — full method signatures.

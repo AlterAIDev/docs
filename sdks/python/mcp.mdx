@@ -19,8 +19,8 @@ from fastmcp import FastMCP
 from alter_sdk import App
 from alter_sdk.mcp import AlterMCP, AlterContext
 
-vault = App(api_key="alter_key_...", caller="my-mcp-server")
-alter = AlterMCP(vault)
+alter_app = App(api_key="alter_key_...", caller="my-mcp-server")
+alter = AlterMCP(alter_app)
 mcp = FastMCP("my-server")
 
 
@@ -52,10 +52,10 @@ The tool is now a standard MCP tool. When an LLM invokes it, the SDK:
 - Accepts a `provider` parameter specifying which OAuth provider the tool uses
 - Injects an `AlterContext` instance as the first parameter of the tool function
 - Hides the `AlterContext` parameter from the MCP tool schema (the LLM never sees it)
-- Sets an ambient audit context so any `vault.request()` call inside the tool body is automatically tagged with the tool name
+- Sets an ambient audit context so any `alter_app.request()` call inside the tool body is automatically tagged with the tool name
 
 ```python
-alter = AlterMCP(vault)
+alter = AlterMCP(alter_app)
 
 @alter.tool(provider="github")
 async def create_issue(ctx: AlterContext, title: str, body: str) -> dict:
@@ -71,7 +71,7 @@ async def create_issue(ctx: AlterContext, title: str, body: str) -> dict:
 
 ### `AlterContext`
 
-The `AlterContext` object injected into the tool has a `.request()` method that works like `vault.request()` but with the provider pre-configured:
+The `AlterContext` object injected into the tool has a `.request()` method that works like `alter_app.request()` but with the provider pre-configured:
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -103,7 +103,7 @@ For MCP servers that need to authenticate end users via an identity provider (ID
 from alter_sdk.mcp import AlterAuthProvider
 
 auth = AlterAuthProvider(
-    vault,
+    alter_app,
     base_url="http://localhost:8000/mcp",
     providers={
         "google": ["gmail.readonly", "calendar.events"],
@@ -128,7 +128,7 @@ All providers declared in the `providers` dict have their scopes forwarded to th
 ```python
 # Both google AND github scopes are enforced
 auth = AlterAuthProvider(
-    vault,
+    alter_app,
     providers={
         "google": ["gmail.readonly"],
         "github": ["repo", "read:org"],
@@ -176,10 +176,10 @@ from alter_sdk import App
 from alter_sdk.mcp import AlterMCP, AlterContext
 from alter_sdk.mcp.auth import AlterAuthProvider
 
-vault = App(api_key="alter_key_...", caller="calendar-mcp")
-alter = AlterMCP(vault)
+alter_app = App(api_key="alter_key_...", caller="calendar-mcp")
+alter = AlterMCP(alter_app)
 
-auth = AlterAuthProvider(vault, base_url="http://localhost:8000/mcp", providers={"google": ["calendar.events"]})
+auth = AlterAuthProvider(alter_app, base_url="http://localhost:8000/mcp", providers={"google": ["calendar.events"]})
 mcp = FastMCP("calendar-server", auth=auth)
 
 

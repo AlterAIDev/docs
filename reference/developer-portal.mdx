@@ -153,16 +153,16 @@ Managed Secrets store API keys, service tokens, and other credentials for intern
 </Steps>
 
 <Note>
-  Secret values are write-only — once stored, you cannot view the raw value. You can only use it via `vault.request()` or replace it by storing a new value.
+  Secret values are write-only — once stored, you cannot view the raw value. You can only use it via `alter_app.request()` or replace it by storing a new value.
 </Note>
 
 ### Using Managed Secrets
 
-Use the same `vault.request()` method as OAuth grants:
+Use the same `alter_app.request()` method as OAuth grants:
 
 ```python
 # Same method — just use the managed secret's grant_id
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
     grant_id="MANAGED_SECRET_GRANT_ID",  # from Developer Portal
@@ -222,7 +222,7 @@ Add structured data to any OAuth connection for enhanced functionality.
 # via the Alter Connect session endpoint, then available
 # in the Alter Vault dashboard for filtering and management.
 #
-# The SDK's vault.request() uses a grant_id to look up
+# The SDK's alter_app.request() uses a grant_id to look up
 # the right connection. Custom schema data enriches
 # the grant metadata for your dashboard workflows.
 ```
@@ -396,21 +396,21 @@ Set up notifications for:
 ```python
 from alter_sdk import App, HttpMethod
 
-vault = App(
+alter_app = App(
     api_key="alter_key_...",
     caller="my-service",
 )
 
 # OAuth: grant_id from your DB (stored when user completed Alter Connect)
 grant_id = db.get_grant(user_id="alice", provider="google")
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=grant_id,
 )
 
 # Managed secret: grant_id from Developer Portal (stored in config/env)
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://api.internal.com/v1/loyalty/points",
     grant_id=os.environ["LOYALTY_API_GRANT_ID"],

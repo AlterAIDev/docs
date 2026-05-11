@@ -1,0 +1,147 @@
+---
+title: 'Grants'
+description: 'listGrants, createManagedSecretGrant, revokeGrant, revokeDelegation.'
+icon: 'list'
+---
+
+```typescript
+import { App, Agent } from "@alter-ai/alter-sdk";
+```
+
+## `listGrants()`
+
+Available on both `App` and `Agent`. The `App` variant accepts an optional `providerId` filter; the `Agent` variant does not.
+
+### Signature
+
+```typescript
+// App
+async listGrants(options?: {
+  providerId?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<UnifiedGrantListResult>
+
+// Agent
+async listGrants(options?: {
+  limit?: number;
+  offset?: number;
+}): Promise<UnifiedGrantListResult>
+```
+
+### Returns
+
+`UnifiedGrantListResult` with:
+- `grants: Array<OAuthGrantItem | ManagedSecretGrantItem>` — discriminate on `grantKind`.
+- `total: number`, `limit: number`, `offset: number`, `hasMore: boolean`.
+
+### Example
+
+```typescript
+const page = await app.listGrants({ providerId: "google", limit: 50 });
+for (const grant of page.grants) {
+  if (grant.grantKind === "oauth") {
+    console.log(grant.grantId, grant.accountIdentifier, grant.scopes);
+  }
+}
+```
+
+## `createManagedSecretGrant()`
+
+Available on `App` (any principal) and `Agent` (self only).
+
+### Signature
+
+```typescript
+async createManagedSecretGrant(
+  managedSecretId: string,
+  options: {
+    principal: Principal;
+    grantPolicy?: { maxTtlSeconds?: number; defaultTtlSeconds?: number };
+  },
+): Promise<CreateGrantResult>
+```
+
+### Returns
+
+`CreateGrantResult` with `grantId`, `principalType`, `label`, `createdAt`.
+
+### Throws
+
+`PolicyViolationError`, `AlterValueError`.
+
+### Example
+
+Principals are TypeScript interfaces; construct them as object literals (no `new`).
+
+```typescript
+const result = await app.createManagedSecretGrant("ms_abc123", {
+  principal: {
+    type: "user",
+    userToken: aliceJwt,
+    label: "alice-prod-stripe",
+  },
+});
+console.log(result.grantId);
+```
+
+See [Managed Secrets → Issuing grants](/managed-secrets/issuing-grants) for the full pattern.
+
+## `revokeGrant()`
+
+`App` only.
+
+### Signature
+
+```typescript
+async revokeGrant(
+  grantId: string,
+  options?: { reason?: string },
+): Promise<RevokeGrantResult>
+```
+
+### Returns
+
+`RevokeGrantResult` with `success`, `message`, `grantId`, `revokedAt`.
+
+### Throws
+
+`GrantNotFoundError`, `GrantRevokedError` (already revoked), `PolicyViolationError`.
+
+### Example
+
+```typescript
+const result = await app.revokeGrant("grant_xyz", { reason: "user offboarded" });
+console.log(result.revokedAt);
+```
+
+## `revokeDelegation()`
+
+`App.revokeDelegation(grantId, { agentId })` — operator path.
+`Agent.revokeDelegation(grantId)` — agent self-revoke.
+
+### Signatures
+
+```typescript
+// App
+async revokeDelegation(grantId: string, options?: { agentId?: string }): Promise<void>
+
+// Agent
+async revokeDelegation(grantId: string): Promise<void>
+```
+
+### Behavior
+
+Removes the agent's access path on the grant. The underlying user grant is **unchanged**. To revoke the underlying grant, call `revokeGrant()` instead.
+
+### Example
+
+```typescript
+await app.revokeDelegation("grant_xyz", { agentId: "agent_research_bot" });
+await agent.revokeDelegation("grant_xyz");  // self-revoke
+```
+
+## See also
+
+- [OAuth → Managing grants](/oauth/managing-grants)
+- [Types](/sdks/typescript/reference/types)

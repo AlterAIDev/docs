@@ -1,0 +1,76 @@
+---
+title: 'Approvals'
+description: 'getApprovalStatus, awaitApproval.'
+icon: 'circle-check'
+---
+
+```typescript
+import { App, PendingApproval } from "@alter-ai/alter-sdk";
+```
+
+Approvals are produced by `proxyRequest()` when policy requires human confirmation. See [Agents → Approvals](/agents/approvals) for the conceptual flow.
+
+## `getApprovalStatus()`
+
+Snapshot the current state of an approval. Non-blocking.
+
+### Signature
+
+```typescript
+async getApprovalStatus(approvalId: string): Promise<ApprovalStatus>
+```
+
+### Returns
+
+`ApprovalStatus` with `approvalId`, `status` (one of `pending`, `approved`, `executing`, `denied`, `expired`, `executed`, `failed`), `expiresAt`, `decidedAt`, `decisionReason`, `executedAt`, and `hasResult` (true once the proxied result is fetchable). The provider response is NOT on `ApprovalStatus` — fetch it via `awaitApproval()` (which returns an `ApprovalResult` on the `executed` terminal).
+
+### Example
+
+```typescript
+const status = await vault.getApprovalStatus("apr_xyz");
+if (status.status === "executed") {
+  const final = await vault.awaitApproval("apr_xyz");
+  console.log(final.statusCode);
+}
+```
+
+## `awaitApproval()`
+
+Block until an approval reaches a terminal state, then return the proxied result.
+
+### Signature
+
+```typescript
+async awaitApproval(
+  approvalId: string,
+  options?: { timeoutMs?: number; pollIntervalMs?: number },
+): Promise<ApprovalResult>
+```
+
+Defaults: `timeoutMs = 300_000` (5 min), `pollIntervalMs = 2_000` (2 s).
+
+### Returns
+
+`ApprovalResult` with `approvalId`, `statusCode`, `headers`, `bodyB64`, `bodyTruncated`. The body is base64-encoded; decode with the helper methods `bodyBytes()`, `bodyText(encoding?)`, or `bodyJson()`.
+
+### Throws
+
+`ApprovalDeniedError`, `ApprovalExpiredError`, `ApprovalTimeoutError`, `ApprovalExecutionFailedError`. See [Errors](/sdks/typescript/reference/errors).
+
+### Example
+
+```typescript
+const result = await vault.proxyRequest({
+  method: HttpMethod.POST, url, grantId: g, jsonBody: payload, reason: "...",
+});
+const final = result instanceof PendingApproval
+  ? await vault.awaitApproval(result.approvalId, { timeoutMs: 600_000 })
+  : result;
+console.log(final.statusCode, final.bodyText());
+```
+
+## See also
+
+- [Agents → Approvals](/agents/approvals)
+- [Request](/sdks/typescript/reference/request)
+- [Types](/sdks/typescript/reference/types)

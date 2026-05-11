@@ -1,0 +1,144 @@
+---
+title: 'Types'
+description: 'Classes and interfaces handled directly.'
+icon: 'sitemap'
+---
+
+```typescript
+import {
+  HttpMethod, Provider, CallerType,
+  type UserPrincipal, type GroupPrincipal, type SystemPrincipal, type AgentPrincipal,
+  GrantInfo, OAuthGrantItem, ManagedSecretGrantItem,
+  type GrantPolicy,
+  ConnectResult, ConnectSession, AuthResult,
+  PendingApproval, ApprovalStatus, ApprovalResult,
+  type ApprovalStatusValue,
+  AgentInfo, AgentKey, AgentListResult, AgentKeyList,
+  AgentCreateResult, AgentKeyMintResult,
+  UnifiedGrantListResult, CreateGrantResult, RevokeGrantResult,
+  APICallAuditLog, RetryInfo, RetryErrorInfo,
+} from "@alter-ai/alter-sdk";
+```
+
+The TypeScript SDK uses **camelCase** field names. JSON on the wire is `snake_case`; constructors accept `snake_case` fields and map them to `camelCase` properties; `toJSON()` serializes back to `snake_case`.
+
+Principals (`UserPrincipal`, `GroupPrincipal`, `SystemPrincipal`, `AgentPrincipal`) are **TypeScript interfaces**, not classes. Construct them as plain object literals — `new UserPrincipal({...})` will not compile.
+
+## Enums
+
+### `HttpMethod`
+`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`.
+
+### `Provider`
+50+ string-valued providers: `GOOGLE`, `GITHUB`, `SLACK`, `STRIPE`, `AWS`, etc. See the [provider directory](/providers/google).
+
+### `CallerType`
+`AGENT` (default for `App`), `SERVICE`.
+
+### `ApprovalStatusValue`
+`pending`, `approved`, `executing`, `denied`, `expired`, `executed`, `failed`.
+
+## Principals
+
+`Principal` is the union of:
+
+| Interface | Required fields | Optional fields |
+|---|---|---|
+| `UserPrincipal` | `type: "user"`, `userToken`, `label` | — |
+| `GroupPrincipal` | `type: "group"`, `externalGroupId`, `idpId`, `label` | — |
+| `SystemPrincipal` | `type: "system"` | `label` |
+| `AgentPrincipal` | `type: "agent"` | `label` |
+
+`AgentPrincipal` carries no `agentId` — the backend resolves the calling agent from the HMAC-verified API key on the request.
+
+Used as the `principal` field on `createManagedSecretGrant()`.
+
+## Grants
+
+### `GrantInfo`
+OAuth grant entry (legacy shape).
+
+Fields: `grantId`, `providerId`, `scopes`, `accountIdentifier`, `accountDisplayName`, `status`, `scopeMismatch`, `expiresAt`, `createdAt`, `lastUsedAt`, `principalType`.
+
+### `OAuthGrantItem`
+A user-authorized OAuth grant from the unified list response.
+
+Fields: `grantKind: "oauth"`, `grantId`, `providerId`, `scopes`, `accountIdentifier`, `accountDisplayName`, `status`, `scopeMismatch`, `expiresAt`, `createdAt`, `lastUsedAt`, `principalType` (`"user"` or `"system"`), `delegatedAt`, `delegatedAgentIds`.
+
+### `ManagedSecretGrantItem`
+An operator-provisioned managed secret grant.
+
+Fields: `grantKind: "managed_secret"`, `grantId`, `managedSecretId`, `managedSecretSlug`, `managedSecretName`, `agentId`, `label`, `status`, `grantPolicy`, `createdAt`, `lastUsedAt`, `principalType: "agent"`.
+
+Branch on `item.grantKind` to recover shape-specific fields.
+
+### `GrantPolicy`
+Read-side per-grant policy attached to `ConnectResult`. Interface fields: `expiresAt?`, `createdBy?`, `createdAt?`.
+
+Write-side input passed to `createConnectSession()` / `createManagedSecretGrant()` is an inline `{ maxTtlSeconds?, defaultTtlSeconds? }` shape.
+
+### `CreateGrantResult`
+Returned by `createManagedSecretGrant()`. Fields: `grantId`, `principalType`, `label`, `createdAt`.
+
+### `RevokeGrantResult`
+Returned by `revokeGrant()`. Fields: `success`, `message`, `grantId`, `revokedAt`.
+
+### `UnifiedGrantListResult`
+Paginated response from `App.listGrants()` / `Agent.listGrants()`. Fields: `grants: Array<OAuthGrantItem | ManagedSecretGrantItem>`, `total`, `limit`, `offset`, `hasMore`.
+
+## Connect
+
+### `ConnectResult`
+Returned by headless `connect()`. Fields: `grantId`, `providerId`, `accountIdentifier`, `scopes`, `grantPolicy`.
+
+### `ConnectSession`
+Returned by `createConnectSession()`. Fields: `sessionToken`, `connectUrl`, `expiresIn`, `expiresAt`.
+
+### `AuthResult`
+Returned by `authenticate()`. Fields: `userToken`, `userInfo`.
+
+## Approvals
+
+### `PendingApproval`
+Returned by `proxyRequest()` when an HITL grant requires approval. Fields: `approvalId`, `status: "pending"`, `expiresAt`, `expiresIn`, `approvalUrl`.
+
+### `ApprovalStatus`
+Snapshot from `getApprovalStatus()`. Fields: `approvalId`, `status` (`ApprovalStatusValue`), `expiresAt`, `decidedAt`, `decisionReason`, `executedAt`, `hasResult`.
+
+### `ApprovalResult`
+The proxied provider response, returned by `awaitApproval()` on the `executed` terminal and by `proxyRequest()` synchronously. Fields: `approvalId` (`null` for synchronous calls), `statusCode`, `headers`, `bodyB64`, `bodyTruncated`.
+
+Decode helpers: `bodyBytes()`, `bodyText(encoding?)`, `bodyJson()`.
+
+## Agents
+
+### `AgentInfo`
+Fields: `id`, `name`, `displayName`, `type` (`"agent" | "service"`), `status` (`"active" | "inactive" | "revoked"`), `scopes` (per-provider map), `scopesPending`, `scopesAppliesAt`, `policy`, `metadata`, `rateLimitPerMinute`, `version`, `createdAt`, `lastUsedAt`.
+
+### `AgentCreateResult`
+Returned by `agents.create()`. Wraps `AgentInfo` with the plaintext `apiKey` (**shown once**).
+
+### `AgentKey`
+Fields: `keyId`, `keyPrefix`, `name`, `createdAt`, `deprecatedAt`, `revokedAt`, `lastUsedAt`. Derived `status` getter returns `"active" | "deprecated" | "revoked"`.
+
+### `AgentKeyMintResult`
+Returned by `agents.mintKey()`. Wraps `AgentKey` with the plaintext `apiKey` (**shown once**).
+
+### `AgentListResult`
+Returned by `agents.list()`. Fields: `agents`, `total`, `limit`, `offset`, `hasMore`.
+
+### `AgentKeyList`
+Returned by `agents.listKeys()`. Fields: `items`. No pagination — the typical agent holds a handful of keys.
+
+## Audit / Retry
+
+### `APICallAuditLog`
+Internal audit row sent to the backend audit endpoint. Fields: `grantId`, `providerId`, `method`, `url`, `requestHeaders`, `requestBody`, `responseStatus`, `responseHeaders`, `responseBody`, `latencyMs`, `reason`, `context`.
+
+### `RetryInfo`, `RetryErrorInfo`
+Per-call retry metadata available on `response.retryInfo`. `RetryInfo` fields: `totalAttempts`, `successfulAttempt`, `errors`.
+
+## See also
+
+- [Concepts → Principals and grants](/concepts/principals-and-grants)
+- [Errors](/sdks/typescript/reference/errors)

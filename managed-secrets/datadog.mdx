@@ -60,7 +60,7 @@ Use Datadog credentials to make authenticated API calls through Alter Vault with
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.GET,
     "https://api.YOUR_DATADOG_SITE/api/v1/events",
     grant_id="YOUR_GRANT_ID",  # e.g. datadoghq.com (US1), datadoghq.eu (EU), us3.datadoghq.com, etc.

@@ -57,7 +57,7 @@ Use SendGrid credentials to make authenticated API calls through Alter Vault wit
 ## Using in Code
 
 ```python
-response = await vault.request(
+response = await alter_app.request(
     HttpMethod.POST,
     "https://api.sendgrid.com/v3/mail/send",
     grant_id="YOUR_GRANT_ID",

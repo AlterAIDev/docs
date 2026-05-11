@@ -125,7 +125,7 @@ Pass a `grant_policy` when creating a Connect session to set TTL on new grants:
 <CodeGroup>
 
 ```python Python
-session = await vault.create_connect_session(
+session = await alter_app.create_connect_session(
     allowed_providers=["google", "slack"],
     grant_policy={
         "max_ttl_seconds": 2592000,      # 30-day upper bound
@@ -135,7 +135,7 @@ session = await vault.create_connect_session(
 ```
 
 ```typescript TypeScript
-const session = await vault.createConnectSession({
+const session = await alter_app.createConnectSession({
   allowedProviders: ["google", "slack"],
   grantPolicy: {
     maxTtlSeconds: 2592000,      // 30-day upper bound
@@ -153,7 +153,7 @@ const session = await vault.createConnectSession({
 
 ### How TTL Works
 
-- When a grant expires (`expires_at < now`), any `vault.request()` call raises (Python) / throws (TypeScript) a `GrantExpiredError`
+- When a grant expires (`expires_at < now`), any `alter_app.request()` call raises (Python) / throws (TypeScript) a `GrantExpiredError`
 - End users can view and extend TTL in the [Wallet Dashboard](https://wallet.alterauth.com), up to the developer-set `max_ttl_seconds` bound
 
 ### Handling Policy Errors
@@ -171,7 +171,7 @@ from alter_sdk.exceptions import (
 )
 
 try:
-    response = await vault.request(
+    response = await alter_app.request(
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         grant_id=grant_id,
@@ -196,7 +196,7 @@ import {
 } from "@alter-ai/alter-sdk";
 
 try {
-  const response = await vault.request(
+  const response = await alter_app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     { grantId },
