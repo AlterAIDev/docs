@@ -40,7 +40,7 @@ new App(options: {
 |---|---|---|
 | `actorId` | `string \| null` | Cached actor UUID. |
 | `agents` | `AgentsNamespace` | See [Agents reference](/sdks/typescript/reference/agents). |
-| `baseUrl` | `string` | Resolved Alter Vault endpoint. Diagnostic only. |
+| `baseUrl` | `string` | Resolved Alter endpoint. Diagnostic only. |
 | `lastRetryInfo` | `RetryInfo \| null` | Retry metadata from the most recent `request()`. |
 
 ### Example
@@ -48,7 +48,7 @@ new App(options: {
 ```typescript
 import { App } from "@alter-ai/alter-sdk";
 
-const vault = new App({
+const app = new App({
   apiKey: "alter_key_app_...",
   caller: "email-research-bot",
   userTokenGetter: () => getJwt(),
@@ -79,8 +79,8 @@ Same as `App`, except `callerType` is implicit (always `AGENT`). `userTokenGette
 ```typescript
 import { Agent } from "@alter-ai/alter-sdk";
 
-const vault = new Agent({ apiKey: "alter_key_agent_..." });
-const me = await vault.me();
+const agent = new Agent({ apiKey: "alter_key_agent_..." });
+const me = await agent.me();
 console.log(me.id, me.name);
 ```
 
@@ -89,11 +89,11 @@ console.log(me.id, me.name);
 Always call `close()` to release the underlying HTTP pool when the SDK instance is no longer needed:
 
 ```typescript
-const vault = new App({ apiKey: KEY });
+const app = new App({ apiKey: KEY });
 try {
-  const response = await vault.request("GET", url, { grantId: g });
+  const response = await app.request("GET", url, { grantId: g });
 } finally {
-  await vault.close();
+  await app.close();
 }
 ```
 

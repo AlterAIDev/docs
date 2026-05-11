@@ -9,7 +9,7 @@ Alter Vault is the credential and authorization layer for apps and AI agents tha
 
 ### Two paths, one API
 
-Both credential types are accessed through the same `vault.request()` method:
+Both credential types are accessed through the same `app.request()` method:
 
 - **OAuth grants** — for third-party services where end users authorize access.
 - **Managed secrets** — for credentials the developer already holds (API keys, service tokens).
@@ -19,7 +19,7 @@ graph LR
     A1[End user authorizes] --> B1[OAuth flow]
     B1 --> C[Credential encrypted at rest]
     A2[Developer provisions secret] --> C
-    C --> D[vault.request]
+    C --> D[app.request]
     D --> E[Credential injected]
     E --> F[Response returned]
 ```
@@ -37,7 +37,7 @@ Application code never sees the credential. The flow:
     Credentials are encrypted (AES-256-GCM) before persistence.
   </Step>
 
-  <Step title="Call vault.request()">
+  <Step title="Call app.request()">
     The SDK retrieves and injects the credential into the outbound API call.
   </Step>
 
@@ -56,7 +56,7 @@ Application code never sees the credential. The flow:
 
 ## Grant ID: the universal handle
 
-Every credential in Alter Vault is addressed by a `grant_id` (UUID). Usage is identical via `vault.request()` regardless of credential type. What differs is **where the `grant_id` comes from**:
+Every credential in Alter Vault is addressed by a `grant_id` (UUID). Usage is identical via `app.request()` regardless of credential type. What differs is **where the `grant_id` comes from**:
 
 | Credential Type | Where `grant_id` comes from | Who creates it |
 |---|---|---|
@@ -65,14 +65,14 @@ Every credential in Alter Vault is addressed by a `grant_id` (UUID). Usage is id
 
 ```python
 # OAuth grant — per-user, returned by Alter Connect
-response = await vault.request(
+response = await app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=oauth_grant_id,
 )
 
 # Managed secret — per-service, same grant_id for all callers
-response = await vault.request(
+response = await app.request(
     HttpMethod.GET,
     "https://api.example.com/v1/resource",
     grant_id=managed_secret_grant_id,
@@ -98,7 +98,7 @@ Attach structured per-grant data — sync settings, user preferences, tags, inte
 
 ## Audit logs
 
-Every credential access, every connection lifecycle event, every API call routed through `vault.request()` is recorded with full actor context. View, filter, and export from the Developer Portal.
+Every credential access, every connection lifecycle event, every API call routed through `app.request()` is recorded with full actor context. View, filter, and export from the Developer Portal.
 
 See the [Audit Logs guide](/reference/audit-logs).
 

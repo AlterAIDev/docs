@@ -62,7 +62,7 @@ An `AlterResponse` (a standard `Response` with a `retryInfo: RetryInfo | null` p
 ### Example
 
 ```typescript
-const response = await vault.request(
+const response = await app.request(
   HttpMethod.POST,
   "https://api.openai.com/v1/chat/completions",
   {
@@ -102,7 +102,7 @@ Auth headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) ar
 ### Example
 
 ```typescript
-const result = await vault.proxyRequest({
+const result = await app.proxyRequest({
   method: HttpMethod.POST,
   url: "https://api.example.com/v1/refunds",
   grantId: GRANT_ID,

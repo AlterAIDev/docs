@@ -3,7 +3,7 @@ title: 'Alter Vault'
 description: 'The credential and authorization layer for apps and AI agents that call third-party APIs on behalf of users.'
 ---
 
-Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enforces identity-aware authorization on every retrieval, and logs every access with full actor context. Application code becomes a single call: `vault.request(method, url, grant_id=...)`.
+Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enforces identity-aware authorization on every retrieval, and logs every access with full actor context. Application code becomes a single call: `app.request(method, url, grant_id=...)`.
 
 <CardGroup cols={2}>
   <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
@@ -45,7 +45,7 @@ Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enfor
 - **Identity-aware authorization.** Every credential access is checked against both the end-user identity and the workload identity. One [policy layer](/reference/policies) governs which callers reach which credentials.
 - **Dual-identity audit logging.** Every access is logged with both the end-user identity and the caller identity. Answer "what was Alice's data used for?" and "what did Agent X access?"
 - **Fail-closed by design.** When authorization cannot be evaluated, credential access is denied.
-- **Drop-in replacement.** `vault.request()` is the application's HTTP client — same surface as `httpx` or `fetch`, with the credential injected automatically.
+- **Drop-in replacement.** `app.request()` is the application's HTTP client — same surface as `httpx` or `fetch`, with the credential injected automatically.
 
 ## Quick example
 
@@ -55,8 +55,8 @@ This is the call written in [First 5 Minutes](/first-5-minutes). It posts a Slac
 ```python Python
 from alter_sdk import App, HttpMethod
 
-vault = App(api_key=ALTER_API_KEY)
-response = await vault.request(
+app = App(api_key=ALTER_API_KEY)
+response = await app.request(
     HttpMethod.POST,
     "https://slack.com/api/chat.postMessage",
     grant_id=SLACK_GRANT_ID,
@@ -67,8 +67,8 @@ response = await vault.request(
 ```typescript TypeScript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({ apiKey: ALTER_API_KEY });
-const response = await vault.request(
+const app = new App({ apiKey: ALTER_API_KEY });
+const response = await app.request(
   HttpMethod.POST,
   "https://slack.com/api/chat.postMessage",
   { grantId: SLACK_GRANT_ID, json: { channel: "#general", text: "Hello from Alter Vault." } },

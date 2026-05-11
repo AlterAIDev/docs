@@ -46,7 +46,7 @@ async def connect(
 ### Example
 
 ```python
-results = await vault.connect(providers=["github"])
+results = await app.connect(providers=["github"])
 print(results[0].grant_id)
 ```
 
@@ -67,7 +67,7 @@ async def authenticate(*, timeout: float = 300.0) -> AuthResult
 ### Example
 
 ```python
-auth = await vault.authenticate()
+auth = await app.authenticate()
 print("user:", auth.user_info, "jwt:", auth.user_token)
 ```
 
@@ -97,7 +97,7 @@ async def create_connect_session(
 ### Example
 
 ```python
-session = await vault.create_connect_session(
+session = await app.create_connect_session(
     allowed_providers=["google", "slack"],
     return_url="https://app.example.com/oauth/done",
 )
@@ -121,7 +121,7 @@ The verified `sub` claim, or `None` if invalid.
 ### Example
 
 ```python
-sub = await vault.verify_user_token(jwt)
+sub = await app.verify_user_token(jwt)
 if sub is None:
     raise HTTPException(401, "invalid token")
 ```

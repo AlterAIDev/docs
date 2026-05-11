@@ -28,8 +28,8 @@ Once an operator provisions an agent in the developer portal, the SDK can reach 
 The operator mints a per-agent API key (`alter_key_agent_…`) in the portal. The agent process loads it from env, constructs `Agent`:
 
 ```python
-vault = Agent(api_key=AGENT_API_KEY)
-response = await vault.request("GET", url, grant_id=GRANT_ID)
+agent = Agent(api_key=AGENT_API_KEY)
+response = await agent.request("GET", url, grant_id=GRANT_ID)
 ```
 
 Use this when the agent runs in a sandbox / container / less-trusted environment where exposing the master key would be too dangerous.
@@ -64,12 +64,12 @@ An agent can hold **many** grants — operators map as many as the agent needs (
 Common pattern: an LLM agent runs server-side as part of an end-user-driven request. The right model is **NOT a separate agent principal** — it's the **user principal flow** with the agent's name carried as audit metadata.
 
 ```python
-vault = App(
+app = App(
     api_key=APP_KEY,
     caller="email-research-bot",          # free-form, or AGENT_UUID
     user_token_getter=lambda: get_jwt(),
 )
-response = await vault.request("GET", url, provider="google")
+response = await app.request("GET", url, provider="google")
 ```
 
 The principal is the user; the agent is a code path inside the user's request. See [Concepts → Principals and grants](/concepts/principals-and-grants).
@@ -79,7 +79,7 @@ The agent becomes a **separate principal** only when it acts when the user is **
 ## Roadmap
 
 <Note type="warning">
-**Agent as principal for OAuth grants.** Today, agents own managed-secret grants directly (phases 1–3 shipped). OAuth grants are owned by users, with agents accessing them via [delegations](/reference/glossary#delegation). A future release will let agents own OAuth grants directly. Tracking in the [SDK_REDESIGN](https://github.com/alter-ai/alter-vault/blob/main/docs/planning/SDK_REDESIGN.md) planning doc.
+**Agent as principal for OAuth grants.** Today, agents own managed-secret grants directly. OAuth grants are owned by users, with agents accessing them via [delegations](/reference/glossary#delegation). A future release will let agents own OAuth grants directly.
 </Note>
 
 ## See also

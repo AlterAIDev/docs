@@ -9,7 +9,7 @@ icon: 'compass'
 An integration that needs to call Gmail, Slack, GitHub, Stripe, or any of 100+ other services normally means storing OAuth tokens securely, refreshing them, scoping them per user, logging every access for audit, and revoking them on demand. Alter does all of that. Application code becomes:
 
 ```python
-response = await vault.request("GET", url, grant_id=...)
+response = await app.request("GET", url, grant_id=...)
 ```
 
 No tokens in the application database. No tokens in application memory. No refresh logic. No audit plumbing.
@@ -43,7 +43,7 @@ All three can be mixed in one app.
 ```
 app code              Alter SDK                Alter backend            Provider (e.g. Slack)
    │                       │                         │                          │
-   │── vault.request() ───▶│                         │                          │
+   │── app.request() ─────▶│                         │                          │
    │                       │── signed call ─────────▶│                          │
    │                       │                         │── inject token ─────────▶│
    │                       │                         │◀── response ─────────────│

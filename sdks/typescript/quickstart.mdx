@@ -19,7 +19,7 @@ Works with Node.js 18+ and any modern bundler.
 ```typescript
 import { App } from "@alter-ai/alter-sdk";
 
-const vault = new App({ apiKey: "alter_key_app_..." });
+const app = new App({ apiKey: "alter_key_app_..." });
 ```
 
 For agents (workload identity), use `Agent` instead:
@@ -27,7 +27,7 @@ For agents (workload identity), use `Agent` instead:
 ```typescript
 import { Agent } from "@alter-ai/alter-sdk";
 
-const vault = new Agent({ apiKey: "alter_key_agent_..." });
+const agent = new Agent({ apiKey: "alter_key_agent_..." });
 ```
 
 See [Agents → Overview](/agents/overview) for which class to use when.
@@ -37,16 +37,16 @@ See [Agents → Overview](/agents/overview) for which class to use when.
 ```typescript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({ apiKey: "alter_key_app_..." });
+const app = new App({ apiKey: "alter_key_app_..." });
 try {
-  const response = await vault.request(
+  const response = await app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     { grantId: "grant_..." },
   );
   console.log(await response.json());
 } finally {
-  await vault.close();
+  await app.close();
 }
 ```
 
@@ -58,22 +58,22 @@ Three options. Pick per app, or per call:
 
 <CodeGroup>
 ```typescript JWT (recommended)
-const vault = new App({
+const app = new App({
   apiKey: "alter_key_app_...",
   userTokenGetter: () => getJwtFromRequest(),
 });
-await vault.request("GET", url, { provider: "google" });
+await app.request("GET", url, { provider: "google" });
 ```
 
 ```typescript grant_id
-const vault = new App({ apiKey: "alter_key_app_..." });
-await vault.request("GET", url, { grantId: "grant_..." });
+const app = new App({ apiKey: "alter_key_app_..." });
+await app.request("GET", url, { grantId: "grant_..." });
 ```
 
 ```typescript Headless
-const vault = new App({ apiKey: "alter_key_app_..." });
-const results = await vault.connect({ providers: ["github"] });
-await vault.request("GET", url, { grantId: results[0].grantId });
+const app = new App({ apiKey: "alter_key_app_..." });
+const results = await app.connect({ providers: ["github"] });
+await app.request("GET", url, { grantId: results[0].grantId });
 ```
 </CodeGroup>
 

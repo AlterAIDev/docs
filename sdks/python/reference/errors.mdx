@@ -54,7 +54,7 @@ AlterSDKError
 │       ├── IdempotencyKeyBodyMismatchError
 │       ├── IdempotencyKeyAgentRevokedError
 │       └── IdempotencyKeyAgentInactiveError
-├── ConnectFlowError                   # vault.connect() failures
+├── ConnectFlowError                   # app.connect() failures
 │   ├── ConnectDeniedError
 │   ├── ConnectConfigError
 │   └── ConnectTimeoutError
@@ -89,7 +89,7 @@ AlterSDKError
 The SDK retries network/timeout errors automatically up to 3 times with exponential backoff. Per-call retry metadata is on `response.retry_info: RetryInfo | None`:
 
 ```python
-response = await vault.request("GET", url, grant_id=g)
+response = await app.request("GET", url, grant_id=g)
 if response.retry_info and response.retry_info.total_attempts > 1:
     print(f"Recovered after {response.retry_info.total_attempts} attempts")
 ```

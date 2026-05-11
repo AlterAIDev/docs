@@ -47,19 +47,19 @@ Each item is either an `OAuthGrantItem` (user-authorized) or a `ManagedSecretGra
 
 <CodeGroup>
 ```python Python
-result = await vault.revoke_grant(grant_id, reason="user offboarded")
+result = await app.revoke_grant(grant_id, reason="user offboarded")
 print(result.revoked_at)
 ```
 
 ```typescript TypeScript
-const result = await vault.revokeGrant(grantId, { reason: "user offboarded" });
+const result = await app.revokeGrant(grantId, { reason: "user offboarded" });
 console.log(result.revokedAt);
 ```
 </CodeGroup>
 
 Revocation:
 1. Marks the grant `revoked` immediately.
-2. Deletes the underlying tokens from the vault.
+2. Deletes the underlying stored tokens.
 3. Writes a security audit row with the supplied `reason`.
 
 Subsequent calls with the revoked `grant_id` raise `GrantRevokedError`.
@@ -101,7 +101,7 @@ Full audit schema at [Reference → Audit logs](/reference/audit-logs).
 ## Roadmap
 
 <Note type="warning">
-**Coming soon — agent as principal for OAuth grants.** Today, OAuth grants are owned by users (or, for managed secrets, by users / groups / system / agents). A future release will let agents own OAuth grants directly, without the user-then-delegate hop. The model and migration path are documented in the [SDK_REDESIGN](https://github.com/alter-ai/alter-vault/blob/main/docs/planning/SDK_REDESIGN.md) planning doc; the code surface is unchanged until ship.
+**Coming soon — agent as principal for OAuth grants.** Today, OAuth grants are owned by users (or, for managed secrets, by users / groups / system / agents). A future release will let agents own OAuth grants directly, without the user-then-delegate hop. The code surface is unchanged until it ships.
 </Note>
 
 ## See also

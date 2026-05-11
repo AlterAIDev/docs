@@ -19,7 +19,7 @@ Requires Python 3.10+.
 ```python
 from alter_sdk import App
 
-vault = App(api_key="alter_key_app_...")
+app = App(api_key="alter_key_app_...")
 ```
 
 For agents (workload identity), use `Agent` instead:
@@ -27,7 +27,7 @@ For agents (workload identity), use `Agent` instead:
 ```python
 from alter_sdk import Agent
 
-vault = Agent(api_key="alter_key_agent_...")
+agent = Agent(api_key="alter_key_agent_...")
 ```
 
 See [Agents → Overview](/agents/overview) for when each class applies.
@@ -39,14 +39,14 @@ import asyncio
 from alter_sdk import App, HttpMethod
 
 async def main():
-    vault = App(api_key="alter_key_app_...")
-    response = await vault.request(
+    app = App(api_key="alter_key_app_...")
+    response = await app.request(
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         grant_id="grant_...",
     )
     print(response.json())
-    await vault.close()
+    await app.close()
 
 asyncio.run(main())
 ```
@@ -59,22 +59,22 @@ Three options. Pick per app, or per call:
 
 <CodeGroup>
 ```python JWT (recommended)
-vault = App(
+app = App(
     api_key="alter_key_app_...",
     user_token_getter=lambda: get_jwt_from_request(),
 )
-await vault.request("GET", url, provider="google")
+await app.request("GET", url, provider="google")
 ```
 
 ```python grant_id
-vault = App(api_key="alter_key_app_...")
-await vault.request("GET", url, grant_id="grant_...")
+app = App(api_key="alter_key_app_...")
+await app.request("GET", url, grant_id="grant_...")
 ```
 
 ```python Headless
-vault = App(api_key="alter_key_app_...")
-results = await vault.connect(providers=["github"])
-await vault.request("GET", url, grant_id=results[0].grant_id)
+app = App(api_key="alter_key_app_...")
+results = await app.connect(providers=["github"])
+await app.request("GET", url, grant_id=results[0].grant_id)
 ```
 </CodeGroup>
 

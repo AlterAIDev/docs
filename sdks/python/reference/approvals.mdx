@@ -27,9 +27,9 @@ async def get_approval_status(approval_id: str) -> ApprovalStatus
 ### Example
 
 ```python
-status = await vault.get_approval_status("apr_xyz")
+status = await app.get_approval_status("apr_xyz")
 if status.status == "executed":
-    final = await vault.await_approval("apr_xyz")
+    final = await app.await_approval("apr_xyz")
     print(final.status_code)
 ```
 
@@ -59,11 +59,11 @@ async def await_approval(
 ### Example
 
 ```python
-result = await vault.proxy_request(
+result = await app.proxy_request(
     HttpMethod.POST, url, grant_id=g, json_body=payload, reason="reason",
 )
 if isinstance(result, PendingApproval):
-    final = await vault.await_approval(result.approval_id, timeout=600.0)
+    final = await app.await_approval(result.approval_id, timeout=600.0)
 else:
     final = result
 print(final.status_code, final.body_text())

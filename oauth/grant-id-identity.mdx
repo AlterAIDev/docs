@@ -16,9 +16,9 @@ Construct the SDK with no `user_token_getter`. Read the `grant_id` from app conf
 ```python Python
 from alter_sdk import App, HttpMethod
 
-vault = App(api_key=ALTER_API_KEY)
+app = App(api_key=ALTER_API_KEY)
 
-response = await vault.request(
+response = await app.request(
     HttpMethod.POST,
     "https://api.stripe.com/v1/charges",
     grant_id=STRIPE_GRANT_ID,
@@ -29,9 +29,9 @@ response = await vault.request(
 ```typescript TypeScript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({ apiKey: ALTER_API_KEY });
+const app = new App({ apiKey: ALTER_API_KEY });
 
-const response = await vault.request(
+const response = await app.request(
   HttpMethod.POST,
   "https://api.stripe.com/v1/charges",
   { grantId: STRIPE_GRANT_ID, body: { amount: "2000", currency: "usd" } },
@@ -56,13 +56,13 @@ Show end users their connected accounts, build a multi-tenant management UI, or 
 
 <CodeGroup>
 ```python Python
-page = await vault.list_grants(provider_id="google", limit=50)
+page = await app.list_grants(provider_id="google", limit=50)
 for grant in page.grants:
     print(grant.grant_id, grant.account_identifier, grant.scopes)
 ```
 
 ```typescript TypeScript
-const page = await vault.listGrants({ providerId: "google", limit: 50 });
+const page = await app.listGrants({ providerId: "google", limit: 50 });
 for (const grant of page.grants) {
   console.log(grant.grantId, grant.accountIdentifier, grant.scopes);
 }
@@ -74,7 +74,7 @@ The full list/filter API is documented at [SDK → Grants](/sdks/python/referenc
 ## When **not** to use this
 
 - **Apps with logged-in users** → [JWT identity](/oauth/jwt-identity) (avoid tracking `grant_id` in application code).
-- **Bootstrapping a grant from a CLI** → [Headless](/oauth/headless) (run `vault.connect()` and capture the returned `grant_id`).
+- **Bootstrapping a grant from a CLI** → [Headless](/oauth/headless) (run `app.connect()` and capture the returned `grant_id`).
 
 ## Multi-tenant scoping
 

@@ -144,7 +144,7 @@ response = await alter_app.request(
 )
 ```
 
-In the Developer Portal, you can filter audit logs by caller to see exactly what each agent did and when. Registered callers also appear in the **Agents** tab. See the [Python SDK Overview](/sdks/python/overview#caller-tracking-ai-agents) for setup details.
+In the Developer Portal, you can filter audit logs by caller to see exactly what each agent did and when. Registered callers also appear in the **Agents** tab.
 
 ### Caller and Context Fields
 
@@ -160,7 +160,7 @@ In the Developer Portal, you can filter audit logs by caller to see exactly what
 |-------|------|-------------|---------|
 | **context** | `dict[str, str]` | Per-request identity and execution details | `{"tool": "read_calendar", "agent": "cursor"}` |
 
-The `context` dict must use string keys and string values. The SDK validates the shape before sending: at most 20 keys, no key longer than 64 characters, no value longer than 512 characters, and the total JSON-encoded payload must fit in 4 KB. Violations raise `AlterValueError`.
+The `context` dict must use string keys and string values. Oversized payloads raise `AlterValueError` at the SDK boundary.
 
 Common context keys include `tool` (which tool is being invoked), `agent` (upstream AI agent), `run_id`, `thread_id`, `parent_tool`, and `tool_call_id`. The [FastMCP integration](/sdks/python/mcp) and [LangChain integration](/sdks/python/langchain) packages populate these automatically.
 
@@ -209,16 +209,16 @@ The default retention period is 12 months. Each audit log entry includes a `rete
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Actor Tracking" icon="robot" href="/sdks/python/overview#actor-tracking-ai-agents">
-    Set up AI agent tracking in the Python SDK
+  <Card title="Agents" icon="robot" href="/agents/overview">
+    Workload identities and audit attribution
   </Card>
   <Card title="Security Policies" icon="shield" href="/reference/policies">
     Configure access policies that are enforced and logged
   </Card>
-  <Card title="Developer Portal" icon="browser" href="/reference/developer-portal#audit-logs">
+  <Card title="Developer Portal" icon="browser" href="/reference/developer-portal">
     View audit logs in the portal
   </Card>
-  <Card title="Managed Secrets" icon="key" href="/reference/managed-secrets#audit-logging">
-    Managed secret audit logging details
+  <Card title="Managed Secrets" icon="key" href="/managed-secrets/overview">
+    Managed secret overview
   </Card>
 </CardGroup>

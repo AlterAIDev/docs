@@ -44,7 +44,8 @@ print(result.grant_id)
 
 # Issue a Stripe grant to an agent. The grant binds to whichever agent's
 # API key is on the request — `AgentPrincipal` carries no agent_id field.
-billing_bot = app.get_agent("billing-bot")
+info = await app.agents.get_by_name("billing-bot")
+billing_bot = app.get_agent(info.id)
 result = await billing_bot.create_managed_secret_grant(
     managed_secret_id="ms_abc123",
     principal=AgentPrincipal(label="billing-bot-stripe"),
@@ -69,7 +70,7 @@ console.log(result.grantId);
 
 // Issue from inside agent code. The grant binds to whichever agent's
 // API key is on the request — `AgentPrincipal` carries no agentId field.
-const result2 = await agentVault.createManagedSecretGrant("ms_abc123", {
+const result2 = await agent.createManagedSecretGrant("ms_abc123", {
   principal: { type: "agent", label: "billing-bot-stripe" },
 });
 
@@ -110,7 +111,7 @@ Agents (the `Agent` class) can issue grants — but only for themselves. The bac
 
 ```python
 # Inside agent code
-result = await vault.create_managed_secret_grant(
+result = await agent.create_managed_secret_grant(
     managed_secret_id="ms_abc123",
     principal=AgentPrincipal(label="self-issued-stripe"),
 )
@@ -123,7 +124,7 @@ This pattern enables an agent to self-provision access at startup. The agent mus
 Managed-secret grants appear in `list_grants()` alongside OAuth grants — they're returned as `ManagedSecretGrantItem` objects (vs `OAuthGrantItem` for OAuth grants). The discriminator field is `grant_kind` (Python) / `grantKind` (TypeScript):
 
 ```python
-page = await vault.list_grants(limit=100)
+page = await app.list_grants(limit=100)
 for item in page.grants:
     if item.grant_kind == "managed_secret":
         print(item.grant_id, item.managed_secret_id, item.managed_secret_slug, item.label)

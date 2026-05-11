@@ -45,7 +45,7 @@ async connect(options: {
 ### Example
 
 ```typescript
-const results = await vault.connect({ providers: ["github"] });
+const results = await app.connect({ providers: ["github"] });
 console.log(results[0].grantId);
 ```
 
@@ -66,7 +66,7 @@ async authenticate(options?: { timeout?: number }): Promise<AuthResult>
 ### Example
 
 ```typescript
-const auth = await vault.authenticate();
+const auth = await app.authenticate();
 console.log("user:", auth.userInfo, "jwt:", auth.userToken);
 ```
 
@@ -99,7 +99,7 @@ async createConnectSession(options?: {
 ### Example
 
 ```typescript
-const session = await vault.createConnectSession({
+const session = await app.createConnectSession({
   allowedProviders: ["google", "slack"],
   returnUrl: "https://app.example.com/oauth/done",
 });
@@ -123,7 +123,7 @@ The verified `sub` claim, or `null` if invalid.
 ### Example
 
 ```typescript
-const sub = await vault.verifyUserToken(jwt);
+const sub = await app.verifyUserToken(jwt);
 if (sub === null) throw new Error("invalid token");
 ```
 

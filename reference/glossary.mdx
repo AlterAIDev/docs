@@ -34,7 +34,7 @@ Informal name for an OAuth credential row — the stored credential binding an a
 
 ## Context
 
-Free-form per-call audit metadata. A map of strings passed to `vault.request(..., context={...})`. Typical fields: tool name, run ID, thread ID. See [Concepts → Principals and grants](/concepts/principals-and-grants#context).
+Free-form per-call audit metadata. A map of strings passed to `app.request(..., context={...})`. Typical fields: tool name, run ID, thread ID. See [Concepts → Principals and grants](/concepts/principals-and-grants#context).
 
 ## Delegation
 
@@ -50,11 +50,11 @@ The human whose credentials are being stored. Distinct from "developer" (who int
 
 ## Grant
 
-A stored consent record that lets a principal call a third-party API through Alter. Identified by a UUID (`grant_id`). The unit passed to `vault.request()`. See [Concepts → Principals and grants](/concepts/principals-and-grants#grant).
+A stored consent record that lets a principal call a third-party API through Alter. Identified by a UUID (`grant_id`). The unit passed to `app.request()`. See [Concepts → Principals and grants](/concepts/principals-and-grants#grant).
 
 ## `grant_id`
 
-The UUID that identifies a grant. Returned from OAuth flows (`vault.connect()`, Connect SDK `onSuccess`) and from managed-secret provisioning. Passed to `vault.request(grant_id=...)` for the explicit identity-resolution mode. See [Concepts → Identity resolution](/concepts/identity-resolution).
+The UUID that identifies a grant. Returned from OAuth flows (`app.connect()`, Connect SDK `onSuccess`) and from managed-secret provisioning. Passed to `app.request(grant_id=...)` for the explicit identity-resolution mode. See [Concepts → Identity resolution](/concepts/identity-resolution).
 
 ## Group principal
 

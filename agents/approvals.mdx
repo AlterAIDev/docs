@@ -28,7 +28,7 @@ Approvals are an opt-in policy. Most agent calls flow straight through. Use appr
 ```python Python
 from alter_sdk import PendingApproval
 
-result = await vault.proxy_request(
+result = await agent.proxy_request(
     HttpMethod.POST,
     "https://api.stripe.com/v1/refunds",
     grant_id=STRIPE_GRANT_ID,
@@ -38,7 +38,7 @@ result = await vault.proxy_request(
 
 if isinstance(result, PendingApproval):
     print("Awaiting approval at:", result.approval_url)
-    final = await vault.await_approval(result.approval_id, timeout=600.0)
+    final = await agent.await_approval(result.approval_id, timeout=600.0)
 else:
     final = result  # No approval required by policy
 
@@ -48,7 +48,7 @@ print(final.status_code, final.body_text())
 ```typescript TypeScript
 import { PendingApproval } from "@alter-ai/alter-sdk";
 
-const result = await vault.proxyRequest({
+const result = await agent.proxyRequest({
   method: HttpMethod.POST,
   url: "https://api.stripe.com/v1/refunds",
   grantId: STRIPE_GRANT_ID,
@@ -58,7 +58,7 @@ const result = await vault.proxyRequest({
 
 if (result instanceof PendingApproval) {
   console.log("Awaiting approval at:", result.approvalUrl);
-  const final = await vault.awaitApproval(result.approvalId, { timeoutMs: 600_000 });
+  const final = await agent.awaitApproval(result.approvalId, { timeoutMs: 600_000 });
   console.log(final.statusCode, final.bodyText());
 } else {
   console.log(result.statusCode, result.bodyText());
@@ -75,16 +75,16 @@ if (result instanceof PendingApproval) {
 
 <CodeGroup>
 ```python Python
-status = await vault.get_approval_status(approval_id)
+status = await agent.get_approval_status(approval_id)
 if status.has_result:
-    final = await vault.await_approval(approval_id)
+    final = await agent.await_approval(approval_id)
     print(final.status_code, final.body_text())
 ```
 
 ```typescript TypeScript
-const status = await vault.getApprovalStatus(approvalId);
+const status = await agent.getApprovalStatus(approvalId);
 if (status.hasResult) {
-  const final = await vault.awaitApproval(approvalId);
+  const final = await agent.awaitApproval(approvalId);
   console.log(final.statusCode, final.bodyText());
 }
 ```

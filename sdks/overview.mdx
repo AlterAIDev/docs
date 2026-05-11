@@ -35,15 +35,15 @@ This is what application code looks like after the quickstart:
 ```python Python
 from alter_sdk import App, HttpMethod
 
-vault = App(api_key=ALTER_API_KEY)
-response = await vault.request(HttpMethod.GET, url, grant_id=GRANT_ID)
+app = App(api_key=ALTER_API_KEY)
+response = await app.request(HttpMethod.GET, url, grant_id=GRANT_ID)
 ```
 
 ```typescript TypeScript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({ apiKey: ALTER_API_KEY });
-const response = await vault.request(HttpMethod.GET, url, { grantId: GRANT_ID });
+const app = new App({ apiKey: ALTER_API_KEY });
+const response = await app.request(HttpMethod.GET, url, { grantId: GRANT_ID });
 ```
 </CodeGroup>
 

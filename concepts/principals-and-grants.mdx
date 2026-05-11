@@ -35,7 +35,7 @@ Principal kind decides what the SDK permits. A user-principal call resolves the 
 Free-form audit attribution — *what code path* made the call. Set once at SDK construction, immutable for the instance:
 
 ```python
-vault = App(api_key=KEY, caller="email-research-bot")
+app = App(api_key=KEY, caller="email-research-bot")
 ```
 
 Caller is **not** an access boundary. It does not narrow what the principal can do. It exists so audit queries can answer "which feature ran this call?" without threading metadata through every layer.
@@ -44,10 +44,10 @@ When `caller` is the UUID of a managed agent, audit rows record the managed-agen
 
 ## Context
 
-Free-form per-call metadata. A dict of strings attached to a single `vault.request()`:
+Free-form per-call metadata. A dict of strings attached to a single `app.request()`:
 
 ```python
-await vault.request(method, url, grant_id=g, context={"tool": "list_emails", "run_id": "abc"})
+await app.request(method, url, grant_id=g, context={"tool": "list_emails", "run_id": "abc"})
 ```
 
 Stored in the audit row as JSONB. Use it for tool name, run ID, thread ID — anything worth surfacing when grepping the audit trail later.

@@ -39,7 +39,7 @@ app_api_key = os.environ["ALTER_APP_KEY"]
 # JWT plumbed via ContextVar so user_token_getter can find it.
 _jwt_ctx: ContextVar[str | None] = ContextVar("jwt", default=None)
 
-vault = App(
+alter_app = App(
     api_key=app_api_key,
     user_token_getter=lambda: _jwt_ctx.get() or "",
 )
@@ -52,13 +52,13 @@ api = FastAPI()
 @api.on_event("startup")
 async def _bootstrap():
     global travel_bot_id
-    info = await vault.agents.get_by_name("travel-bot")
+    info = await alter_app.agents.get_by_name("travel-bot")
     if info is None:
         raise RuntimeError("Managed agent 'travel-bot' not found")
     travel_bot_id = str(info.id)
 ```
 
-`vault` is the operator-side App. An `Agent` is also constructed per request so audit attribution lands on `travel-bot` rather than the App.
+`alter_app` is the operator-side App. An `Agent` is also constructed per request so audit attribution lands on `travel-bot` rather than the App.
 
 ## The endpoint
 
@@ -74,7 +74,7 @@ async def chat(request: Request, message: dict):
 
     # 2. Construct the agent. Same backend identity as a per-agent key,
     #    but the master key signs (shape (b)).
-    agent = vault.get_agent(travel_bot_id)
+    agent = alter_app.get_agent(travel_bot_id)
 
     # 3. Bind a run_id so all tool calls in this request share an audit trail.
     async with agent.trace(run_id=request.headers.get("x-request-id", "unknown")):

@@ -27,9 +27,9 @@ async getApprovalStatus(approvalId: string): Promise<ApprovalStatus>
 ### Example
 
 ```typescript
-const status = await vault.getApprovalStatus("apr_xyz");
+const status = await app.getApprovalStatus("apr_xyz");
 if (status.status === "executed") {
-  const final = await vault.awaitApproval("apr_xyz");
+  const final = await app.awaitApproval("apr_xyz");
   console.log(final.statusCode);
 }
 ```
@@ -60,11 +60,11 @@ Defaults: `timeoutMs = 300_000` (5 min), `pollIntervalMs = 2_000` (2 s).
 ### Example
 
 ```typescript
-const result = await vault.proxyRequest({
+const result = await app.proxyRequest({
   method: HttpMethod.POST, url, grantId: g, jsonBody: payload, reason: "...",
 });
 const final = result instanceof PendingApproval
-  ? await vault.awaitApproval(result.approvalId, { timeoutMs: 600_000 })
+  ? await app.awaitApproval(result.approvalId, { timeoutMs: 600_000 })
   : result;
 console.log(final.statusCode, final.bodyText());
 ```

@@ -22,19 +22,19 @@ icon: 'id-badge'
 
 ## The pattern
 
-Construct the SDK once. Pass a `user_token_getter` that returns the current request's JWT. Call `vault.request(...)` with `provider="..."` instead of `grant_id=...`.
+Construct the SDK once. Pass a `user_token_getter` that returns the current request's JWT. Call `app.request(...)` with `provider="..."` instead of `grant_id=...`.
 
 <CodeGroup>
 ```python Python
 from alter_sdk import App, HttpMethod
 
-vault = App(
+app = App(
     api_key=ALTER_API_KEY,
     user_token_getter=lambda: get_jwt_from_current_request(),
 )
 
 # No grant_id. Backend resolves Alice's Google grant from her JWT.
-response = await vault.request(
+response = await app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     provider="google",
@@ -44,12 +44,12 @@ response = await vault.request(
 ```typescript TypeScript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({
+const app = new App({
   apiKey: ALTER_API_KEY,
   userTokenGetter: () => getJwtFromCurrentRequest(),
 });
 
-const response = await vault.request(
+const response = await app.request(
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   { provider: "google" },
@@ -67,17 +67,14 @@ The Python SDK ships a FastAPI helper that pulls the `Authorization: Bearer …`
 
 ```python
 from fastapi import FastAPI, Depends
-from alter_sdk import App
-from alter_sdk.fastapi import AlterFastAPI, depends as alter_depends
+from alter_sdk.fastapi import AlterFastAPI
 
-vault = App(api_key=ALTER_API_KEY)
-alter = AlterFastAPI(vault)
-
+alter = AlterFastAPI(api_key=ALTER_API_KEY)
 app = FastAPI()
 
 @app.get("/calendar")
-async def list_events(_=Depends(alter_depends(alter))):
-    response = await vault.request("GET", "...", provider="google")
+async def list_events(alter_app=Depends(alter)):
+    response = await alter_app.request("GET", "...", provider="google")
     return response.json()
 ```
 
@@ -92,12 +89,12 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { App } from "@alter-ai/alter-sdk";
 
 const jwtStore = new AsyncLocalStorage<string>();
-const vault = new App({
+const alterApp = new App({
   apiKey: ALTER_API_KEY,
   userTokenGetter: () => jwtStore.getStore() ?? "",
 });
 
-app.use((req, _res, next) => {
+expressApp.use((req, _res, next) => {
   const jwt = req.headers.authorization?.replace(/^Bearer /, "") ?? "";
   jwtStore.run(jwt, next);
 });
@@ -108,7 +105,7 @@ app.use((req, _res, next) => {
 `provider="google"` resolves the user's grant for Google. When a user has multiple accounts on the same provider (work Gmail + personal Gmail), pass `account=` to disambiguate:
 
 ```python
-response = await vault.request(
+response = await app.request(
     HttpMethod.GET, "...", provider="google", account="alice@work.example",
 )
 ```
@@ -127,17 +124,17 @@ The first time Alter sees a JWT for a new user, it lazily creates a user record 
 
 ## Verifying a JWT directly
 
-Sometimes a JWT must be verified in application code without making a provider call (e.g., in middleware that runs before any `vault.request()`):
+Sometimes a JWT must be verified in application code without making a provider call (e.g., in middleware that runs before any `app.request()`):
 
 <CodeGroup>
 ```python Python
-sub = await vault.verify_user_token(jwt)
+sub = await app.verify_user_token(jwt)
 if sub is None:
     raise HTTPException(401, "Invalid token")
 ```
 
 ```typescript TypeScript
-const sub = await vault.verifyUserToken(jwt);
+const sub = await app.verifyUserToken(jwt);
 if (sub === null) throw new Error("Invalid token");
 ```
 </CodeGroup>
@@ -148,7 +145,7 @@ Returns the verified `sub` claim or `null`. Uses the same JWKS verification path
 
 - **Cron jobs / webhook handlers** with no end user → [grant_id identity](/oauth/grant-id-identity).
 - **CLIs / notebooks / agent bootstrap** → [Headless](/oauth/headless).
-- **Per-call user override** (rare): pass `user_token=jwt` directly to `vault.request()`.
+- **Per-call user override** (rare): pass `user_token=jwt` directly to `app.request()`.
 
 ## See also
 

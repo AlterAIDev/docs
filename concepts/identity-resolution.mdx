@@ -4,7 +4,7 @@ description: 'The three ways the SDK figures out which grant to use. Pick one pe
 icon: 'fingerprint'
 ---
 
-*Identity resolution is how the SDK decides which grant backs a `vault.request()` call.*
+*Identity resolution is how the SDK decides which grant backs a `app.request()` call.*
 
 Three modes. They appear in this order everywhere in these docs because that's the order to consider them in:
 
@@ -12,7 +12,7 @@ Three modes. They appear in this order everywhere in these docs because that's t
 2. **`grant_id`** — for scripts, batch jobs, and managed secrets
 3. **Headless** — for CLIs, notebooks, and agents bootstrapping their own grants
 
-The same `vault.request()` method serves all three. Only the wiring differs.
+The same `app.request()` method serves all three. Only the wiring differs.
 
 ## 1. JWT — recommended for user-driven flows
 
@@ -20,22 +20,22 @@ Configure an [Identity Provider](/oauth/identity-providers/overview), pass a `us
 
 <CodeGroup>
 ```python Python
-vault = App(
+app = App(
     api_key=ALTER_API_KEY,
     user_token_getter=lambda: get_jwt_from_request(),
 )
 
 # No grant_id — the backend resolves Alice's Google grant from her JWT.
-response = await vault.request("GET", url, provider="google")
+response = await app.request("GET", url, provider="google")
 ```
 
 ```typescript TypeScript
-const vault = new App({
+const app = new App({
   apiKey: ALTER_API_KEY,
   userTokenGetter: () => getJwtFromRequest(),
 });
 
-const response = await vault.request("GET", url, { provider: "google" });
+const response = await app.request("GET", url, { provider: "google" });
 ```
 </CodeGroup>
 
@@ -55,15 +55,15 @@ Pass an explicit `grant_id` per call. Use this when:
 
 <CodeGroup>
 ```python Python
-vault = App(api_key=ALTER_API_KEY)
+app = App(api_key=ALTER_API_KEY)
 
-response = await vault.request("GET", url, grant_id=STRIPE_GRANT_ID)
+response = await app.request("GET", url, grant_id=STRIPE_GRANT_ID)
 ```
 
 ```typescript TypeScript
-const vault = new App({ apiKey: ALTER_API_KEY });
+const app = new App({ apiKey: ALTER_API_KEY });
 
-const response = await vault.request("GET", url, { grantId: STRIPE_GRANT_ID });
+const response = await app.request("GET", url, { grantId: STRIPE_GRANT_ID });
 ```
 </CodeGroup>
 
@@ -71,18 +71,18 @@ const response = await vault.request("GET", url, { grantId: STRIPE_GRANT_ID });
 
 ## 3. Headless — for CLIs, notebooks, and agent bootstrap
 
-`vault.connect()` and `vault.authenticate()` open a browser, walk through OAuth, and return a `grant_id` usable immediately. No frontend, no callback URL.
+`app.connect()` and `app.authenticate()` open a browser, walk through OAuth, and return a `grant_id` usable immediately. No frontend, no callback URL.
 
 <CodeGroup>
 ```python Python
-vault = App(api_key=ALTER_API_KEY)
-results = await vault.connect(providers=["github"])
+app = App(api_key=ALTER_API_KEY)
+results = await app.connect(providers=["github"])
 grant_id = results[0].grant_id
 ```
 
 ```typescript TypeScript
-const vault = new App({ apiKey: ALTER_API_KEY });
-const results = await vault.connect({ providers: ["github"] });
+const app = new App({ apiKey: ALTER_API_KEY });
+const results = await app.connect({ providers: ["github"] });
 const grantId = results[0].grantId;
 ```
 </CodeGroup>
@@ -98,7 +98,7 @@ Is there a logged-in user with a JWT?
 ├── Yes → JWT
 └── No  → Is a grant_id already available?
          ├── Yes → grant_id
-         └── No  → Headless (vault.connect())
+         └── No  → Headless (app.connect())
 ```
 
 Modes can be mixed in one app — different SDK instances for different code paths. See [Agents → Overview](/agents/overview) when the caller is an agent workload.

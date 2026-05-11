@@ -64,10 +64,10 @@ No auth code is required. The SDK call shown below is the same call that ships t
     from alter_sdk import App
 
     async def main():
-        vault = App(api_key=os.environ["ALTER_API_KEY"])
-        results = await vault.connect(providers=["slack"])
+        app = App(api_key=os.environ["ALTER_API_KEY"])
+        results = await app.connect(providers=["slack"])
         print("grant_id:", results[0].grant_id)
-        await vault.close()
+        await app.close()
 
     asyncio.run(main())
     ```
@@ -75,12 +75,12 @@ No auth code is required. The SDK call shown below is the same call that ships t
     ```typescript TypeScript
     import { App } from "@alter-ai/alter-sdk";
 
-    const vault = new App({ apiKey: process.env.ALTER_API_KEY! });
+    const app = new App({ apiKey: process.env.ALTER_API_KEY! });
     try {
-      const results = await vault.connect({ providers: ["slack"] });
+      const results = await app.connect({ providers: ["slack"] });
       console.log("grantId:", results[0].grantId);
     } finally {
-      await vault.close();
+      await app.close();
     }
     ```
     </CodeGroup>
@@ -101,15 +101,15 @@ No auth code is required. The SDK call shown below is the same call that ships t
     from alter_sdk import App, HttpMethod
 
     async def main():
-        vault = App(api_key=os.environ["ALTER_API_KEY"])
-        response = await vault.request(
+        app = App(api_key=os.environ["ALTER_API_KEY"])
+        response = await app.request(
             HttpMethod.POST,
             "https://slack.com/api/chat.postMessage",
             grant_id=os.environ["SLACK_GRANT_ID"],
             json={"channel": "#general", "text": "Hello from Alter Vault."},
         )
         print(response.status_code, response.json())
-        await vault.close()
+        await app.close()
 
     asyncio.run(main())
     ```
@@ -117,9 +117,9 @@ No auth code is required. The SDK call shown below is the same call that ships t
     ```typescript TypeScript
     import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-    const vault = new App({ apiKey: process.env.ALTER_API_KEY! });
+    const app = new App({ apiKey: process.env.ALTER_API_KEY! });
     try {
-      const response = await vault.request(
+      const response = await app.request(
         HttpMethod.POST,
         "https://slack.com/api/chat.postMessage",
         {
@@ -129,7 +129,7 @@ No auth code is required. The SDK call shown below is the same call that ships t
       );
       console.log(response.status, await response.json());
     } finally {
-      await vault.close();
+      await app.close();
     }
     ```
     </CodeGroup>
@@ -144,7 +144,7 @@ No auth code is required. The SDK call shown below is the same call that ships t
 
 ## What just happened
 
-`vault.request()` looked up the Slack grant, fetched a fresh token from the vault, injected it into the outgoing Slack call, and returned the response. Application code never touched a token.
+`app.request()` looked up the Slack grant, fetched a fresh token, injected it into the outgoing Slack call, and returned the response. Application code never touched a token.
 
 ## Where next
 

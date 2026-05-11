@@ -6,7 +6,7 @@ icon: 'link'
 
 *An OAuth [grant](/reference/glossary#grant) is what an end user creates when they click "Connect Google" — a stored consent record that lets the app call Google APIs as that user.*
 
-When a user completes OAuth, Alter Vault stores their tokens encrypted in the vault and returns a `grant_id`. Every subsequent provider call goes through `vault.request(method, url, grant_id=...)`. Application code never sees a token.
+When a user completes OAuth, Alter Vault stores their tokens encrypted in the vault and returns a `grant_id`. Every subsequent provider call goes through `app.request(method, url, grant_id=...)`. Application code never sees a token.
 
 ## When to use OAuth grants
 
@@ -26,10 +26,10 @@ For developer-owned credentials (app-owned API keys, service tokens), use [Manag
     Access tokens, refresh tokens, and expiry are encrypted (AES-256-GCM) and stored in Alter Vault. Never in the application database.
   </Step>
   <Step title="Use">
-    Call `vault.request(...)`. The SDK looks up the grant, retrieves and refreshes the token if needed, and injects it into the outgoing call.
+    Call `app.request(...)`. The SDK looks up the grant, retrieves and refreshes the token if needed, and injects it into the outgoing call.
   </Step>
   <Step title="Revoke">
-    Either the user (in [Wallet](/wallet/overview)) or application code (`vault.revoke_grant()`) ends the grant. Tokens are deleted immediately.
+    Either the user (in [Wallet](/wallet/overview)) or application code (`app.revoke_grant()`) ends the grant. Tokens are deleted immediately.
   </Step>
 </Steps>
 
@@ -51,8 +51,8 @@ Distinct from identity resolution above. This is **how the user reaches the cons
 
 | Method | Best for | How it works |
 |---|---|---|
-| **Headless** (`vault.connect()`) | CLIs, scripts, Jupyter, server-side agents | One SDK call creates a session, opens a browser, polls until complete. |
-| **Redirect** (`vault.create_connect_session()`) | Server-rendered apps, email links | Backend gets a `connect_url`; redirects the user there; receives them at `return_url`. |
+| **Headless** (`app.connect()`) | CLIs, scripts, Jupyter, server-side agents | One SDK call creates a session, opens a browser, polls until complete. |
+| **Redirect** (`app.create_connect_session()`) | Server-rendered apps, email links | Backend gets a `connect_url`; redirects the user there; receives them at `return_url`. |
 | **Popup** (`@alter-ai/connect`) | SPAs (React, Vue, …) | Backend creates a session, frontend SDK opens a popup with `onSuccess`/`onError`. |
 
 See [SDKs → Connect.js](/sdks/connect-js/quickstart) for popup flows; [Headless](/oauth/headless) for `connect()`.
@@ -63,9 +63,9 @@ See [SDKs → Connect.js](/sdks/connect-js/quickstart) for popup flows; [Headles
 ```python Python
 from alter_sdk import App, HttpMethod
 
-vault = App(api_key=ALTER_API_KEY)
+app = App(api_key=ALTER_API_KEY)
 
-response = await vault.request(
+response = await app.request(
     HttpMethod.GET,
     "https://www.googleapis.com/calendar/v3/calendars/primary/events",
     grant_id=grant_id,
@@ -77,9 +77,9 @@ events = response.json()
 ```typescript TypeScript
 import { App, HttpMethod } from "@alter-ai/alter-sdk";
 
-const vault = new App({ apiKey: ALTER_API_KEY });
+const app = new App({ apiKey: ALTER_API_KEY });
 
-const response = await vault.request(
+const response = await app.request(
   HttpMethod.GET,
   "https://www.googleapis.com/calendar/v3/calendars/primary/events",
   { grantId, queryParams: { maxResults: "10" } },

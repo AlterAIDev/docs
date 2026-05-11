@@ -15,26 +15,26 @@ Two ways:
 # (a) Direct: per-agent API key from env
 from alter_sdk import Agent
 
-vault = Agent(api_key=AGENT_API_KEY)
+agent = Agent(api_key=AGENT_API_KEY)
 
 # (b) From an App (impersonation): app key + agent UUID
 from alter_sdk import App
 
 app = App(api_key=APP_API_KEY)
-vault = app.get_agent(agent_id)
+agent = app.get_agent(agent_id)
 ```
 
 ```typescript TypeScript
 // (a) Direct
 import { Agent } from "@alter-ai/alter-sdk";
 
-const vault = new Agent({ apiKey: AGENT_API_KEY });
+const agent = new Agent({ apiKey: AGENT_API_KEY });
 
 // (b) From an App
 import { App } from "@alter-ai/alter-sdk";
 
 const app = new App({ apiKey: APP_API_KEY });
-const vault = app.getAgent(agentId);
+const agent = app.getAgent(agentId);
 ```
 </CodeGroup>
 
@@ -44,12 +44,12 @@ Both shapes produce the same backend identity. See [Agents overview](/agents/ove
 
 <CodeGroup>
 ```python Python
-me = await vault.me()
+me = await agent.me()
 print(me.id, me.name, me.scopes, me.policy)
 ```
 
 ```typescript TypeScript
-const me = await vault.me();
+const me = await agent.me();
 console.log(me.id, me.name, me.scopes, me.policy);
 ```
 </CodeGroup>
@@ -62,36 +62,36 @@ console.log(me.id, me.name, me.scopes, me.policy);
 
 <CodeGroup>
 ```python Python
-async with vault.trace(run_id="run-abc123"):
-    await vault.request("GET", url1, grant_id=g1)
-    await vault.request("POST", url2, grant_id=g2)
+async with agent.trace(run_id="run-abc123"):
+    await agent.request("GET", url1, grant_id=g1)
+    await agent.request("POST", url2, grant_id=g2)
     # both audit rows tagged with run_id="run-abc123"
 ```
 
 ```typescript TypeScript
-await vault.trace({ runId: "run-abc123" }, async () => {
-  await vault.request("GET", url1, { grantId: g1 });
-  await vault.request("POST", url2, { grantId: g2 });
+await agent.trace({ runId: "run-abc123" }, async () => {
+  await agent.request("GET", url1, { grantId: g1 });
+  await agent.request("POST", url2, { grantId: g2 });
 });
 ```
 </CodeGroup>
 
 Pair with `context={...}` for per-call metadata — `trace()` for the run-level ID, `context` for tool name / step name.
 
-To attach run/tool/thread metadata without using `trace()`, pass `context={"run_id": ..., "tool": ...}` directly on `vault.request(...)`.
+To attach run/tool/thread metadata without using `trace()`, pass `context={"run_id": ..., "tool": ...}` directly on `agent.request(...)`.
 
 ## Bootstrapping a grant from the agent
 
-Agents can run `vault.connect()` and `vault.authenticate()` the same way an `App` can — useful for self-service flows where the agent obtains its own delegation rather than waiting for an operator to bind one:
+Agents can run `agent.connect()` and `agent.authenticate()` the same way an `App` can — useful for self-service flows where the agent obtains its own delegation rather than waiting for an operator to bind one:
 
 <CodeGroup>
 ```python Python
-results = await vault.connect(providers=["github"])
+results = await agent.connect(providers=["github"])
 print(results[0].grant_id)
 ```
 
 ```typescript TypeScript
-const results = await vault.connect({ providers: ["github"] });
+const results = await agent.connect({ providers: ["github"] });
 console.log(results[0].grantId);
 ```
 </CodeGroup>
@@ -104,11 +104,11 @@ When an agent decides it should no longer hold a delegation:
 
 <CodeGroup>
 ```python Python
-await vault.revoke_delegation(grant_id)
+await agent.revoke_delegation(grant_id)
 ```
 
 ```typescript TypeScript
-await vault.revokeDelegation(grantId);
+await agent.revokeDelegation(grantId);
 ```
 </CodeGroup>
 

@@ -41,7 +41,7 @@ App(
 |---|---|---|
 | `actor_id` | `str \| None` | Cached actor UUID. |
 | `agents` | `AgentsNamespace` | See [Agents reference](/sdks/python/reference/agents). |
-| `base_url` | `str` | Resolved Alter Vault endpoint. Diagnostic only. |
+| `base_url` | `str` | Resolved Alter endpoint. Diagnostic only. |
 | `last_retry_info` | `RetryInfo \| None` | Retry metadata from the most recent `request()`. |
 
 ### Example
@@ -49,7 +49,7 @@ App(
 ```python
 from alter_sdk import App
 
-vault = App(
+app = App(
     api_key="alter_key_app_...",
     caller="email-research-bot",
     user_token_getter=lambda: get_jwt(),
@@ -81,8 +81,8 @@ Same as `App`, except `caller_type` is implicit (always `AGENT`). `user_token_ge
 ```python
 from alter_sdk import Agent
 
-vault = Agent(api_key="alter_key_agent_...")
-me = await vault.me()
+agent = Agent(api_key="alter_key_agent_...")
+me = await agent.me()
 print(me.id, me.name)
 ```
 
@@ -91,8 +91,8 @@ print(me.id, me.name)
 Both classes are async-safe. Always call `close()` to release the underlying HTTP pool, or use the async context manager:
 
 ```python
-async with App(api_key=KEY) as vault:
-    response = await vault.request("GET", url, grant_id=g)
+async with App(api_key=KEY) as app:
+    response = await app.request("GET", url, grant_id=g)
 # automatically closed
 ```
 

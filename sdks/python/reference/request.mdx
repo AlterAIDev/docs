@@ -61,7 +61,7 @@ An `httpx.Response`. Adds a `retry_info: RetryInfo \| None` attribute carrying r
 ### Example
 
 ```python
-response = await vault.request(
+response = await app.request(
     HttpMethod.POST,
     "https://api.openai.com/v1/chat/completions",
     grant_id=OPENAI_GRANT_ID,
@@ -100,7 +100,7 @@ Auth headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) ar
 ### Example
 
 ```python
-result = await vault.proxy_request(
+result = await app.proxy_request(
     HttpMethod.POST,
     "https://api.example.com/v1/refunds",
     grant_id=GRANT_ID,
@@ -111,7 +111,7 @@ result = await vault.proxy_request(
 
 ## `boto3_client()`
 
-Returns a boto3 service client whose every call is signed with vault-stored AWS credentials. Python only.
+Returns a boto3 service client whose every call is signed with stored AWS credentials. Python only.
 
 ### Signature
 
@@ -130,7 +130,7 @@ async def boto3_client(
 ### Example
 
 ```python
-s3 = await vault.boto3_client("s3", grant_id=AWS_GRANT_ID, region_name="us-west-2")
+s3 = await app.boto3_client("s3", grant_id=AWS_GRANT_ID, region_name="us-west-2")
 result = s3.list_objects_v2(Bucket="my-bucket")
 ```
 

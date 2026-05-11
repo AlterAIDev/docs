@@ -50,11 +50,11 @@ ALTER_API_KEY = os.environ["ALTER_API_KEY"]
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8000/mcp")
 
 alter = AlterFastAPI(api_key=ALTER_API_KEY, caller="my-mcp-server")
-vault = alter.vault
+alter_app = alter.app
 
-# Create the MCP auth provider -- a full OAuth 2.0 Authorization Server.
-# MCP clients discover it automatically via RFC 8414 metadata.
-alter_mcp = AlterMCP(vault)
+# Create the MCP auth provider. MCP clients discover the OAuth endpoints
+# automatically via the server's discovery metadata.
+alter_mcp = AlterMCP(alter_app)
 auth = alter.auth_provider(
     base_url=BASE_URL,
     providers={"google": ["gmail.readonly"]},
@@ -90,9 +90,9 @@ if __name__ == "__main__":
 ```
 
 <Note>
-  The `base_url` parameter must match the URL where the MCP server is
-  mounted (e.g., `http://localhost:8000/mcp`). The SDK uses this as the
-  OAuth issuer and advertises endpoint URLs relative to it.
+  The `base_url` parameter must match the public URL where the MCP server
+  is mounted (e.g., `http://localhost:8000/mcp` in development). The SDK
+  advertises OAuth endpoint URLs relative to it.
 </Note>
 
 ## Run the Server

@@ -30,7 +30,7 @@ This page covers the IDP model. For the runtime SDK pattern, see [JWT identity](
 | **JWT verification** | Alter validates the signature against the IDP's JWKS on every call. Replaced/rotated keys are picked up automatically. |
 | **User resolution** | The JWT `sub` claim maps to an Alter user record. New users are lazy-created on first sight. |
 | **Group sync** | If the JWT carries a group claim, Alter syncs group memberships into the user record. Group-bound managed secrets become accessible to the user. |
-| **OIDC sign-in** (optional) | Lets `vault.authenticate()` and the [Wallet](/wallet/overview) show a sign-in flow through the IDP. |
+| **OIDC sign-in** (optional) | Lets `app.authenticate()` and the [Wallet](/wallet/overview) show a sign-in flow through the IDP. |
 | **Webhook deprovisioning** (optional) | Real-time revocation: deleting a user in the IDP revokes their grants in Alter. |
 
 ## What gets configured
@@ -42,7 +42,7 @@ Three concentric layers, each optional after the previous one.
     Issuer URL, JWKS URL, audience, claim mappings (sub, group, role). Once configured, the SDK can pass JWTs and Alter resolves users from them.
   </Step>
   <Step title="OIDC sign-in (optional)">
-    Client ID + secret + redirect URIs. Adds a browser-based sign-in flow for `vault.authenticate()` and Alter Wallet.
+    Client ID + secret + redirect URIs. Adds a browser-based sign-in flow for `app.authenticate()` and Alter Wallet.
   </Step>
   <Step title="Webhook deprovisioning (optional)">
     Webhook endpoint + signing secret. Pushes user lifecycle events from the IDP into Alter for real-time revocation.

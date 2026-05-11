@@ -91,7 +91,7 @@ AlterSDKError
 The SDK retries network/timeout errors automatically up to 3 times with exponential backoff. Per-call retry metadata is on `response.retryInfo: RetryInfo | null`:
 
 ```typescript
-const response = await vault.request("GET", url, { grantId: g });
+const response = await app.request("GET", url, { grantId: g });
 if (response.retryInfo && response.retryInfo.totalAttempts > 1) {
   console.log(`Recovered after ${response.retryInfo.totalAttempts} attempts`);
 }
