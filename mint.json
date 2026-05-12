@@ -33,11 +33,6 @@
       "url": "https://portal.alterauth.com"
     },
     {
-      "name": "Wallet",
-      "icon": "wallet",
-      "url": "https://wallet.alterauth.com"
-    },
-    {
       "name": "API Status",
       "icon": "heart-pulse",
       "url": "https://status.alterauth.com"
