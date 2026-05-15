@@ -70,7 +70,8 @@
         "concepts/what-is-alter-vault",
         "first-5-minutes",
         "concepts/principals-and-grants",
-        "concepts/identity-resolution"
+        "concepts/identity-resolution",
+        "concepts/verified-users-in-agent-code"
       ]
     },
     {
@@ -387,6 +388,9 @@
       "pages": [
         "reference/architecture",
         "reference/policies",
+        "reference/scope-grammar",
+        "reference/endpoint-scopes",
+        "reference/pilot-migration",
         "reference/audit-logs",
         "reference/developer-portal",
         "reference/glossary"

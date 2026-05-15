@@ -1,0 +1,207 @@
+---
+title: 'Verified users in agent code'
+description: 'How an agent app composes its own credentials with end-user identity, per call.'
+icon: 'users-rectangle'
+---
+
+*A verified end user is part of the request, and an agent is in the path. Two authority shapes apply per call — **agent-as-principal** (the agent's grant signs the call) or **delegation** (the user's grant signs the call, via the agent). Identity is the same handle either way; only the authority changes.*
+
+<Note>
+  Identity verification is an app-level primitive. `app.verify_user_token(...)` / `app.authenticate(...)` runs in application code and is independent of whether an agent is involved on any given call. This page covers the combined shape — an agent **and** a verified user in the same request, with either authority per call. The adjacent shapes have their own pages:
+
+  - **App + verified user, no agent.** [JWT identity](/oauth/jwt-identity) — user-principal calls with no agent in the path.
+  - **Agent, no verified user.** [`grant_id` resolution](/oauth/grant-id-identity) — autonomous workloads where the agent runs without per-request user context.
+</Note>
+
+Most chat-bot, support-agent, and shared-workspace products land here. The agent has its own Discord bot token, its own Linear API key, its own shared Gmail; end users interact with it; some calls (DMs, ticket creation, "save to my Linear") need to act as the user. The two shapes coexist in a single handler — see [the mixed-mode example](#mixed-mode-handler) — and the page covers the call-site decision, the responsibilities each shape owns, and how identity flows in both.
+
+## When this applies
+
+| Situation | Pattern |
+|---|---|
+| Agent + verified user in the request — agent's grant signs the call | **This page** (agent-as-principal) |
+| Agent + verified user in the request — user's grant signs the call (agent mediating) | **This page** (delegation) — see also [Delegation](/agents/overview) for the standalone reference |
+| Verified user in the request, no agent in the path | [JWT identity](/oauth/jwt-identity) |
+| Agent in the request, no verified user | [`grant_id` resolution](/oauth/grant-id-identity) |
+
+The first two rows mix per call within one conversation — a single handler can issue agent-as-principal and delegation calls back-to-back. See [the mixed-mode example](#mixed-mode-handler). The bottom two rows are different runtime shapes (one side of the agent/user pair is absent) and live on their own pages.
+
+## Where the verified identity goes
+
+Identity is verified **once** (via the configured IDP) and produces a stable handle: a verified `app_user_id` plus JWT claims. That handle then resolves to many destinations:
+
+| Destination | Resolved by | Purpose |
+|---|---|---|
+| OAuth grant (delegation or JWT identity) | Alter | Credential authority for the call |
+| Managed-secret grant (user- or group-principal) | Alter | Credential authority for the call |
+| Group memberships | Alter | Group-principal access, policy inputs |
+| Wallet view of "my connections" | Alter | User self-service |
+| Database row filters | Application code | Scope DB reads to this user |
+| Tool inventory filtering | Application code | Gate LLM tool list by JWT role |
+| Audit context metadata | Application code | Correlation via `context=` |
+| Tenant isolation gates | Application code | Verify `org` claim matches |
+| Policy attributes referencing the verified user identifier | Alter | Per-call rule branching |
+
+Identity is a cross-cutting handle. The verified `app_user_id` is established once and flows into every destination above on every call — that part does not change. What varies per call is **which authority signs the request**, not who "owns" identity. Two authority shapes:
+
+- **User authority — Alter resolves a user-owned credential.** The call routes identity into Alter's credential-resolution path; the user is the principal on the wire. Two sub-shapes: [delegation](#delegation--what-it-is-and-isnt) (agent mediating — covered on this page) and [JWT identity](/oauth/jwt-identity) (no agent).
+- **Agent authority — no user-credential lookup happens.** The agent's credentials sign the call. Identity is still the same handle and still flows into DB scoping, tool gating, audit context, and tenant gates — it just does not enter Alter's credential lookup, because no user-credential lookup is performed. **This is the agent-as-principal pattern.**
+
+**A valid JWT does not grant access to user-owned credentials.** When an agent call asks Alter to resolve a credential and no access path exists for that (agent, provider) pair — neither delegation (in either flavor below) nor an agent-owned grant — the SDK raises `NoDelegatedGrantError`. JWT verification succeeded; consent resolution found no edge. Verification and authorization stay independent.
+
+## Delegation — what it is and isn't
+
+**Delegation** = a user has authorized an agent to use the user's own credentials. Alter supports exactly two flavors today, one per credential type:
+
+| Flavor | Backing grant | Established when |
+|---|---|---|
+| **OAuth delegation** | A user-owned OAuth grant plus a separate delegation binding from the user to this agent | The user completes Connect with this agent named on the consent screen |
+| **Managed-secret delegation** | A user-principal managed-secret grant (the user binding on the grant itself *is* the delegation; no separate join table) | An operator (or the user, via the Wallet) provisions the managed-secret grant against the user's identity |
+
+These are the **only** kinds of delegation Alter supports right now. Both look identical at the call site — pass `user_token=` on `agent.request(...)` (or wire a `user_token_getter` on the constructor) and the backend picks whichever flavor the resolved user + provider pair has.
+
+## The call site
+
+The call-site decision is whether to include the user's JWT on the call. Including it routes through delegation; omitting it routes through agent-as-principal. Same method, same client — the kwarg is what picks the authority.
+
+<CodeGroup>
+```python Python
+agent = Agent(api_key=AGENT_API_KEY)
+
+# Agent-as-principal: no user_token, agent's grant signs.
+history = await agent.request(
+    "GET",
+    f"https://discord.com/api/v10/channels/{channel_id}/messages",
+    provider="discord",
+)
+
+# Delegation: user_token passed, user's grant signs (agent mediating).
+await agent.request(
+    "POST",
+    "https://api.linear.app/graphql",
+    provider="linear",
+    user_token=ctx.user_jwt(),
+    json={"query": "mutation { issueCreate(...) { ... } }"},
+)
+```
+
+```typescript TypeScript
+const agent = new Agent({ apiKey: AGENT_API_KEY });
+
+// Agent-as-principal: no userToken, agent's grant signs.
+const history = await agent.request(
+  "GET",
+  `https://discord.com/api/v10/channels/${channelId}/messages`,
+  { provider: "discord" },
+);
+
+// Delegation: userToken passed, user's grant signs (agent mediating).
+await agent.request(
+  "POST",
+  "https://api.linear.app/graphql",
+  {
+    provider: "linear",
+    userToken: ctx.userJwt(),
+    json: { query: "mutation { issueCreate(...) { ... } }" },
+  },
+);
+```
+</CodeGroup>
+
+The verified end-user JWT — produced earlier via `app.verify_user_token(...)` or `app.authenticate(...)` — is supplied per call. Identity verification happens once in middleware; whether the JWT then accompanies a given outbound call is a per-call authority decision.
+
+## What application code owns
+
+- **Database scoping.** Every read against user-owned tables must filter by the verified user's identifier. A query that returns "all tickets" instead of "tickets for `ctx.end_user_id`" leaks across the user boundary; Alter has no signal that would catch it.
+- **Tool gating.** Filter the agent's tool inventory by JWT role (`org_role`, etc.) before the LLM sees the list.
+- **Response filtering.** When the agent's grant returns data spanning multiple users (shared KB, multi-participant channel), filter to what the current user is permitted to see.
+- **Tenant isolation.** For multi-tenant IDPs, verify the `org` claim matches the expected tenant *before* materializing the user.
+- **Conversation hygiene.** Scope cross-turn state by user identifier; discard it on conversation end.
+
+## What Alter does
+
+Some of Alter's work is the same regardless of which authority a given call uses; some of it differs.
+
+**Always (both authority shapes):**
+
+- JWT signature, issuer, audience, and expiry validation when `verify_user_token` is called.
+- AppUser materialization on successful verification (visible in the Users tab, marked JWT-sourced).
+- Audit log entry for the call, attributed to whichever principal signed it.
+
+**Agent-as-principal calls (no `user_token`):**
+
+- Grant resolution for the **agent's own grant** (from the API key, not the user identity).
+- Per-grant policy enforcement on the agent's grant.
+
+**Delegation calls (`user_token` present):**
+
+- Identity resolved into a **user-owned credential** via the user's grant — either an OAuth grant the agent has been delegated, or a user-principal managed-secret grant. If neither exists for the resolved (user, provider) pair, the SDK raises `NoDelegatedGrantError`.
+- Per-grant policy enforcement on the user's grant; agent appears as the mediating actor in audit.
+
+## Mixed-mode handler
+
+A single inbound message often produces calls in more than one pattern. `agent` is the module-level `Agent(api_key=AGENT_API_KEY)` from above; `ctx` is the per-request context the application's middleware builds after `app.verify_user_token(...)`; `db` is the application's database handle.
+
+```python
+async def handle_message(ctx: RequestContext, text: str):
+    # Agent-principal: agent's Discord grant.
+    history = await agent.request(
+        "GET",
+        f"https://discord.com/api/v10/channels/{ctx.channel_id}/messages",
+        provider="discord",
+    )
+
+    # Identity flows into DB scoping — application-owned, no Alter call.
+    tickets = await store.fetch_tickets_for_user(ctx.end_user_id)
+
+    # Delegation: the ticket is created as the user, not the bot.
+    await agent.request(
+        "POST",
+        "https://api.linear.app/graphql",
+        provider="linear",
+        user_token=ctx.user_jwt(),
+        json={"query": "mutation { issueCreate(...) { ... } }"},
+    )
+```
+
+Identity is the same handle (`ctx`) across all three operations. What differs is the authority each call runs under and which destinations the identity flows into: the Discord call uses agent authority and identity does not enter Alter's credential lookup; the storage call uses no Alter authority and identity flows into DB row filtering; the Linear call uses user-delegated authority and identity flows into both Alter's credential resolution and Linear's actor attribution. The patterns coexist because they are orthogonal — authority is per-call, identity is cross-cutting.
+
+## Naming the user in audit
+
+Audit events for agent-principal calls are attributed to the agent. To surface the verified user without changing authority, pass identifiers through `context=`:
+
+```python
+await agent.request(
+    "GET",
+    "https://kb.example.com/search",
+    provider="company_kb",
+    context={
+        "end_user_id": str(ctx.end_user_id),
+        "conversation_id": str(ctx.conversation_id),
+    },
+)
+```
+
+The `context` payload is recorded as structured audit metadata and is searchable. It does not change authorization, policy, or grant resolution.
+
+## When to switch patterns
+
+- **Switch to delegation** when the third-party resource is user-owned, the user should appear as the actor in the third-party system, or the user must consent and revoke per-agent independently. The right flavor depends on the credential: [OAuth delegation](/agents/overview) for OAuth providers (Gmail, Linear, Notion, …); managed-secret delegation for user-principal managed secrets (a per-user API key the user provisioned via the Wallet, for instance).
+- **Drop the user-identity layer** and use [grant-id resolution](/oauth/grant-id-identity) when the agent runs autonomously (scheduled jobs, batch enrichment) with no per-request user.
+
+## See also
+
+<CardGroup cols={2}>
+  <Card title="Principals and grants" icon="user-shield" href="/concepts/principals-and-grants">
+    The taxonomy this page extends.
+  </Card>
+  <Card title="Identity resolution" icon="fingerprint" href="/concepts/identity-resolution">
+    The three resolution modes the SDK uses at the call site.
+  </Card>
+  <Card title="Delegation" icon="user-check" href="/agents/overview">
+    The path that lets an agent act as the user.
+  </Card>
+  <Card title="JWT identity" icon="id-badge" href="/oauth/jwt-identity">
+    The user-principal flow without an agent.
+  </Card>
+</CardGroup>

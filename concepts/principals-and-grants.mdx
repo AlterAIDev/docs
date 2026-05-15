@@ -21,14 +21,25 @@ A row that says *this principal can call this provider with these scopes until t
 
 The owner of a grant — *who* is calling. Four kinds, never interchangeable:
 
-| Kind | Who it is | Typical creator |
+| Kind | Who it is | How a grant is created |
 |---|---|---|
-| **User** | An end user authenticated via the IDP (Auth0, Clerk, Okta, …) | OAuth flow |
+| **User** | An end user authenticated via the IDP (Auth0, Clerk, Okta, …) | User completes OAuth, **or** operator binds a managed secret to this user |
 | **Group** | A set of users defined in the IDP | Operator binds a managed secret to an IDP group |
-| **System** | The app itself, no human or agent | Operator provisions a managed secret with no principal |
+| **System** | The app itself, no human or agent | Operator provisions a managed secret with no principal binding |
 | **Agent** | A named, operator-provisioned workload identity | Operator creates an agent and binds a managed secret to it |
 
 Principal kind decides what the SDK permits. A user-principal call resolves the grant from a JWT; an agent-principal call resolves from the agent's binding; a system-principal call requires `grant_id` to be passed explicitly.
+
+## Credential type vs. principal type
+
+Principal and credential are **independent axes**. The principal answers *who is calling*; the credential answers *what's behind the grant*:
+
+| Credential type | Created by | Can back which principals |
+|---|---|---|
+| **OAuth grant** | An end user completing OAuth at the Connect UI | User |
+| **Managed secret** | An operator pasting/rotating a credential in the dev portal | User, Group, System, or Agent |
+
+A **user principal** is therefore either OAuth-backed *or* managed-secret-backed — both resolve under JWT identity automatically when the binding exists for that user (or their IDP group). The SDK call site is the same; only the underlying credential differs.
 
 ## Caller
 
@@ -40,7 +51,7 @@ app = App(api_key=KEY, caller="email-research-bot")
 
 Caller is **not** an access boundary. It does not narrow what the principal can do. It exists so audit queries can answer "which feature ran this call?" without threading metadata through every layer.
 
-When `caller` is the UUID of a managed agent, audit rows record the managed-agent attribution. When it's any other string, it's a free-form label. Either is fine.
+When `caller` is the UUID of a managed agent, audit events record the managed-agent attribution. When it's any other string, it's a free-form label. Either is fine.
 
 ## Context
 
@@ -50,7 +61,7 @@ Free-form per-call metadata. A dict of strings attached to a single `app.request
 await app.request(method, url, grant_id=g, context={"tool": "list_emails", "run_id": "abc"})
 ```
 
-Stored in the audit row as JSONB. Use it for tool name, run ID, thread ID — anything worth surfacing when grepping the audit trail later.
+Recorded as structured audit metadata. Use it for tool name, run ID, thread ID — anything worth surfacing when grepping the audit trail later.
 
 ## Delegation
 
@@ -65,7 +76,7 @@ The principal is implied by which class is constructed and how the call is authe
 | Construction | With… | Principal at runtime |
 |---|---|---|
 | `App(api_key=APP_KEY)` | nothing else | **System** — pass `grant_id` explicitly |
-| `App(api_key=APP_KEY, user_token_getter=…)` | a JWT per call | **User** — SDK auto-resolves the user's grant |
+| `App(api_key=APP_KEY, user_token_getter=…)` | a JWT per call | **User** *or* **Group** — SDK auto-resolves the matching binding (a user-bound grant if one exists, otherwise a group-bound grant via the JWT's IDP group claims) |
 | `Agent(api_key=AGENT_KEY)` | nothing else | **Agent** — pass `grant_id` mapped to this agent |
 
 The full decision tree lives in [Identity resolution](/concepts/identity-resolution). The deep operational detail (cardinality rules, when caller becomes attribution, JWT-overrides-agent precedence) lives in [Agents → Overview](/agents/overview) and [OAuth → Managing grants](/oauth/managing-grants).

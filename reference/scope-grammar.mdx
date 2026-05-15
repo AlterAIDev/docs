@@ -1,0 +1,137 @@
+---
+title: 'API Key Scopes'
+description: 'How Alter API keys are scoped: verb-resource grammar, wildcards, instance scoping, and per-request attenuation'
+---
+
+## Overview
+
+Every Alter API key carries an explicit list of **scopes** that gate which SDK methods it can call. A scope is a string like `agents:read` or `grants:admin`. The backend evaluates required-vs-granted on every call — there is no "master key" mode.
+
+<Info>
+Legacy keys created before scoped keys shipped continue to authenticate with `["*"]` (full access). Rotate them to a tight scope set when convenient. See the [Migration note](/reference/pilot-migration).
+</Info>
+
+## Scope form
+
+```
+{resource}:{verb}[:{instance}]
+```
+
+| Part | Meaning | Example |
+|---|---|---|
+| **resource** | What the scope grants access to | `agents`, `grants`, `keys`, `secrets`, `idp_users`, `audit_logs`, `usage` |
+| **verb** | What operations are allowed | `read`, `write`, `admin` (CRUD hierarchy) — or an action verb like `tokens:retrieve` |
+| **instance** | Optional: restrict to a single resource ID | `agents:write:agt_abc123` |
+
+## CRUD verb hierarchy
+
+The three CRUD verbs are ordered. Granting a higher verb implicitly grants every lower verb on the same resource:
+
+| Verb | What it grants |
+|---|---|
+| **read** | List + get |
+| **write** | Read + create + update + delete |
+| **admin** | Write + key lifecycle (mint / rotate / revoke / deprecate) + cross-principal operations |
+
+So `agents:write` lets a key call `vault.agents.list()`, `vault.agents.create(...)`, and `vault.agents.delete(...)`. The `admin` verb is reserved for **key lifecycle** (`vault.agents.mintKey()`, `vault.agents.rotateKey()`, etc.) and cross-principal operations — not for resource deletion. The endpoint-scopes reference is authoritative for the exact verb per method.
+
+<Tip>
+The Developer Portal labels `admin` as **Manage** in the key-creation modal — same scope string under the hood, less alarming UI.
+</Tip>
+
+## Action verbs (orthogonal)
+
+Some operations don't fit a CRUD shape — they're explicit *actions*. These are NOT covered by CRUD wildcards.
+
+| Action verb | What it grants |
+|---|---|
+| `tokens:retrieve` | Fetch a provider access token via `app.get_token(...)` / `app.getToken(...)` |
+| `proxy:execute` | Forward a request through the proxy via `app.proxy_request(...)` / `app.proxyRequest(...)` |
+| `connect:initiate` | Mint an Alter Connect session |
+| `keys:derive` | Mint a short-lived attenuated key from this one |
+| `audit:emit` | Append a row to the audit log (no read access — that's `audit_logs:read`) |
+
+Action verbs are explicit on purpose. A key with `grants:admin` cannot retrieve a token unless `tokens:retrieve` is also granted; the two are independent concerns (administering grant metadata vs accessing the credential the grant points at).
+
+## Wildcards
+
+Three wildcard forms exist. All bind to the key's scope catalog version at mint time — adding a new resource to the catalog later does **not** silently extend an existing wildcard key's reach.
+
+| Wildcard | Means |
+|---|---|
+| `*` | Every CRUD resource + every action verb known at this key's version |
+| `*:read` | Read access to every CRUD resource at this key's version. **Does NOT cover action verbs** (e.g. `tokens:retrieve`, `proxy:execute`) — action verbs are not part of the CRUD grammar and a separate scope must be granted for each one. |
+| `agents:*` | Every CRUD verb (read/write/admin) on the `agents` resource |
+
+<Warning>
+`*` keys are powerful and require explicit org-level opt-in plus an MFA challenge at mint. They also require a CIDR allowlist by default. Use scoped keys instead unless you specifically need cross-resource access (e.g. a backup tool or a compliance scanner).
+</Warning>
+
+<Info>
+The cross-resource wildcards `*:read` / `*:write` / `*:admin` apply only to **CRUD** scopes. Action verbs like `tokens:retrieve`, `proxy:execute`, and `keys:derive` sit outside the CRUD hierarchy and require explicit grants — they are NEVER implied by `*:read`. Use `*` (literal universal) if you need every concrete scope at the key's version.
+</Info>
+
+## Instance scoping
+
+A scope can be pinned to a single resource ID:
+
+```
+agents:write:agt_abc123
+```
+
+This grants `write` on exactly one agent. It satisfies any `agents:write` requirement only when the call targets that specific instance — for example, `vault.agents.update("agt_abc123", ...)` succeeds, but `vault.agents.update("agt_xyz", ...)` raises `InsufficientScopeError`.
+
+A resource-wide grant covers instance-scoped calls. If the key holds `agents:write`, a call targeting `agt_abc123` succeeds because the wide grant covers the narrow one. The reverse is not true.
+
+## Per-request attenuation
+
+A caller can narrow a key's effective scope set for a single call via the SDK's `with_constraints` / `withConstraints` helper:
+
+```python
+narrowed = app.with_constraints(scopes=["grants:read"])
+await narrowed.list_grants()      # OK
+await narrowed.agents.create(...) # raises InsufficientScopeError
+```
+
+The constraints are transmitted in a tamper-evident way — an upstream proxy cannot strip or rewrite them — and the backend intersects the constraint set with the key's stored scopes. The constraint can only **narrow**, never broaden. A broadening attempt raises a typed validation error from the SDK.
+
+Use this pattern when:
+
+- A worker only needs a single capability for the next batch of work — narrow at the call boundary instead of using the full app key.
+- You're auditing a key's behavior and want to verify what it does when constrained.
+- A third-party SDK wraps Alter and wants to advertise the minimum scope it requires.
+
+## Effective scope = key ∩ constraints
+
+The backend computes the effective scope set as:
+
+```
+effective = key.scopes ∩ request.constraints   (if constraints sent)
+          = key.scopes                          (otherwise)
+```
+
+Then it checks whether the required scope is satisfied by `effective`. Any required scope that is not satisfied raises `InsufficientScopeError` from the SDK with `required`, `granted`, `missing`, plus `scope_version` and `current_scope_version` for version-drift diagnostics.
+
+## Scope versioning
+
+Every key is minted at a specific catalog version. Adding a new scope to the catalog bumps the version. Existing keys keep working at their pinned version — they don't silently gain access to scopes added later. To pick up a new scope, rotate the key.
+
+When the missing scope exists only at the current catalog version (i.e. the key is older than the scope), `InsufficientScopeError.scope_version_mismatch` is `True` so callers can recommend a rotation rather than a scope-grant change.
+
+## Derived keys
+
+`vault.keys.derive(...)` mints a short-lived attenuated key with a strict narrowing of the parent. The derived key:
+
+- Has a subset of the parent's scopes (permission boundary enforced at mint).
+- Inherits the parent's catalog version (no drift).
+- Has its own CIDR allowlist (must be a subset of the parent's).
+- Cannot itself derive — `keys:derive` is stripped at mint time.
+- Has a TTL ceiling — default 24h, capped by org policy `max_derived_key_ttl_hours`.
+
+Revoking the parent cascades to every derived descendant in the same transaction. Rotation successors (rk/ak) are NOT cascade-revoked — only `dk` children are.
+
+## See also
+
+- [SDK method scope requirements](/reference/endpoint-scopes) — which scope each SDK method requires.
+- [Migration note](/reference/pilot-migration) — for callers upgrading from legacy unscoped keys.
+- [Audit logs](/reference/audit-logs) — every scope decision (allow + deny) is recorded.

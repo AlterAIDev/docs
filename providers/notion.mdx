@@ -19,27 +19,23 @@ Connect your users to Notion for notes, documents, databases, and knowledge mana
   Notion permissions are granted per-page during authorization. Alter Vault automatically handles token refresh using Notion's rolling refresh tokens.
 </Note>
 
-## Step 1: Create a Notion Integration
+## Step 1: Create a Notion Public Connection
 
 <Steps>
-  <Step title="Go to Notion Integrations">
-    Navigate to [notion.so/my-integrations](https://www.notion.so/my-integrations) and sign in.
+  <Step title="Open the Notion Creator dashboard">
+    Navigate to [notion.so/profile/integrations](https://www.notion.so/profile/integrations) and sign in. (Notion renamed "integrations" to "connections" — the OAuth equivalent is a public connection.)
   </Step>
 
-  <Step title="Create a new integration">
-    Click **New integration**. Select the workspace you want to connect.
+  <Step title="Create a new public connection">
+    In the **Build** section of the sidebar, select **Public connections** and click **Create a new connection**. Enter the connection name and pick a development workspace.
   </Step>
 
-  <Step title="Set integration type to Public">
-    Set the integration type to **Public** (required for OAuth).
-  </Step>
-
-  <Step title="Add the redirect URI">
-    Under **OAuth Domain & URIs**, add the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URIs** field.
+  <Step title="Configure the redirect URI, installation scope, and capabilities">
+    Add the Redirect URI from the Developer Portal under **Redirect URIs**. Choose an **Installation scope** (Any workspace or Selected workspaces only) — this cannot be changed later. Select the capabilities the connection needs.
   </Step>
 
   <Step title="Get your credentials">
-    Copy the **OAuth client ID** and **OAuth client secret**.
+    Open the **Configuration** tab and copy the **OAuth client ID** and **OAuth client secret**.
   </Step>
 </Steps>
 
@@ -74,7 +70,8 @@ Notion does not use traditional OAuth scopes. Instead, permissions are granted p
 
 ## Notes
 
-- Notion uses **Internal** and **Public** integration types. You must use **Public** for OAuth.
+- Notion renamed **integrations** to **connections**. Internal connections use a static token; public connections use OAuth and are required to integrate with Alter Vault.
+- Installation scope is set at creation time and cannot be changed afterward.
 - Notion uses rolling refresh tokens. Each refresh generates a new access token and refresh token, invalidating the old one. Alter Vault handles this automatically.
 - Users grant access to specific pages and databases during authorization, not via scopes.
 - See the [Notion OAuth documentation](https://developers.notion.com/docs/authorization) for more details.

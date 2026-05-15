@@ -9,10 +9,12 @@ icon: 'fingerprint'
 Three modes. They appear in this order everywhere in these docs because that's the order to consider them in:
 
 1. **JWT** — recommended for apps with an IDP and logged-in users
-2. **`grant_id`** — for scripts, batch jobs, and managed secrets
+2. **`grant_id`** — for scripts, batch jobs, and explicit-grant flows
 3. **Headless** — for CLIs, notebooks, and agents bootstrapping their own grants
 
 The same `app.request()` method serves all three. Only the wiring differs.
+
+The mode picks *how the SDK finds the grant*, not *what credential is behind it*. An OAuth grant and a managed secret bound to the same user both resolve under JWT identity the same way — see [Credential type vs. principal type](/concepts/principals-and-grants#credential-type-vs-principal-type).
 
 ## 1. JWT — recommended for user-driven flows
 
@@ -45,13 +47,14 @@ const response = await app.request("GET", url, { provider: "google" });
 
 [Full setup →](/oauth/jwt-identity)
 
-## 2. `grant_id` — for scripts, batch jobs, and managed secrets
+## 2. `grant_id` — for scripts, batch jobs, and explicit-grant flows
 
 Pass an explicit `grant_id` per call. Use this when:
 
-- The call has no end user (cron jobs, webhook handlers).
-- A managed secret (developer-owned credential) is in use.
+- The call has no end user (cron jobs, webhook handlers, system-principal managed secrets).
 - Explicit control over which grant a request uses is needed.
+
+A managed secret bound to a *user* or *group* does not require this mode — it resolves under JWT identity (mode 1) automatically.
 
 <CodeGroup>
 ```python Python
