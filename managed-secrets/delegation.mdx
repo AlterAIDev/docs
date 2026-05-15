@@ -1,0 +1,141 @@
+---
+title: 'User → Agent Delegation'
+description: 'Let an end user authorize an agent to use the user’s own managed-secret access.'
+icon: 'user-check'
+---
+
+*Delegation lets an end user (not an operator) authorize an agent to USE the user's existing managed-secret access — both [direct user grants](/managed-secrets/issuing-grants) and group-derived grants. The agent never holds the credential; at runtime the backend resolves the user's grant via the delegation and injects the credential as if the agent were the user.*
+
+For credentials provisioned for agents directly, use an [`AgentPrincipal` grant](/managed-secrets/issuing-grants) instead. Delegation only applies when the access right belongs to a user.
+
+## When to use delegation
+
+- An AI agent should be able to call a third-party API as the user (e.g. "Use my Stripe key for these analytics").
+- The user is the right person to consent — not the operator on their behalf.
+- Multiple agents should share the same source access without duplicating credentials.
+
+## How it works
+
+<Steps>
+  <Step title="App opens Connect">
+    Application backend calls `create_managed_secret_connect_session()` with the user's IDP JWT and the agent identifier. Gets back a `connect_url`.
+  </Step>
+  <Step title="User consents">
+    User opens `connect_url` in a browser. The Connect UI shows the eligible grants the user already has access to (direct or via group). User picks one, optionally tightens the TTL, and clicks Approve.
+  </Step>
+  <Step title="Delegation row written">
+    Backend writes a delegation row binding `(agent_id, source_grant_id, app_user_id)`. The delegation has its own `delegation_id` and expiry.
+  </Step>
+  <Step title="Agent uses the credential">
+    Agent calls `app.request(..., grant_id=delegation_id)`. Backend re-validates the chain on every call (delegation active, source grant active, user still owns the source / still in the bound group), retrieves the user's credential, and injects it.
+  </Step>
+  <Step title="User can revoke">
+    User opens the wallet, sees the agents they've authorized per credential, and can revoke any of them. Other agents on the same source grant are unaffected.
+  </Step>
+</Steps>
+
+## Eligibility
+
+The Connect UI lists every grant the user can authorize on. A grant is eligible when:
+
+- It is on the template the application requested.
+- The user is bound to the grant directly **OR** is an active member of the bound group AND the template allows group-source delegation (operator-controlled per template).
+- The grant is active.
+
+If the user has no eligible grants, the Connect UI shows a clear "no access to share" message and no delegation is created.
+
+## TTL
+
+Every delegation has an `expires_at`. The effective TTL is the minimum of:
+
+1. The caller-suggested `requested_ttl_seconds`.
+2. The user-chosen value on the Connect TTL slider.
+3. The template's `max_delegation_ttl_days` (set per template by the operator).
+4. The source grant's own `expires_at` (the delegation cannot outlive the access it borrows).
+5. The 90-day default.
+
+The runtime path rejects expired delegations on every call regardless of any cleanup sweep timing.
+
+## Revocation
+
+Five paths revoke an active delegation:
+
+| Trigger | Effect |
+|---|---|
+| User revokes via the wallet | Delegation flips to revoked; other agents on the same source grant unaffected. |
+| Source grant revoked | All delegations on that grant cascade-revoke. |
+| User leaves the bound group (group-source delegation) | User's delegations under that group cascade-revoke. Other members keep theirs. |
+| Managed secret deleted | All delegations on that secret cascade-revoke. |
+| Agent revoked / user deprovisioned | All matching delegations cascade-revoke. |
+
+The runtime path also independently re-validates the full chain on every call, so revocation is effective even before the cascade lands.
+
+## Quick example
+
+<CodeGroup>
+```python Python
+from alter_sdk import App
+
+app = App(api_key=ALTER_API_KEY)
+
+# Resolve the agent's UUID via the agents directory. The SDK Agent
+# class does not expose ``.id`` directly — the registry is the
+# source of truth for agent identifiers.
+billing_bot_info = await app.agents.get_by_name("billing-bot")
+billing_bot = app.get_agent(billing_bot_info.id)
+
+# 1. Application backend mints a Connect session for the user.
+session = await app.create_managed_secret_connect_session(
+    template_slug="stripe-api-key",
+    delegated_agent_id=billing_bot_info.id,
+    user_token=user_jwt,
+    requested_ttl_seconds=30 * 86400,
+)
+
+# 2. Send the user to session.connect_url. After Approve, the Connect
+#    UI postMessages back the delegation_id to the parent window —
+#    OR redirects to return_url with ?delegation_id=... when set.
+
+# 3. The agent uses the delegation_id as a grant_id.
+response = await billing_bot.request(
+    "GET",
+    "https://api.stripe.com/v1/balance",
+    grant_id=delegation_id,
+)
+```
+
+```typescript TypeScript
+import { App } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey: ALTER_API_KEY });
+
+// Resolve the agent's UUID via the agents directory.
+const billingBotInfo = await app.agents.getByName("billing-bot");
+const billingBot = app.getAgent(billingBotInfo.id);
+
+const session = await app.createManagedSecretConnectSession({
+  templateSlug: "stripe-api-key",
+  delegatedAgentId: billingBotInfo.id,
+  userToken: userJwt,
+  requestedTtlSeconds: 30 * 86400,
+});
+
+// Send the user to session.connectUrl. On Approve, the Connect UI
+// postMessages back the delegationId (or redirects to returnUrl
+// with ?delegation_id=... when set).
+
+// app.request / agent.request takes positional method + url + options.
+const response = await billingBot.request(
+  "GET",
+  "https://api.stripe.com/v1/balance",
+  { grantId: delegationId },
+);
+```
+</CodeGroup>
+
+## See also
+
+- [Managed Secrets → Overview](/managed-secrets/overview)
+- [Managed Secrets → Issuing grants](/managed-secrets/issuing-grants)
+- [SDKs → Python → Connect](/sdks/python/reference/connect)
+- [SDKs → TypeScript → Connect](/sdks/typescript/reference/connect)

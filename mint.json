@@ -99,7 +99,8 @@
       "pages": [
         "managed-secrets/overview",
         "managed-secrets/issuing-grants",
-        "managed-secrets/using-grants"
+        "managed-secrets/using-grants",
+        "managed-secrets/delegation"
       ]
     },
     {

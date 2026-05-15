@@ -1,6 +1,6 @@
 ---
 title: 'Connect'
-description: 'connect, authenticate, create_connect_session, verify_user_token.'
+description: 'connect, authenticate, create_connect_session, create_managed_secret_connect_session, verify_user_token.'
 icon: 'window'
 ---
 
@@ -104,6 +104,78 @@ session = await app.create_connect_session(
 return RedirectResponse(session.connect_url)
 ```
 
+## `create_managed_secret_connect_session()`
+
+Mint a Connect session for the user → agent delegation flow on a [managed
+secret](/managed-secrets/overview). The user opens `connect_url` in a
+browser and consents; the backend writes a delegation row authorizing
+the named agent to USE the user's existing managed-secret access.
+
+The delegation does NOT create new access — it lets an agent borrow
+the user's existing direct or group-derived access. If the user has no
+eligible access, the Connect UI shows a clear message and the
+delegation is not created.
+
+### Signature
+
+```python
+async def create_managed_secret_connect_session(
+    *,
+    template_slug: str,
+    delegated_agent_id: str,
+    user_token: str,
+    requested_ttl_seconds: int | None = None,
+    delegated_agent_name: str | None = None,
+    allowed_origin: str | None = None,
+    return_url: str | None = None,
+) -> ManagedSecretConnectSession
+```
+
+### Parameters
+
+| Name | Default | Notes |
+|---|---|---|
+| `template_slug` | required | Canonical template identifier (kebab-case). The SDK rejects other shapes at the boundary. |
+| `delegated_agent_id` | required | UUID of the agent being authorized. Must be active in the calling app. |
+| `user_token` | required | IDP JWT identifying the consenting user. Required — there is no system-principal fallback for managed-secret delegation. |
+| `requested_ttl_seconds` | `None` | Caller-suggested lifetime. Effective TTL = `min(requested, template max, source expiry, 90-day default)`. |
+| `delegated_agent_name` | `None` | Display name for the consent screen. Defaults to the agent's stored display name. |
+| `allowed_origin` | `None` | Origin for postMessage in the popup flow. |
+| `return_url` | `None` | Return URL for the mobile redirect flow. |
+
+### Returns
+
+`ManagedSecretConnectSession` with `session_token`, `connect_url`,
+`expires_in`, `expires_at`. The user is taken to `connect_url`; after
+they approve, the agent calls `app.request(grant_id=...)` using the
+**delegation id** returned via postMessage or the `return_url` query
+string.
+
+### Raises
+
+`AlterValueError` for client-side validation failures (empty values,
+non-kebab template slug, non-positive TTL).
+
+`BackendError` for backend rejections — template not found, agent not
+eligible, user JWT invalid, etc. The status code is collapsed to a
+single value per failure family to avoid leaking which internal check
+rejected the request.
+
+### Example
+
+```python
+# Resolve the agent's UUID once at startup, then reuse on each call.
+billing_bot = await app.agents.get_by_name("billing-bot")
+
+session = await app.create_managed_secret_connect_session(
+    template_slug="stripe-api-key",
+    delegated_agent_id=billing_bot.id,
+    user_token=user_jwt,
+    requested_ttl_seconds=30 * 86400,
+)
+return RedirectResponse(session.connect_url)
+```
+
 ## `verify_user_token()`
 
 Verify a JWT against the configured IDP without making a provider call.
@@ -130,4 +202,5 @@ if sub is None:
 
 - [OAuth → Headless](/oauth/headless)
 - [OAuth → JWT identity](/oauth/jwt-identity)
-- [Types](/sdks/python/reference/types) — `ConnectResult`, `AuthResult`, `ConnectSession`, `GrantPolicyInput`.
+- [Managed Secrets → Delegation](/managed-secrets/delegation)
+- [Types](/sdks/python/reference/types) — `ConnectResult`, `AuthResult`, `ConnectSession`, `ManagedSecretConnectSession`, `GrantPolicyInput`.

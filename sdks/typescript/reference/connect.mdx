@@ -1,6 +1,6 @@
 ---
 title: 'Connect'
-description: 'connect, authenticate, createConnectSession, verifyUserToken.'
+description: 'connect, authenticate, createConnectSession, createManagedSecretConnectSession, verifyUserToken.'
 icon: 'window'
 ---
 
@@ -106,6 +106,80 @@ const session = await app.createConnectSession({
 res.redirect(session.connectUrl);
 ```
 
+## `createManagedSecretConnectSession()`
+
+Mint a Connect session for the user → agent delegation flow on a
+[managed secret](/managed-secrets/overview). The user opens
+`connectUrl` in a browser and consents; the backend writes a
+delegation row authorizing the named agent to USE the user's existing
+managed-secret access.
+
+The delegation does NOT create new access — it lets an agent borrow
+the user's existing direct or group-derived access. If the user has
+no eligible access, the Connect UI shows a clear message and the
+delegation is not created.
+
+### Signature
+
+```typescript
+async createManagedSecretConnectSession(
+  options: {
+    templateSlug: string;
+    delegatedAgentId: string;
+    userToken: string;
+    requestedTtlSeconds?: number;
+    delegatedAgentName?: string;
+    allowedOrigin?: string;
+    returnUrl?: string;
+  },
+): Promise<ManagedSecretConnectSession>
+```
+
+### Parameters
+
+| Name | Default | Notes |
+|---|---|---|
+| `templateSlug` | required | Canonical template identifier (kebab-case). The SDK rejects other shapes at the boundary. |
+| `delegatedAgentId` | required | UUID of the agent being authorized. Must be active in the calling app. |
+| `userToken` | required | IDP JWT identifying the consenting user. Required — there is no system-principal fallback for managed-secret delegation. |
+| `requestedTtlSeconds` | `undefined` | Caller-suggested lifetime. Effective TTL = `min(requested, template max, source expiry, 90-day default)`. |
+| `delegatedAgentName` | `undefined` | Display name for the consent screen. Defaults to the agent's stored display name. |
+| `allowedOrigin` | `undefined` | Origin for postMessage in the popup flow. |
+| `returnUrl` | `undefined` | Return URL for the mobile redirect flow. |
+
+### Returns
+
+`ManagedSecretConnectSession` with `sessionToken`, `connectUrl`,
+`expiresIn`, `expiresAt`. The user is taken to `connectUrl`; after
+they approve, the agent calls `app.request({ grantId: ... })` using
+the **delegation id** returned via postMessage or the `returnUrl`
+query string.
+
+### Throws
+
+`AlterValueError` for client-side validation failures (empty values,
+non-kebab template slug, non-positive TTL).
+
+`BackendError` for backend rejections — template not found, agent not
+eligible, user JWT invalid, etc. The status code is collapsed to a
+single value per failure family to avoid leaking which internal check
+rejected the request.
+
+### Example
+
+```typescript
+// Resolve the agent's UUID once at startup, then reuse on each call.
+const billingBot = await app.agents.getByName("billing-bot");
+
+const session = await app.createManagedSecretConnectSession({
+  templateSlug: "stripe-api-key",
+  delegatedAgentId: billingBot.id,
+  userToken: userJwt,
+  requestedTtlSeconds: 30 * 86400,
+});
+res.redirect(session.connectUrl);
+```
+
 ## `verifyUserToken()`
 
 Verify a JWT against the configured IDP without making a provider call.
@@ -131,4 +205,5 @@ if (sub === null) throw new Error("invalid token");
 
 - [OAuth → Headless](/oauth/headless)
 - [OAuth → JWT identity](/oauth/jwt-identity)
+- [Managed Secrets → Delegation](/managed-secrets/delegation)
 - [Types](/sdks/typescript/reference/types)

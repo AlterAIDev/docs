@@ -14,6 +14,8 @@ For credentials that end users authorize themselves (Gmail, Slack, GitHub on the
 - The credential is per-service or per-tenant, not per-end-user.
 - Centralized credential management is preferable to scattering API keys across env vars.
 
+For agents acting on behalf of a specific end user, see [User → Agent Delegation](/managed-secrets/delegation) — the user authorizes an agent to USE the user's existing access without sharing the credential itself.
+
 ## How it differs from OAuth
 
 |  | OAuth grants | Managed secrets |

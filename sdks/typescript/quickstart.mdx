@@ -79,6 +79,22 @@ await app.request("GET", url, { grantId: results[0].grantId });
 
 See [Concepts → Identity resolution](/concepts/identity-resolution).
 
+## User → agent delegation for managed secrets
+
+When an end user authorizes an agent to USE the user's existing managed-secret access, the flow goes through a Connect approval screen. The SDK mints the session; the user consents in a browser; the resulting delegation id is passed back as a regular `grantId` to the agent's `request()`.
+
+```typescript
+const billingBotInfo = await app.agents.getByName("billing-bot");
+const session = await app.createManagedSecretConnectSession({
+  templateSlug: "stripe-api-key",
+  delegatedAgentId: billingBotInfo.id,
+  userToken: userJwt,
+});
+// Send the user to session.connectUrl.
+```
+
+See [Managed Secrets → Delegation](/managed-secrets/delegation) for the full flow + runtime semantics.
+
 ## Where next
 
 <CardGroup cols={2}>
