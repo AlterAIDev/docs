@@ -389,9 +389,7 @@
       "pages": [
         "reference/architecture",
         "reference/policies",
-        "reference/scope-grammar",
-        "reference/endpoint-scopes",
-        "reference/pilot-migration",
+        "reference/scopes",
         "reference/audit-logs",
         "reference/developer-portal",
         "reference/glossary"

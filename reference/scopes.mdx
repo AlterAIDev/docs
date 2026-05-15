@@ -1,15 +1,11 @@
 ---
 title: 'API Key Scopes'
-description: 'How Alter API keys are scoped: verb-resource grammar, wildcards, instance scoping, and per-request attenuation'
+description: 'How Alter API keys are scoped: verb-resource grammar, wildcards, instance scoping, per-request attenuation, and per-method requirements'
 ---
 
 ## Overview
 
 Every Alter API key carries an explicit list of **scopes** that gate which SDK methods it can call. A scope is a string like `agents:read` or `grants:admin`. The backend evaluates required-vs-granted on every call — there is no "master key" mode.
-
-<Info>
-Legacy keys created before scoped keys shipped continue to authenticate with `["*"]` (full access). Rotate them to a tight scope set when convenient. See the [Migration note](/reference/pilot-migration).
-</Info>
 
 ## Scope form
 
@@ -33,7 +29,7 @@ The three CRUD verbs are ordered. Granting a higher verb implicitly grants every
 | **write** | Read + create + update + delete |
 | **admin** | Write + key lifecycle (mint / rotate / revoke / deprecate) + cross-principal operations |
 
-So `agents:write` lets a key call `vault.agents.list()`, `vault.agents.create(...)`, and `vault.agents.delete(...)`. The `admin` verb is reserved for **key lifecycle** (`vault.agents.mintKey()`, `vault.agents.rotateKey()`, etc.) and cross-principal operations — not for resource deletion. The endpoint-scopes reference is authoritative for the exact verb per method.
+So `agents:write` lets a key call `vault.agents.list()`, `vault.agents.create(...)`, and `vault.agents.delete(...)`. The `admin` verb is reserved for **key lifecycle** (`vault.agents.mintKey()`, `vault.agents.rotateKey()`, etc.) and cross-principal operations — not for resource deletion.
 
 <Tip>
 The Developer Portal labels `admin` as **Manage** in the key-creation modal — same scope string under the hood, less alarming UI.
@@ -130,8 +126,134 @@ When the missing scope exists only at the current catalog version (i.e. the key 
 
 Revoking the parent cascades to every derived descendant in the same transaction. Rotation successors (rk/ak) are NOT cascade-revoked — only `dk` children are.
 
+---
+
+## SDK method scope requirements
+
+Use this matrix to compute the minimum scope set for a given key — a key only needs the union of scopes for the methods it actually calls.
+
+<Info>
+The SDK exposes the entire surface as typed methods (e.g. `vault.keys.derive()`). You will not normally hit any underlying transport directly. The matrix is for picking a minimum scope set at mint time.
+</Info>
+
+A call whose key does not satisfy the required scope raises **`InsufficientScopeError`** with `required`, `granted`, and `missing` populated on the exception.
+
+### Grants
+
+| SDK method | Required scope |
+|---|---|
+| `app.list_grants()` / `app.listGrants()` | `grants:read` |
+| `app.revoke_grant(grant_id=...)` / `app.revokeGrant({grantId})` | `grants:admin` (instance-scoped on the grant) |
+| `app.create_managed_secret_grant(...)` / `app.createManagedSecretGrant(...)` | `grants:write` |
+
+### Agents
+
+| SDK method | Required scope |
+|---|---|
+| `vault.agents.create(...)` | `agents:write` |
+| `vault.agents.list(...)` | `agents:read` |
+| `vault.agents.get(agent_id)` | `agents:read` (instance-scoped) |
+| `vault.agents.update(agent_id, ...)` | `agents:write` (instance-scoped) |
+| `vault.agents.delete(agent_id)` | `agents:write` (instance-scoped) |
+| `vault.agents.list_keys(agent_id)` / `vault.agents.listKeys(agentId)` | `keys:read` |
+| `vault.agents.mint_key(agent_id, ...)` / `vault.agents.mintKey(agentId, ...)` | `keys:admin` |
+| `vault.agents.revoke_key(agent_id, key_id)` / `vault.agents.revokeKey(...)` | `keys:admin` |
+| `vault.agents.deprecate_key(agent_id, key_id)` / `vault.agents.deprecateKey(...)` | `keys:admin` |
+| `vault.agents.undeprecate_key(agent_id, key_id)` / `vault.agents.undeprecateKey(...)` | `keys:admin` |
+| `agent.me()` (agent-key only — identifies the calling agent) | *(no scope — agent-key only)* |
+
+### Keys (scoped-key lifecycle)
+
+| SDK method | Required scope |
+|---|---|
+| `vault.keys.derive(...)` | `keys:derive` |
+| `vault.keys.rotate(key_id=...)` | `keys:admin` (instance-scoped) |
+| `vault.keys.revoke(key_id=...)` | `keys:admin` (instance-scoped) |
+
+### Tokens
+
+| SDK method | Required scope |
+|---|---|
+| `app.get_token(...)` / `app.getToken(...)` | `tokens:retrieve` |
+| `app.get_token(grant_id=...)` / `app.getToken({grantId})` | `tokens:retrieve` (instance-scoped on the grant) |
+
+### Proxied calls
+
+| SDK method | Required scope |
+|---|---|
+| `app.proxy_request(...)` / `app.proxyRequest(...)` | `proxy:execute` |
+
+### OAuth Connect
+
+| SDK method | Required scope |
+|---|---|
+| `app.create_connect_session(...)` / `app.createConnectSession(...)` | `connect:initiate` **AND** `grants:write` |
+
+Connect needs both scopes because the session **starts** a connect flow (`connect:initiate`) and **commits a grant** when the user finishes (`grants:write`). Issuing the session without `grants:write` would leave the user stuck at the consent screen.
+
+### End-user auth (IDP token verification)
+
+| SDK method | Required scope |
+|---|---|
+| `app.start_user_session(...)` / `app.startUserSession(...)` | `idp_users:write` |
+| `app.poll_user_session(...)` / `app.pollUserSession(...)` | `idp_users:read` |
+| `app.verify_user_token(...)` / `app.verifyUserToken(...)` | `idp_users:read` |
+
+### Approvals (HITL)
+
+| SDK method | Required scope |
+|---|---|
+| `app.get_approval(approval_id=...)` / `app.getApproval({approvalId})` | `approvals:read` |
+| `app.get_approval_result(approval_id=...)` / `app.getApprovalResult({approvalId})` | `approvals:read` |
+
+### Audit log
+
+| SDK method | Required scope |
+|---|---|
+| `app.emit_audit_event(...)` / `app.emitAuditEvent(...)` | `audit:emit` |
+
+`audit:emit` is an **action verb** — it is not covered by `audit_logs:*` wildcards. Reading the audit log is a separate scope (`audit_logs:read`); emitting and reading are independent permissions so a compromised key with `audit:emit` cannot exfiltrate audit history.
+
+### Scope catalog discovery
+
+| SDK method | Required scope |
+|---|---|
+| `vault.scopes.list()` | *(no scope — static catalog metadata)* |
+
+The catalog is static metadata at the current catalog version. The method still requires a valid SDK client (so the env / CIDR / rate-limit gates still apply), but no scope is required to read it.
+
+## Worked examples
+
+**A read-only analytics worker** that lists grants and reads audit logs:
+
+```
+grants:read
+audit_logs:read
+```
+
+**A connect-session minter** in a webhook handler:
+
+```
+connect:initiate
+grants:write
+```
+
+**A token-retrieval-only backend** for a single OAuth grant:
+
+```
+tokens:retrieve:grnt_abc123
+```
+
+(instance-scoped to the one grant the backend should reach)
+
+**An incident-response key** for emergency key rotation:
+
+```
+keys:admin
+```
+
+(plus a CIDR allowlist — most orgs enforce this for `keys:admin`)
+
 ## See also
 
-- [SDK method scope requirements](/reference/endpoint-scopes) — which scope each SDK method requires.
-- [Migration note](/reference/pilot-migration) — for callers upgrading from legacy unscoped keys.
 - [Audit logs](/reference/audit-logs) — every scope decision (allow + deny) is recorded.
