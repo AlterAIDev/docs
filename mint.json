@@ -63,7 +63,8 @@
     { "source": "/reference/managed-secrets", "destination": "/managed-secrets/overview" },
     { "source": "/reference/scope-grammar", "destination": "/reference/scopes" },
     { "source": "/reference/endpoint-scopes", "destination": "/reference/scopes" },
-    { "source": "/reference/pilot-migration", "destination": "/reference/scopes" }
+    { "source": "/reference/pilot-migration", "destination": "/reference/scopes" },
+    { "source": "/concepts/verified-users-in-agent-code", "destination": "/agents/with-verified-users" }
   ],
   "navigation": [
     {
@@ -73,8 +74,7 @@
         "concepts/what-is-alter-vault",
         "first-5-minutes",
         "concepts/principals-and-grants",
-        "concepts/identity-resolution",
-        "concepts/verified-users-in-agent-code"
+        "concepts/identity-resolution"
       ]
     },
     {
@@ -111,8 +111,9 @@
       "pages": [
         "agents/overview",
         "agents/creating-agents",
-        "agents/keys-and-rotation",
         "agents/agent-runtime",
+        "agents/with-verified-users",
+        "agents/keys-and-rotation",
         "agents/approvals"
       ]
     },
