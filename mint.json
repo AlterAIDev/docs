@@ -60,7 +60,10 @@
     { "source": "/sdks/javascript/overview", "destination": "/sdks/connect-js/quickstart" },
     { "source": "/sdks/javascript/reference", "destination": "/sdks/connect-js/reference" },
     { "source": "/reference/wallet", "destination": "/wallet/overview" },
-    { "source": "/reference/managed-secrets", "destination": "/managed-secrets/overview" }
+    { "source": "/reference/managed-secrets", "destination": "/managed-secrets/overview" },
+    { "source": "/reference/scope-grammar", "destination": "/reference/scopes" },
+    { "source": "/reference/endpoint-scopes", "destination": "/reference/scopes" },
+    { "source": "/reference/pilot-migration", "destination": "/reference/scopes" }
   ],
   "navigation": [
     {
