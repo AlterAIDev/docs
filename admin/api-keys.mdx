@@ -1,0 +1,110 @@
+---
+title: 'API Keys'
+description: 'Minting, rotating, and revoking app keys and per-agent keys.'
+---
+
+Alter has three key shapes, each minted and managed in the developer portal.
+
+| Prefix | Used by | Where it's minted |
+|---|---|---|
+| `alter_key_app_…` | Backend services using the `App` SDK class | App → **API Keys** |
+| `alter_key_agent_…` | AI agents using the `Agent` SDK class | App → **Agents → \<agent\> → Keys** |
+| Derived sub-keys | Short-lived, scope-narrowed keys for plugins or tool calls | Programmatic only via `app.keys.derive()` |
+
+Every key authenticates the same way: HMAC-signed requests, the key value in `x-api-key`. The wire protocol is identical; the difference is which principal the backend resolves the call to.
+
+## App keys
+
+The default key for backend code that calls third-party APIs through Alter. One per app is enough for most products.
+
+### Mint
+
+**API Keys → Mint key.** The plaintext is shown **once**. Store it in a secret manager and revoke if it's lost.
+
+### Rotate
+
+To rotate without downtime:
+
+1. Mint a new key.
+2. Deploy it to the running service.
+3. After confirming the new key is in use (Audit Logs → filter by key prefix), revoke the old one.
+
+There's no "rotate" action — minting + revoking is the rotation primitive.
+
+### Revoke
+
+**API Keys → \<key\> → Revoke.** Effective immediately. The next call with the revoked key fails with `invalid_key`.
+
+## Per-agent keys
+
+An [agent](/concepts/agents) can hold many API keys at once. Use this for:
+
+- **Standalone agent processes** — keys per process / pod / container.
+- **Per-tenant agents** — one tenant per agent, one key per tenant.
+- **Rotation without downtime** — same pattern as app keys, scoped to the agent.
+
+### Mint
+
+**Agents → \<agent\> → Keys → Mint key.** Plaintext shown once. Equivalent SDK call:
+
+```python
+result = await alter.agents.mint_key(agent_id=AGENT_ID)
+print(result.api_key)
+```
+
+Each key has a `key_prefix` (the first N characters of the plaintext) shown in the UI; use it to identify keys in audit logs without exposing the secret.
+
+### Deprecate (soft-revoke)
+
+Before hard-revoking a key, deprecate it first. A deprecated key still authenticates, but every response from Alter carries `X-Alter-Key-Deprecated: true`. Watch logs for lingering callers, fix them, then revoke.
+
+### Revoke
+
+`agents.revoke_key()`. Terminal — the key never authenticates again.
+
+The portal refuses to revoke a key that would leave the agent with zero active keys (raises `LastActiveKeyError` via SDK). Pass `force=True` to override, or mint a replacement key first.
+
+## Derived sub-keys
+
+For short-lived, scope-narrowed keys (handing access to a plugin, a tool call, a code sandbox):
+
+```python
+sub_key = await app.keys.derive(
+    scopes=["grants:read"],
+    expires_in=3600,  # one hour
+)
+print(sub_key.api_key)
+```
+
+The derived key intersects the parent key's scopes with the requested scope set — it can only narrow, never broaden. Useful for handing the SDK to a less-trusted component without minting a long-lived agent.
+
+`app.keys.rotate(key_id)` rotates a derived key in place. `app.keys.revoke(key_id)` revokes it.
+
+## Attenuating in-process
+
+For a single call site that should run with narrower scopes than the parent key, use `with_constraints()` instead of deriving a key:
+
+```python
+limited = app.with_constraints(scopes=["grants:read"])
+await limited.list_grants()
+```
+
+The returned SDK instance signs every request with `X-Alter-Scope-Constraints`. No key is minted; the constraint is in-process and disappears with the instance. See [Scopes](/concepts/scopes).
+
+## Audit
+
+Every key lifecycle event (mint, deprecate, revoke, rotate) is in the audit log. Every API call is attributed to the key by `key_id` and `key_prefix`. Filter the audit view by key to scope investigations.
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Agents" icon="robot" href="/concepts/agents">
+    The workload identity that holds per-agent keys.
+  </Card>
+  <Card title="Scopes" icon="lock" href="/concepts/scopes">
+    Capability scopes on keys.
+  </Card>
+  <Card title="Audit logs" icon="list" href="/concepts/audit-logs">
+    Tracking key usage.
+  </Card>
+</CardGroup>

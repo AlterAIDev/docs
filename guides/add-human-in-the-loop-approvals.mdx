@@ -1,0 +1,182 @@
+---
+title: 'Add Human-in-the-Loop Approvals'
+description: 'Gate sensitive third-party calls behind an explicit approval, polled or awaited from the application.'
+---
+
+By the end of this guide, an agent or backend service can issue a third-party call that pauses for explicit human approval before executing. The approver clicks a link, reviews the request, approves or denies, and the application gets the eventual result.
+
+The flow:
+
+1. An agent or backend issues `proxy_request()` for a sensitive call.
+2. Alter routes through the approval pipeline and returns a `PendingApproval` immediately.
+3. The application surfaces the approval link to the designated approver (in-app, by email, in chat).
+4. The approver approves or denies in the Wallet.
+5. The application polls or awaits the outcome and receives the eventual provider response (or an `ApprovalDeniedError`).
+
+## Prerequisites
+
+- An [app](/admin/setting-up-your-app) with an approval-enabled grant or agent. Approvals are configured on the [policy](/concepts/policies) attached to the grant or agent.
+- A way to surface the approval URL to the approver — most apps render it as a notification, send a DM, or open a modal.
+
+## Walkthrough
+
+### 1. Configure the approval policy
+
+In the developer portal: pick the agent or managed-secret grant the approval should gate, open **Policy → Require approval**, and add the approver(s). Each call against the policy now pauses for approval.
+
+### 2. Issue the request via `proxy_request`
+
+`proxy_request` is the variant of `request` that runs through the approval pipeline. If the policy requires approval, the call returns a `PendingApproval` instead of a provider response:
+
+<CodeGroup>
+```python Python
+from alter_sdk import Agent, HttpMethod
+from alter_sdk.models import PendingApproval
+
+agent = Agent(api_key=os.environ["AGENT_API_KEY"])
+
+pending = await agent.proxy_request(
+    HttpMethod.POST,
+    "https://api.stripe.com/v1/refunds",
+    grant_id=STRIPE_GRANT_ID,
+    json={"charge": "ch_abc"},
+    reason="Customer requested refund per ticket #1234",
+)
+
+if isinstance(pending, PendingApproval):
+    # Surface pending.approval_url to the approver
+    await notify_approver(pending.approval_url)
+```
+
+```typescript TypeScript
+import { Agent, HttpMethod, PendingApproval } from "@alter-ai/alter-sdk";
+
+const agent = new Agent({ apiKey: process.env.AGENT_API_KEY! });
+
+const pending = await agent.proxyRequest(
+  HttpMethod.POST,
+  "https://api.stripe.com/v1/refunds",
+  {
+    grantId: STRIPE_GRANT_ID,
+    json: { charge: "ch_abc" },
+    reason: "Customer requested refund per ticket #1234",
+  },
+);
+
+if (pending instanceof PendingApproval) {
+  await notifyApprover(pending.approvalUrl);
+}
+```
+</CodeGroup>
+
+The `reason` field is recorded in the audit log and shown to the approver, alongside the request payload.
+
+### 3. Wait for the decision
+
+Two surfaces for collecting the outcome:
+
+**Await inline** — block until approved/denied/expired (with a timeout):
+
+<CodeGroup>
+```python Python
+from alter_sdk import ApprovalDeniedError, ApprovalExpiredError, ApprovalTimeoutError
+
+try:
+    result = await agent.await_approval(pending.approval_id, timeout=300)
+    # result.status_code is the provider response status
+    # result.body_json() decodes the response body
+    refund = result.body_json()
+except ApprovalDeniedError as e:
+    log.info("Approver denied", reason=e.details)
+except ApprovalExpiredError:
+    log.info("Approval window elapsed before decision")
+except ApprovalTimeoutError:
+    # The SDK gave up waiting; the row may still be pending on the backend
+    pass
+```
+
+```typescript TypeScript
+import {
+  ApprovalDeniedError, ApprovalExpiredError, ApprovalTimeoutError,
+} from "@alter-ai/alter-sdk";
+
+try {
+  const result = await agent.awaitApproval(pending.approvalId, { timeout: 300 });
+  const refund = JSON.parse(Buffer.from(result.bodyB64, "base64").toString());
+} catch (e) {
+  if (e instanceof ApprovalDeniedError) { /* … */ }
+  else if (e instanceof ApprovalExpiredError) { /* … */ }
+  else if (e instanceof ApprovalTimeoutError) { /* … */ }
+  else { throw e; }
+}
+```
+</CodeGroup>
+
+**Poll** — for long-running approvals (hours, days), persist `pending.approval_id` and poll status from a worker:
+
+<CodeGroup>
+```python Python
+status = await agent.get_approval_status(approval_id)
+if status.is_terminal:
+    handle_terminal(status)
+```
+
+```typescript TypeScript
+const status = await agent.getApprovalStatus(approvalId);
+if (status.isTerminal) handleTerminal(status);
+```
+</CodeGroup>
+
+## Patterns
+
+### Surfacing the approval link
+
+The `PendingApproval.approval_url` is a deep link to the Wallet's approval view. Most apps render it as:
+
+- An in-app banner with **Approve / Deny** buttons opening the URL.
+- A Slack DM to the configured approver.
+- A push notification with the URL as the action.
+- An email (when an email provider is configured at the app level; otherwise the URL is the only delivery).
+
+The URL is signed and short-lived; treat it as semi-public — anyone with the URL can act on it during its lifetime.
+
+### Distinguishing pending from immediate
+
+`proxy_request` may return *either* `PendingApproval` (policy required approval) *or* an `ApprovalResult` (no approval needed; the call ran synchronously). Branch on the return type:
+
+```python
+if isinstance(result, PendingApproval):
+    handle_async(result)
+else:
+    handle_immediate(result)  # ApprovalResult — body is the provider response
+```
+
+This means an approval policy can be enabled or disabled per-grant without changing application code; the call site handles both paths.
+
+### Recording why the approval was requested
+
+`reason` is the single most useful field for the approver. Write a concrete sentence — "Refund $X to customer @ for ticket #Y" — not a generic "agent action." The audit log preserves the reason permanently.
+
+## Troubleshooting
+
+| Error | Likely cause | Fix |
+|---|---|---|
+| `ApprovalDeniedError` | The approver clicked Deny. | `e.details` includes the approver's reason if provided. |
+| `ApprovalExpiredError` | The approval window elapsed (default 1 hour, configurable on the policy). | Re-issue the call. Adjust the policy's window if too short. |
+| `ApprovalTimeoutError` | The SDK's local wait timed out; the row may still be pending. | Persist `approval_id` and re-poll. |
+| `ApprovalExecutionFailedError` | The approver approved, but the provider call failed at execution time (grant revoked between approval and execution, provider error, etc.). | Inspect `e.details`. |
+| `PendingApproval` never resolves | No approver was notified. | Verify the policy's approver list and the application's notification path. |
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Policies" icon="shield-check" href="/concepts/policies">
+    Approval is one policy type among several.
+  </Card>
+  <Card title="Wallet" icon="wallet" href="/admin/wallet">
+    Where approvers see and act on requests.
+  </Card>
+  <Card title="Errors" icon="circle-exclamation" href="/reference/errors">
+    The full approval error hierarchy.
+  </Card>
+</CardGroup>

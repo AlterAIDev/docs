@@ -1,0 +1,202 @@
+---
+title: 'Give an AI Agent Scoped Access'
+description: 'Provision a managed agent, bind it to credentials, and let it call providers — with its own identity and audit trail.'
+---
+
+By the end of this guide, an AI agent has its own API key, can call third-party APIs through Alter, and reaches only the credentials explicitly bound to it — not the app's full grant store.
+
+The flow:
+
+1. The operator provisions a managed [agent](/concepts/agents).
+2. The operator binds credentials to the agent (a managed-secret grant directly, or a user [delegates](/concepts/delegation) an OAuth connection to the agent).
+3. The agent process loads its own API key and calls `agent.request()`.
+
+## Prerequisites
+
+- An [app](/admin/setting-up-your-app) with a `alter_key_app_…` operator key.
+- For OAuth delegation flows: at least one [provider configured](/admin/setting-up-your-app#configuring-providers) and an [identity provider](/admin/identity-provider) wired.
+- For managed-secret flows: at least one [managed-secret provider configured](/reference/managed-secret-providers).
+
+## Walkthrough
+
+### 1. Provision the agent
+
+In the developer portal: **Agents → New Agent**. Pick a name (`research-bot`), optionally set scope constraints and rate limits, click **Create**.
+
+Equivalent SDK call:
+
+<CodeGroup>
+```python Python
+result = await alter.agents.create(name="research-bot")
+print("agent id:", result.id)
+print("agent key:", result.api_key)  # shown ONCE
+```
+
+```typescript TypeScript
+const result = await alter.agents.create({ name: "research-bot" });
+console.log("agent id:", result.id);
+console.log("agent key:", result.apiKey);  // shown ONCE
+```
+</CodeGroup>
+
+The plaintext API key is returned exactly once. Store it where the agent process will read it (a secret manager, an environment variable, the runtime's secrets API).
+
+### 2. Bind credentials to the agent
+
+Two paths, depending on whether the credential belongs to a user or the operator.
+
+**Path A — user delegates a connection.** When the user runs Connect, pass `agent=<agent_id>`:
+
+<CodeGroup>
+```python Python
+session = await alter.create_connect_session(
+    allowed_providers=["google"],
+    user_token=user.jwt,
+    agent=agent_id,  # consent screen will show "research-bot is requesting access"
+)
+```
+
+```typescript TypeScript
+const session = await alter.createConnectSession({
+  allowedProviders: ["google"],
+  userToken: user.jwt,
+  agent: agentId,
+});
+```
+</CodeGroup>
+
+On Approve, Alter writes both the connection and a [delegation](/concepts/delegation) row binding it to the named agent.
+
+**Path B — operator issues a managed secret to the agent.** From the portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot**. Or via SDK:
+
+<CodeGroup>
+```python Python
+from alter_sdk.models import AgentPrincipal
+
+# ⚠ This call must be signed by the agent's own key, since
+# AgentPrincipal binds the grant to the calling agent's identity.
+agent = Agent(api_key=AGENT_KEY)
+
+await agent.create_managed_secret_grant(
+    managed_secret_id="ms_anthropic_abc",
+    principal=AgentPrincipal(label="claude-key"),
+)
+```
+
+```typescript TypeScript
+// ⚠ This call must be signed by the agent's own key.
+const agent = new Agent({ apiKey: AGENT_KEY });
+
+await agent.createManagedSecretGrant("ms_anthropic_abc", {
+  principal: { type: "agent", label: "claude-key" },
+});
+```
+</CodeGroup>
+
+### 3. Call providers from the agent
+
+The agent process loads its own key and calls `request()` exactly as an app would:
+
+<CodeGroup>
+```python Python
+from alter_sdk import Agent, HttpMethod
+
+agent = Agent(api_key=os.environ["AGENT_API_KEY"])
+
+# Use a managed-secret grant
+response = await agent.request(
+    HttpMethod.POST,
+    "https://api.anthropic.com/v1/messages",
+    grant_id=ANTHROPIC_GRANT_ID,
+    json={"model": "claude-sonnet-4-6", "max_tokens": 1024, "messages": [...]},
+)
+
+# Or use a delegated OAuth grant via provider+user_token
+response = await agent.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google",
+    user_token=user.jwt,
+)
+```
+
+```typescript TypeScript
+import { Agent, HttpMethod } from "@alter-ai/alter-sdk";
+
+const agent = new Agent({ apiKey: process.env.AGENT_API_KEY! });
+
+const response = await agent.request(
+  HttpMethod.POST,
+  "https://api.anthropic.com/v1/messages",
+  { grantId: ANTHROPIC_GRANT_ID, json: { model: "claude-sonnet-4-6", maxTokens: 1024, messages: [...] } },
+);
+```
+</CodeGroup>
+
+The audit row carries the agent identity, the user identity (if a delegation was used), and the provider.
+
+## Patterns
+
+### Listing the agent's bound grants
+
+```python
+page = await agent.list_grants()
+for g in page.grants:
+    print(g.grant_kind, g.provider_id if g.grant_kind == "oauth" else g.managed_secret_slug)
+```
+
+OAuth and managed-secret grants come back in one merged response, discriminated by `grant_kind`.
+
+### Self-introspection
+
+```python
+me = await agent.me()
+print(me.name, me.status, me.scopes)
+```
+
+`me()` works even if the agent is paused — useful for self-diagnostics. Any other call by a paused agent raises [`AgentInactiveError`](/reference/errors).
+
+### Trace-scoped audit identity
+
+For multi-step workflows where each step should be attributed to a sub-agent:
+
+```python
+async with researcher.trace(run_id="run_abc", role="research"):
+    # Every nested request() is tagged with researcher + run_abc.
+    await researcher.request(...)
+```
+
+See `Agent.trace()` in the [Python SDK reference](/reference/python-sdk).
+
+### Choosing the agent process boundary
+
+Two shapes of agent process:
+
+- **Standalone** — the agent runs in its own process / container / sandbox with only its agent key. Best for untrusted runtimes (user-installed MCP servers, sandboxed code).
+- **Embedded** — the agent runs inside the main app process; the app holds the agent key alongside its app key. Best for backends where adding another key boundary buys nothing.
+
+Both shapes produce the same backend identity. The decision is purely a blast-radius question.
+
+## Troubleshooting
+
+| Error | Likely cause | Fix |
+|---|---|---|
+| `NoDelegatedGrantError` | The agent has no delegation for the requested provider. | Run a Connect session with `agent=<this_agent_id>` so a user can delegate, or issue a managed-secret grant to the agent. |
+| `AgentInactiveError` | The operator paused the agent. | Resume from the portal. |
+| `AgentRevokedError` | The operator hard-revoked the agent. | Provision a new agent. |
+| `KeyRevokedError` | The specific API key was revoked. | Mint a fresh key for the agent. |
+| `InsufficientScopeError` | The key's scope set does not cover the route. | Mint a key with the required scopes, or update the agent's allowlist. |
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Delegation" icon="user-shield" href="/concepts/delegation">
+    The user → agent consent model in depth.
+  </Card>
+  <Card title="Add human-in-the-loop approvals" icon="circle-check" href="/guides/add-human-in-the-loop-approvals">
+    Gate sensitive agent calls behind explicit user approval.
+  </Card>
+  <Card title="API keys" icon="key" href="/admin/api-keys">
+    Mint, rotate, and revoke per-agent keys.
+  </Card>
+</CardGroup>

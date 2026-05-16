@@ -1,0 +1,264 @@
+---
+title: 'Python SDK'
+description: 'Reference for `alter-sdk` — methods, models, errors.'
+---
+
+The Python SDK ships as the [`alter-sdk` package on PyPI](https://pypi.org/project/alter-sdk/). Python 3.10+.
+
+```bash
+pip install alter-sdk
+```
+
+For end-to-end walkthroughs, see the [Quickstart](/quickstart) and [Guides](/guides/call-apis-on-behalf-of-users). This page is API reference only.
+
+## Clients
+
+Two classes, both async.
+
+### `App`
+
+The application-side client. Construct with an `alter_key_app_…` API key.
+
+```python
+from alter_sdk import App
+
+app = App(
+    api_key: str,
+    *,
+    timeout: float = 30.0,
+    caller: str | None = None,
+    caller_type: CallerType = CallerType.SERVICE,
+    user_token_getter: Callable[[], str | Awaitable[str]] | None = None,
+)
+```
+
+**Constructor args:**
+
+| Arg | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | App API key. Required. |
+| `timeout` | `float` | `30.0` | HTTP timeout in seconds. |
+| `caller` | `str \| None` | `None` | Free-form audit attribution, or an agent UUID for impersonation. |
+| `caller_type` | `CallerType` | `SERVICE` | `SERVICE` or `AGENT`. Drives audit grouping in the portal. |
+| `user_token_getter` | callable | `None` | Returns the calling user's JWT for [JWT identity](/concepts/identity-resolution). |
+
+Supports async context manager: `async with App(...) as app:`.
+
+### `Agent`
+
+The workload-side client. Construct with an `alter_key_agent_…` key (or via `App.get_agent(agent_id)` for the impersonation path).
+
+```python
+from alter_sdk import Agent
+
+agent = Agent(
+    api_key: str,
+    *,
+    timeout: float = 30.0,
+    caller: str | None = None,
+    user_token_getter: Callable[[], str | Awaitable[str]] | None = None,
+)
+```
+
+`Agent` exposes a strict subset of `App` — the methods that don't apply to an agent principal (`agents.*` CRUD, `revoke_grant`, `create_managed_secret_grant` from the operator side, `authenticate`, `verify_user_token`) are absent. Calling them on an agent principal would raise typed exceptions deep in the request path anyway; the SDK forbids them at the class level.
+
+## Making requests
+
+### `request(method, url, *, grant_id=..., provider=..., json=..., headers=..., query_params=..., reason=..., context=..., user_token=..., account=...) -> httpx.Response`
+
+The token-injected HTTP call. Returns an `httpx.Response`.
+
+Two ways to identify the grant:
+
+- `grant_id=<uuid>` — explicit.
+- `provider=<slug>` — resolved from the user's JWT via the configured `user_token_getter`.
+
+Other kwargs:
+
+- `json` — request JSON body.
+- `headers` — additional request headers (Authorization is auto-injected).
+- `query_params` — query-string parameters.
+- `reason` — human-readable explanation surfaced to end users in the [Wallet](/admin/wallet) and stored in the audit trail.
+- `context` — application metadata (`dict[str, str]`).
+- `user_token` — per-call JWT (overrides `user_token_getter`).
+- `account` — disambiguator when the JWT matches multiple grants.
+
+```python
+response = await app.request(
+    HttpMethod.GET, "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    provider="google", reason="Sync events on page load",
+)
+```
+
+### `proxy_request(...) -> ApprovalResult | PendingApproval`
+
+Same arg shape as `request`, but routes through the [HITL approval](/guides/add-human-in-the-loop-approvals) pipeline. Returns `PendingApproval` when an approval is required, `ApprovalResult` when the call ran synchronously.
+
+### `boto3_client(grant_id, service, region=None) -> boto3.Client`
+
+Returns a `boto3` client that signs requests with credentials from an [AWS managed-secret grant](/reference/managed-secret-providers/aws).
+
+## Grants
+
+### `list_grants(*, provider_id=None, limit=100, offset=0) -> UnifiedGrantListResult`
+
+Paginated list of grants visible to the calling principal. Returns a discriminated union — each item is either an `OAuthGrantItem` (`grant_kind="oauth"`) or a `ManagedSecretGrantItem` (`grant_kind="managed_secret"`). `App.list_grants` returns OAuth grants only; `Agent.list_grants` returns both.
+
+### `revoke_grant(grant_id) -> RevokeGrantResult`
+
+Revoke an OAuth grant. App-only.
+
+### `create_managed_secret_grant(managed_secret_id, *, principal: Principal) -> CreateGrantResult`
+
+Issue a [managed-secret grant](/guides/provision-secrets-for-backend-services) bound to a principal. `principal` is one of `UserPrincipal`, `GroupPrincipal`, `SystemPrincipal`, `AgentPrincipal`.
+
+### `revoke_delegation(grant_id, agent_id=None)`
+
+App: `revoke_delegation(grant_id, agent_id)` revokes a named agent's [delegation](/concepts/delegation) on an OAuth grant.
+Agent: `revoke_delegation(grant_id)` revokes the calling agent's own delegation (no `agent_id` argument).
+
+## Connect flow
+
+### `create_connect_session(*, allowed_providers, allowed_origin=None, user_token=None, agent=None, return_url=None) -> ConnectSession`
+
+Mint a short-lived session token for [the Connect widget](/reference/connect-sdk).
+
+### `create_managed_secret_connect_session(*, agent_id) -> ManagedSecretConnectSession`
+
+Mint a session for the user → agent [delegation](/concepts/delegation) flow on a managed secret.
+
+### `connect(providers=[...], email=None, scopes=None) -> list[ConnectResult]`
+
+Headless OAuth — opens a local browser, walks the OAuth flow, returns the resulting grant metadata. Use for CLIs, notebooks, one-time bootstrap.
+
+## Authentication helpers (App only)
+
+### `authenticate() -> AuthResult`
+
+Open a local browser to the IDP's sign-in flow, return the user's JWT.
+
+### `verify_user_token(token) -> str | None`
+
+Verify a JWT against the app's IDP; return the user UUID if valid.
+
+## Approvals
+
+- `get_approval_status(approval_id) -> ApprovalStatus` — single poll.
+- `await_approval(approval_id, timeout=...) -> ApprovalResult` — block until terminal.
+
+## Managed agents (App only)
+
+The `app.agents` namespace.
+
+- `app.agents.create(name=..., **opts) -> AgentCreateResult` — plaintext API key returned once.
+- `app.agents.list(limit=..., offset=...) -> AgentListResult`
+- `app.agents.get(agent_id) -> AgentInfo`
+- `app.agents.get_by_name(name) -> AgentInfo | None`
+- `app.agents.update(agent_id, **opts) -> AgentInfo`
+- `app.agents.mint_key(agent_id) -> AgentKeyMintResult` — plaintext returned once.
+- `app.agents.list_keys(agent_id) -> AgentKeyList`
+- `app.agents.deprecate_key(agent_id, key_id)`, `undeprecate_key(...)`, `revoke_key(agent_id, key_id, force=False)`
+
+## Scoped key derivation
+
+The `app.keys` and `agent.keys` namespaces.
+
+- `keys.derive(scopes=[...], expires_in=..., cidr_allowlist=..., rate_limit_rpm=...) -> MintedKey`
+- `keys.rotate(key_id) -> MintedKey`
+- `keys.revoke(key_id) -> APIKeyInfo`
+
+## Scope catalog
+
+- `app.scopes.get_catalog() -> ScopeCatalog` — the server-published scope set at the current version.
+
+## Attenuation
+
+- `app.with_constraints(scopes=[...]) -> App` — returns a sibling client whose every request signs with `X-Alter-Scope-Constraints`. The intersection of the parent key's scopes and the supplied list applies. See [Scopes](/concepts/scopes).
+
+## Agent introspection (Agent only)
+
+- `agent.me() -> AgentInfo` — the calling agent's own record. Works even when paused, useful for self-diagnostics.
+- `agent.trace(run_id=..., thread_id=..., parent=..., **metadata)` — async context manager scoping audit identity for nested `request()` calls. See [Give an agent scoped access](/guides/give-an-agent-scoped-access#patterns).
+
+## Models
+
+Public types exported from `alter_sdk`:
+
+| Type | Purpose |
+|---|---|
+| `TokenResponse` | OAuth token metadata (access token is never readable). |
+| `GrantInfo` | Single grant record (legacy `list_grants` shape). |
+| `OAuthGrantItem`, `ManagedSecretGrantItem` | Discriminated union members in `UnifiedGrantListResult`. |
+| `UnifiedGrantListResult` | Paginated `list_grants` response. |
+| `ConnectSession`, `ManagedSecretConnectSession` | Connect session response shape. |
+| `ConnectResult`, `AuthResult` | Headless flow results. |
+| `Principal` (discriminated union: `UserPrincipal`, `GroupPrincipal`, `SystemPrincipal`, `AgentPrincipal`) | Input shape for `create_managed_secret_grant`. |
+| `GrantPolicy`, `GrantPolicyInput` | TTL and policy fields on a grant. |
+| `PendingApproval`, `ApprovalStatus`, `ApprovalResult` | HITL flow types. |
+| `AgentInfo`, `AgentCreateResult`, `AgentListResult` | Managed agent records. |
+| `AgentKey`, `AgentKeyMintResult`, `AgentKeyList` | Per-agent key records. |
+| `APIKeyInfo`, `MintedKey` | Derived API key records. |
+| `ScopeCatalog`, `ResourceScopes` | Scope catalog discovery. |
+| `RetryInfo`, `RetryErrorInfo` | Retry metadata on `last_retry_info`. |
+
+All models are frozen Pydantic; field access only.
+
+## Errors
+
+See [Errors](/reference/errors) for the full hierarchy. The exceptions importable from `alter_sdk` (selection):
+
+`AlterSDKError`, `AlterValueError`, `BackendError`, `ReAuthRequiredError`, `GrantExpiredError`, `GrantRevokedError`, `CredentialRevokedError`, `GrantDeletedError`, `GrantNotFoundError`, `AmbiguousGrantError`, `PolicyViolationError`, `InsufficientScopeError`, `TokenRefreshInProgressError`, `NoDelegatedGrantError`, `ConnectFlowError`, `ConnectDeniedError`, `ConnectConfigError`, `ConnectTimeoutError`, `ProviderAPIError`, `ScopeReauthRequiredError`, `NetworkError`, `TimeoutError`, `ApprovalError`, `ApprovalDeniedError`, `ApprovalExpiredError`, `ApprovalTimeoutError`, `ApprovalExecutionFailedError`, `AgentError` (and the agent subclasses).
+
+## Enums
+
+| Enum | Members |
+|---|---|
+| `HttpMethod` | `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS` |
+| `CallerType` | `SERVICE`, `AGENT` |
+
+## Framework recipes
+
+### FastAPI
+
+```python
+import os
+from fastapi import FastAPI, Depends
+from contextvars import ContextVar
+from alter_sdk import App
+
+current_jwt: ContextVar[str] = ContextVar("current_jwt")
+alter = App(api_key=os.environ["ALTER_API_KEY"], user_token_getter=lambda: current_jwt.get())
+
+app = FastAPI()
+
+async def with_user(request):
+    current_jwt.set(extract_jwt(request))
+
+@app.get("/api/events", dependencies=[Depends(with_user)])
+async def list_events():
+    r = await alter.request("GET", "https://www.googleapis.com/calendar/v3/calendars/primary/events", provider="google")
+    return r.json()
+```
+
+### LangChain
+
+```python
+import os
+from alter_sdk import Agent
+from alter_sdk.langchain import alter_tool
+
+agent = Agent(api_key=os.environ["AGENT_KEY"])
+
+@alter_tool(agent=agent)
+async def send_slack(channel: str, text: str) -> dict:
+    """Post a Slack message."""
+    r = await agent.request("POST", "https://slack.com/api/chat.postMessage",
+                            provider="slack", json={"channel": channel, "text": text})
+    return r.json()
+
+# `send_slack` is now a LangChain tool. Identity flows through agent.trace() automatically.
+```
+
+### MCP
+
+See [Integrate with Claude Code (MCP)](/guides/integrate-with-claude-code-mcp).

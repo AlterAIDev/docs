@@ -1,0 +1,118 @@
+---
+title: 'Security Architecture'
+description: 'How Alter stores, retrieves, and authorizes credential access.'
+---
+
+This page is the whitepaper-style reference for how Alter handles credentials end to end. It covers the security boundaries that matter for compliance reviews, threat models, and architecture decisions. For day-to-day SDK usage, see the [Guides](/guides/call-apis-on-behalf-of-users).
+
+## Trust boundaries
+
+Three boundaries matter:
+
+1. **Application ↔ Alter SDK** — the application holds an API key (`alter_key_app_…` or `alter_key_agent_…`). The SDK signs every request with the key.
+2. **Alter SDK ↔ Alter backend** — every request is HMAC-signed with the key as the secret; the backend verifies before performing any action.
+3. **Alter backend ↔ third-party provider** — Alter holds the OAuth tokens and credentials. Application code never sees them; the backend injects them into outgoing provider requests as headers.
+
+A compromised application leaks the API key but **not** the credentials themselves — the key authenticates the right to *use* credentials within its scope, not to *read* them. Rotating the key invalidates the leak.
+
+## Vault storage
+
+OAuth tokens, refresh tokens, and managed-secret credentials are encrypted at rest with **AES-256-GCM**. Encryption keys are managed by the vault, not the application database. The schema separation is deliberate:
+
+- The application database holds metadata: `app_id`, `provider_id`, `grant_id`, scopes, status, timestamps.
+- The vault holds ciphertext keyed by an opaque reference stored in the metadata row.
+
+A database compromise that exposes the metadata table does not expose any credential. The vault and the database are different systems, with different operator access and different audit trails.
+
+## Token retrieval
+
+Every credential access — every `app.request()` — goes through a deterministic pipeline:
+
+1. **Authentication.** The API key signature is verified. The backend resolves the calling principal (App, Agent, or impersonation).
+2. **Authorization.** The grant is looked up. The principal kind must match an authorization path (operator owns the grant; agent has a delegation; user JWT matches a user-bound grant).
+3. **Policy evaluation.** Every [policy](/concepts/policies) attached to the grant, the app, or the agent is evaluated. A denial returns `PolicyViolationError`; no further pipeline runs.
+4. **Token retrieval.** The token is decrypted from the vault. If expired (or within a refresh buffer), the backend refreshes it using the stored refresh token, holding a distributed lock so concurrent requests share one refresh.
+5. **Injection.** The token is injected as a header on the outgoing provider request (`Authorization: Bearer …` by default; the [managed-secret](/concepts/managed-secrets) configuration controls the exact format).
+6. **Audit.** The pipeline result — success, denial, error — is written to the audit log before the response returns to the caller.
+
+If any step before injection fails, no provider call is made and no credential leaves the vault.
+
+## Fail-closed
+
+Alter is fail-closed at every gate:
+
+- A policy that cannot be evaluated denies the request.
+- A JWT that cannot be verified denies the request.
+- A vault unreachable for token retrieval denies the request.
+- An audit write that fails fails the request.
+
+There is no "skip on error" path. Operators can configure permissive policies, but the engine itself never silently allows on failure.
+
+## Identity resolution
+
+For [user-principal grants](/concepts/grants#principals) resolved via [JWT identity](/concepts/identity-resolution), the trust chain is:
+
+1. The end user authenticates at the configured [IDP](/admin/identity-provider).
+2. The IDP issues a JWT signed with the IDP's private key.
+3. The application includes the JWT on every Alter call (via `user_token_getter`).
+4. Alter verifies the JWT signature against the IDP's JWKS (fetched and cached).
+5. The `sub` claim resolves to an Alter user record.
+6. The grant lookup is scoped to that user.
+
+JWKS keys are refreshed automatically on rotation. A JWT signed by a rotated-out key is rejected on verification.
+
+## Per-key isolation
+
+Each [API key](/admin/api-keys) carries:
+
+- A scope set on the [Alter API](/concepts/scopes) — what management operations the key authorizes.
+- A binding to an app — keys cannot read cross-app data.
+- A type — app key, agent key, or derived key.
+
+A derived key inherits a subset of the parent's scopes (intersection only — never broader). Per-request attenuation via `with_constraints()` further narrows in-process without minting a new key.
+
+## Audit trail
+
+Every API call writes one row. Every grant lifecycle event writes one row. Every administrative action writes one row. The audit is the canonical record of what happened and is not optional. See [Audit logs](/concepts/audit-logs).
+
+Sensitive headers (`Authorization`, `Cookie`, AWS signing headers) are stripped before storage. Request and response bodies are capped at 10 KB.
+
+## End-user revocation
+
+End users sign into the [Wallet](/admin/wallet) at any time to see and revoke every grant their identity owns across every Alter app integrated with their IDP. Revocation is immediate: the token is deleted from the vault, the grant row's status flips to `revoked`, and the next call against the grant raises `GrantRevokedError`.
+
+There is no "developer can suppress revocation" flag — the Wallet exists by virtue of an IDP being configured.
+
+## Delegation as a first-class boundary
+
+[Delegation](/concepts/delegation) is the path that allows an AI agent to act on behalf of a user without seeing the user's credentials. Each delegation is a separately revocable row, distinct from the underlying connection. The user can revoke the delegation (the agent loses access; the connection stays active) or revoke the connection (both are torn down).
+
+## Operational properties
+
+- **HMAC-signed requests.** Every SDK → backend call signs the body + timestamp with the API key as the secret. Replays past a clock-skew window are rejected.
+- **TLS everywhere.** Every backend interaction is TLS 1.2+.
+- **Edge protection.** Rate limiting and abuse prevention live at the network edge, not in the application path — application-level limits exist for billing only.
+- **Key plaintext shown once.** Every API key (app, agent, derived) is shown to the operator exactly once at mint time. Subsequent fetches return only the bcrypt hash's prefix for identification.
+
+## Compliance posture
+
+For compliance evidence, the following surfaces are typically requested:
+
+- **Audit log export** for the period under review — see [Audit log export](/admin/audit-export).
+- **Identity provider configuration** — confirming JWT verification is enforced.
+- **Policy configuration** for sensitive grants — confirming gating is in place.
+- **Key rotation evidence** — the audit log contains every mint, deprecate, and revoke event.
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Policies" icon="shield-check" href="/concepts/policies">
+    The gating layer in detail.
+  </Card>
+  <Card title="Audit logs" icon="list" href="/concepts/audit-logs">
+    What gets recorded.
+  </Card>
+  <Card title="API keys" icon="key" href="/admin/api-keys">
+    Key lifecycle.
+  </Card>
+</CardGroup>

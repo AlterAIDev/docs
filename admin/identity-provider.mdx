@@ -1,0 +1,163 @@
+---
+title: 'Connecting an Identity Provider'
+description: 'Wire Auth0, Clerk, Okta, or any OIDC provider so Alter can resolve users from their JWTs.'
+---
+
+The identity provider (IDP) is the external service that authenticates the app's end users. When one is configured, Alter verifies the JWTs the IDP issues, resolves which user is making each call, and looks up that user's grants automatically.
+
+One IDP per app. Skip this page for backend-only apps that never see end users.
+
+## What gets configured
+
+Three concentric layers, each optional after the previous:
+
+1. **JWT verification** (required) — issuer URL, JWKS URL, audience, claim mappings.
+2. **OIDC sign-in** (optional) — adds a sign-in flow for `app.authenticate()` and the [Wallet](/admin/wallet).
+3. **Webhook deprovisioning** (optional) — real-time revocation when the IDP deletes a user.
+
+<Warning>
+Claim mappings (user-ID claim, group claim, role claim) **lock** after the first user signs in. Configure non-default claims before testing the first sign-in.
+</Warning>
+
+## Supported providers
+
+| Provider | Path |
+|---|---|
+| Auth0, Clerk, Okta | First-class — pick the tab below. |
+| Other standards-compliant OIDC providers (OneLogin, Ping, Stytch, JumpCloud, …) | Use **Custom OIDC** — supply issuer, JWKS, audience, claim mappings. |
+| Keycloak, Microsoft Entra ID, Amazon Cognito, Firebase Auth, Supabase Auth | **Broker through Auth0, Clerk, or Okta.** Direct integration is rejected at validation time. |
+
+## Setup by provider
+
+<Tabs>
+  <Tab title="Auth0">
+    ### 1. JWT verification
+
+    In the **Auth0 Dashboard**:
+
+    1. Pick the API or application whose JWTs Alter should accept.
+    2. Note the **Issuer URL** (`https://<tenant>.us.auth0.com/` or the custom-domain URL) and **Audience**.
+
+    In the **Alter portal** → app's **Identity** page:
+
+    1. **Add Identity Provider** → paste the issuer URL → **Discover**. Auth0 is recognized; claim mappings pre-fill.
+    2. Paste the audience.
+    3. For group-based authorization: add an [Auth0 Action](https://auth0.com/docs/customize/actions) emitting a `https://alter.dev/groups` (or any namespaced) claim on the access token. Map it in the portal **before** the first sign-in.
+    4. **Add Provider**.
+
+    ### 2. OIDC sign-in (optional)
+
+    Required only for `app.authenticate()` or the Wallet sign-in flow.
+
+    In Auth0: **Applications → Create Application → Regular Web Application**. Paste both Alter redirect URIs into **Allowed Callback URLs** (comma-separated). Paste the **Wallet logout URL** (bare URL, no query params) into **Allowed Logout URLs**. Copy **Client ID** and **Client Secret**.
+
+    In Alter: **User Authentication (OIDC)** section → paste credentials → **Save**.
+
+    ### 3. Webhook deprovisioning (optional)
+
+    In Alter: **Webhooks → Enable** → copy the signing secret and endpoint URL (shown once).
+
+    In Auth0: **Monitoring → Streams → Create Stream → Custom Webhook**. **Payload URL** = the Alter endpoint. **Authorization Token** = the signing secret. Filter events to `sdu` (user deleted), `ublkdu` (user blocked), `ubuu` (user unblocked).
+
+    ### Common pitfalls
+
+    - **Custom domain mismatch** — JWTs use the custom domain but the portal has the tenant URL (or vice versa). Match exactly what's in the JWT `iss` claim.
+    - **Missing group claim** — Auth0 emits no groups by default. Without an Action, group-bound grants don't work.
+  </Tab>
+
+  <Tab title="Clerk">
+    ### 1. JWT verification
+
+    In the **Clerk Dashboard**: note the instance URL (`https://<app>.clerk.accounts.dev` for dev, `https://clerk.<custom-domain>` for production). That's the issuer.
+
+    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer → **Discover**. Clerk is recognized; claim mappings pre-fill (`sub` = Clerk user ID). For Clerk organizations with group-based authorization, set the group claim to `org_memberships` (or whatever the JWT template uses) **before** the first sign-in. **Add Provider**.
+
+    ### 2. OIDC sign-in (optional)
+
+    Requires a **production** Clerk instance. In Clerk: **Configure → OAuth Applications → Create**. Add both Alter redirect URIs. Copy **Client ID** and **Client Secret**. Paste into the Alter portal.
+
+    ### 3. Webhook deprovisioning (optional)
+
+    Clerk needs the webhook URL first. In Alter: note the **Webhook URL**; do not click Enable yet.
+
+    In Clerk: **Webhooks → Add Endpoint** → paste the Alter URL. Subscribe to `user.updated`, `user.deleted`, `organizationMembership.deleted`. Copy the **Signing Secret** (`whsec_...`).
+
+    Back in Alter: toggle **Enable Webhooks** → paste the secret → **Save**.
+
+    ### Common pitfalls
+
+    - **Dev vs production instance** — OIDC sign-in requires production. JWT verification works in either, but issuer URLs differ.
+    - **Custom JWT template** — ensure `sub` still carries the user ID; override the user-ID claim mapping in the portal before first sign-in if needed.
+  </Tab>
+
+  <Tab title="Okta">
+    ### 1. JWT verification
+
+    In the **Okta Admin Console** → **Security → API → Authorization Servers** → pick the server (default is `default`). Note the **Issuer URI** (`https://<org>.okta.com/oauth2/default`) and **Audience**.
+
+    For group-based authorization: edit the authorization server → **Claims** → add a claim — name `groups`, include in **Access Token**, value type **Groups**, filter `Matches regex` `.*`.
+
+    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer URI → **Discover**. Okta is recognized. Paste the audience. Map the group claim **before** the first sign-in. **Add Provider**.
+
+    ### 2. OIDC sign-in (optional)
+
+    In Okta: **Applications → Create App Integration → OIDC → Web Application**. **Sign-in redirect URIs** = both Alter redirect URIs. **Sign-out redirect URIs** = the Wallet logout URL. Assign to the groups whose users should be able to sign into Alter Wallet. Copy **Client ID** and **Client Secret**. Paste into the Alter portal.
+
+    ### 3. Webhook deprovisioning (optional)
+
+    In Alter: **Webhooks → Enable** → copy the signing secret and endpoint.
+
+    In Okta: **Workflow → Event Hooks → Create Event Hook**. **URL** = the Alter endpoint. **Authentication field** = `Authorization`, **secret** = the signing secret. Subscribe to `user.lifecycle.delete.initiated`, `user.lifecycle.deactivate`, `user.lifecycle.suspend`. Verify and Activate.
+
+    ### Common pitfalls
+
+    - **Custom Authorization Server** — issuer URI is `https://<org>.okta.com/oauth2/<server-id>`, not the org URL.
+    - **Missing group claim** — Okta emits no groups by default. Without the claim, group-bound grants don't work.
+    - **Audience mismatch** — default is `api://default`; JWTs with a different audience fail verification.
+  </Tab>
+
+  <Tab title="Custom OIDC">
+    For any OIDC-compliant provider not listed above (OneLogin, Ping, Stytch, JumpCloud, etc.). Providers in the **brokered-only** row of the support table — Keycloak, Microsoft Entra ID, Amazon Cognito, Firebase Auth, Supabase Auth — are **rejected at validation time** by Custom OIDC and must instead be brokered through Auth0, Clerk, or Okta using the broker's enterprise-connection feature.
+
+    ### 1. JWT verification
+
+    Find these from the provider's documentation:
+
+    - **Issuer URL** (the value of the `iss` claim).
+    - **JWKS URL** (usually `<issuer>/.well-known/jwks.json` per OIDC discovery).
+    - **Audience** (the value of the `aud` claim).
+    - **User-ID claim** (default `sub`).
+    - **Group claim** (provider-specific — common values: `groups`, `cognito:groups`, `roles`).
+
+    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer URL → **Discover**. When OIDC discovery is exposed at `<issuer>/.well-known/openid-configuration`, Alter pulls JWKS automatically. Override claim mappings when the JWT uses non-standard names. **Set group / role claims before any user signs in** — they lock after first authentication.
+
+    ### 2. OIDC sign-in (optional)
+
+    Create an OIDC application (often called "Web App" or "Confidential Client") at the provider. Add both Alter redirect URIs as callbacks. When the provider supports `post_logout_redirect_uri`, add the Wallet logout URL. Paste **Client ID** and **Client Secret** into the Alter portal.
+
+    ### 3. Webhook deprovisioning (optional)
+
+    In Alter: **Webhooks → Enable** → copy the secret and endpoint. In the IDP, configure a webhook subscribing to user-deleted / user-disabled events with the secret as an `Authorization` header.
+
+    When the IDP supports no webhooks, deprovisioning waits until the deleted user's JWT expires.
+
+    ### Common pitfalls
+
+    - **Brokered-only providers fail at save time.** Issuer URLs from Keycloak, Entra, Cognito, Firebase, or Supabase are rejected. Use the broker pattern instead (Auth0 / Clerk / Okta with an enterprise connection).
+    - **Audience formatting** — some providers send a string, some an array. Alter handles both; the portal value must match an entry.
+  </Tab>
+</Tabs>
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Call APIs on behalf of users" icon="user-check" href="/guides/call-apis-on-behalf-of-users">
+    Runtime flow using the configured IDP.
+  </Card>
+  <Card title="Identity resolution" icon="fingerprint" href="/concepts/identity-resolution">
+    How the JWT becomes a grant.
+  </Card>
+  <Card title="Audit logs" icon="list" href="/concepts/audit-logs">
+    JWT-attributed audit rows.
+  </Card>
+</CardGroup>

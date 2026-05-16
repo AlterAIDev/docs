@@ -1,0 +1,67 @@
+---
+title: 'Setting Up an App'
+description: 'Create an app, configure providers, mint API keys.'
+---
+
+An [app](/concepts/apps) is the unit that owns API keys, provider configuration, and grants. Most products have one app per environment (production, staging). This page covers the operator setup from zero to "the SDK can make calls."
+
+## Creating the app
+
+In the developer portal at [portal.alterauth.com](https://portal.alterauth.com): **Apps → New App**. Pick a name and click **Create**.
+
+For a multi-environment setup, create a separate app per environment (`product-prod`, `product-staging`). Each app has its own keys, grants, and provider configuration — no chance of a staging credential reaching production.
+
+## Configuring providers
+
+Two kinds of providers, configured on different portal pages.
+
+### OAuth providers
+
+For credentials end users authorize themselves (Google, Slack, GitHub, …):
+
+1. Open the app → **OAuth Providers → Add Provider**.
+2. Pick the provider from the catalog (or **Custom OAuth** for anything not listed).
+3. Follow the per-provider instructions to register an OAuth client at the provider and paste back the **Client ID** and **Client Secret**.
+4. Add Alter's redirect URI (shown in the portal) to the provider's allowed callback list.
+5. Pick the default scope set.
+
+Full catalog: [OAuth providers reference](/reference/oauth-providers).
+
+### Managed-secret providers
+
+For credentials the operator owns (Datadog API key, AWS access key, …):
+
+1. Open the app → **Managed Secrets → Add Secret**.
+2. Pick the provider from the catalog (or **Custom** for any header-based credential).
+3. Paste the credential. It's encrypted and sent to the vault; the portal will not display it again.
+4. Issue at least one [grant](/guides/provision-secrets-for-backend-services#2-issue-a-grant) binding the credential to a principal.
+
+Full catalog: [Managed secret providers reference](/reference/managed-secret-providers).
+
+## Configuring the identity provider
+
+If the app has logged-in end users, wire [an identity provider](/admin/identity-provider) so the SDK can resolve users from their JWTs. Skip this step for backend-only apps and operator scripts.
+
+## Minting an API key
+
+**API Keys → Mint key.** The plaintext (`alter_key_app_…`) is shown **once** — copy it into a secret manager and revoke if it's ever lost.
+
+See [API keys](/admin/api-keys) for rotation, per-agent keys, and scoped derivation.
+
+## Verifying
+
+Run the [Quickstart](/quickstart) Slack flow against the new app, or run any of the [guides](/guides/call-apis-on-behalf-of-users). If the first call returns a 2xx response from the provider, setup is complete.
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Identity provider" icon="building-shield" href="/admin/identity-provider">
+    Auth0, Clerk, Okta, custom OIDC.
+  </Card>
+  <Card title="API keys" icon="key" href="/admin/api-keys">
+    Minting, rotation, agent keys.
+  </Card>
+  <Card title="Wallet" icon="wallet" href="/admin/wallet">
+    What end users see.
+  </Card>
+</CardGroup>

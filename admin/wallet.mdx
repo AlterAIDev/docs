@@ -1,0 +1,68 @@
+---
+title: 'The Wallet Dashboard'
+description: 'The self-service surface where end users see, audit, and revoke the apps holding their credentials.'
+---
+
+The Wallet at [wallet.alterauth.com](https://wallet.alterauth.com) is a hosted dashboard end users sign into to manage the apps that hold their credentials. It's free, always-on, requires no per-app code, and exists the moment an [IDP](/admin/identity-provider) is wired.
+
+For end users, it answers three questions:
+
+- **What apps have access to my data?** A list of every grant the user has across every Alter app integrated with their identity.
+- **What did they do with it?** An activity feed showing every API call made on the user's behalf, with a `reason` field the application supplies.
+- **How do I revoke?** One click per grant.
+
+For developers, it eliminates the need to build any of the above in-product.
+
+## How a user signs in
+
+The Wallet is OIDC-authenticated through the same identity providers an app uses. The user signs in via Auth0 / Clerk / Okta / custom OIDC, lands on the dashboard, and sees every grant their identity owns across every Alter app integrated with that IDP.
+
+No per-app account creation. No separate password. The user already exists at the IDP; the Wallet trusts the IDP's session.
+
+## What an end user sees
+
+- **Apps** — a card per app the user has at least one grant for. Each card shows the app's display name, logo, and a count of grants.
+- **Connections** — for each app, the list of grants by provider (Google, Slack, …), with account identifier, scopes granted, status, and last-used timestamp.
+- **Activity** — every API call made on the user's behalf, with method, provider, response status, latency, and the `reason` field the app supplied per call.
+- **Approvals** — pending [HITL approvals](/guides/add-human-in-the-loop-approvals) waiting on the user's decision, with Approve / Deny buttons.
+- **Revoke** — per-grant; effective immediately.
+
+## What the developer configures
+
+**Branding:** the Wallet picks up the app's display name, logo, and color scheme from the developer portal's app settings. Set these once; the Wallet renders them.
+
+**Reason text:** the most useful field in the activity feed is `reason` — the human-readable explanation of *why* the application made each call. Pass it on every `app.request()`:
+
+```python
+await app.request(method, url, grant_id=g, reason="Sync calendar events on user-triggered refresh")
+```
+
+Reasons appear verbatim in the Wallet. Treat them as user-facing copy.
+
+**Approvers:** when an [approval policy](/guides/add-human-in-the-loop-approvals) is configured, the designated approver sees pending requests in the Wallet with the request payload and the application's `reason`.
+
+## Trust model
+
+Three properties matter:
+
+- **The Wallet only shows what's already true on the backend.** It's a read/revoke UI over the same audit trail and grant table the SDK uses. There's no "Wallet-side state" that could drift.
+- **Revocation is immediate.** The next `app.request()` against a revoked grant raises [`GrantRevokedError`](/reference/errors). The token is deleted from the vault.
+- **The Wallet's session is independent of the app's session.** A user signing out of the app does not sign them out of the Wallet, and vice versa. The IDP is the source of truth for both.
+
+## When to suppress the Wallet
+
+For internal admin tools and operator-only apps that have no end users at all, the Wallet is invisible by default — there's no user identity to sign in. For products that *do* have end users but prefer an in-app revocation UI, the Wallet still exists (the user can always reach it directly); building a per-app revocation UI on top via [`app.list_grants` / `app.revoke_grant`](/reference/python-sdk) is a supplement, not a replacement.
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Connections" icon="link" href="/concepts/connections">
+    The grants that surface in the Wallet.
+  </Card>
+  <Card title="Audit logs" icon="list" href="/concepts/audit-logs">
+    The activity feed's source of truth.
+  </Card>
+  <Card title="Add HITL approvals" icon="circle-check" href="/guides/add-human-in-the-loop-approvals">
+    Wallet-driven approval flow.
+  </Card>
+</CardGroup>

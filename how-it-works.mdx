@@ -1,0 +1,91 @@
+---
+title: 'How Alter works'
+description: 'The mental model behind every Alter call, in one page.'
+---
+
+Alter is a credential vault, an authorization layer, and an audit pipeline behind a single SDK method. This page walks the flow end-to-end so the rest of the docs can stop re-explaining it.
+
+## The shape of an integration
+
+Every integration with a third-party API has four problems:
+
+1. **Storage** — somewhere to keep OAuth tokens or API keys.
+2. **Retrieval** — refreshing tokens before expiry, picking the right one per user.
+3. **Authorization** — deciding whether a given caller is allowed to use a given credential right now.
+4. **Audit** — recording every access with enough context to answer "who used what, when, and why."
+
+Alter owns all four. Application code makes one call.
+
+## How a request flows
+
+```
+Application                Alter SDK              Alter backend         Third-party API
+    │                          │                        │                      │
+    │── request(grant_id) ────▶│                        │                      │
+    │                          │── signed call ────────▶│                      │
+    │                          │              policy check                     │
+    │                          │              token retrieval                  │
+    │                          │              token refresh (if expired)       │
+    │                          │              audit row                        │
+    │                          │── inject + forward ───────────────────────────▶
+    │                          │                                                │
+    │                          │◀── response ───────────────────────────────────│
+    │◀── response ─────────────│                        │                      │
+```
+
+The token leaves the vault only as an injected header on the outgoing call. Application code never holds, logs, or stores it.
+
+## The four primitives
+
+Alter exposes four primitives. The full definitions live in [Concepts](/concepts/apps); this is the one-paragraph version.
+
+- **App** — the unit that owns API keys, provider configuration, and grants. One per integrated product.
+- **Provider** — a third-party service Alter knows how to talk to. Two kinds: **OAuth providers** (Google, Slack, GitHub) and **managed-secret providers** (Stripe API key, Datadog API key, AWS).
+- **Grant** — a stored authorization to call a provider on behalf of someone. Identified by a `grant_id`. Created when a user completes OAuth or when an operator provisions a managed secret.
+- **Agent** *(optional)* — a workload identity with its own API key and access set. Use when an AI agent or background workload needs to be revocable and auditable independently of the app key.
+
+## Two credential paths, one SDK method
+
+Alter handles two distinct credential models. Both reach the same `app.request()` method:
+
+|  | OAuth grants | Managed secrets |
+|---|---|---|
+| **Provided by** | An end user completing OAuth | An operator pasting the credential in the portal |
+| **Refresh** | Automatic, per-provider | Operator rotates when the underlying credential rotates |
+| **Bound to** | The user who authorized | A user, group, system, or agent (operator's choice) |
+| **Read in code as** | `grant_id` | `grant_id` |
+
+The SDK call site is identical. The difference is *where the credential came from*, not *how it's used*.
+
+## Identity resolution
+
+For OAuth grants, the SDK needs to know *which* grant to use. Three modes, [explained on one page](/concepts/identity-resolution):
+
+1. **JWT identity** — the recommended path for any app with logged-in users. Configure the IDP once, the SDK resolves the grant from each user's JWT.
+2. **Explicit `grant_id`** — for scripts, batch jobs, and managed-secret grants.
+3. **Headless** — `app.connect()` for CLIs, notebooks, and one-time setup flows.
+
+Managed-secret grants bound to a user or group resolve under JWT identity the same way OAuth grants do; the credential type doesn't change the call site.
+
+## What's no longer required to build
+
+- Token storage (encrypted at rest in a dedicated vault, never in the application database).
+- Token refresh (handled per-provider, automatically).
+- Per-user scoping (grants are bound to principals; the SDK resolves them).
+- Audit logging (every call writes a row with caller, principal, provider, status).
+- End-user revocation UX (end users get [the Wallet dashboard](/admin/wallet) for free).
+- [Policy enforcement](/concepts/policies) (rules engine on every retrieval).
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Working code, under 10 minutes.
+  </Card>
+  <Card title="Concepts" icon="book" href="/concepts/apps">
+    One page per primitive.
+  </Card>
+  <Card title="Guides" icon="list-check" href="/guides/call-apis-on-behalf-of-users">
+    End-to-end recipes for each use case.
+  </Card>
+</CardGroup>

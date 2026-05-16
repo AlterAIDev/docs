@@ -1,0 +1,138 @@
+---
+title: 'Integrate with Claude Code (MCP)'
+description: 'Expose Alter-managed credentials to Claude Code via a Model Context Protocol server.'
+---
+
+By the end of this guide, Claude Code can call third-party APIs through Alter using an MCP server. Tool calls in the conversation become `agent.request()` calls under the hood, scoped to a managed [agent](/concepts/agents), audited per-tool.
+
+The flow:
+
+1. An operator provisions an MCP-bound agent in Alter.
+2. The MCP server (built with `alter-sdk`'s MCP helpers) runs locally or in a container, holding only the agent's API key.
+3. Claude Code is configured to talk to the MCP server.
+4. Each tool call is bound to the agent identity in the audit log.
+
+## Prerequisites
+
+- An [app](/admin/setting-up-your-app) and an [agent](/admin/api-keys) created for the MCP server.
+- Claude Code installed locally (`claude --version`).
+- Python 3.10+ to run the MCP server.
+
+## Walkthrough
+
+### 1. Provision the agent
+
+In the developer portal, create a new agent named `claude-code-mcp`. Mint a per-agent key (`alter_key_agent_…`) and store it where the MCP process will read it. Bind whichever providers the MCP server should be able to reach:
+
+- For user-owned data, have the user run a Connect session with `agent=<this_agent_id>` to delegate access.
+- For operator-owned credentials, issue managed-secret grants to the agent.
+
+### 2. Write the MCP server
+
+```python
+# server.py
+import os
+from alter_sdk import Agent
+from alter_sdk.mcp import build_server, tool
+
+agent = Agent(api_key=os.environ["ALTER_MCP_AGENT_KEY"])
+
+@tool
+async def list_events(query: str) -> dict:
+    """List the user's Google Calendar events matching a query."""
+    response = await agent.request(
+        "GET",
+        "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+        provider="google",
+        query_params={"q": query, "maxResults": "10"},
+    )
+    return response.json()
+
+@tool
+async def send_slack(channel: str, text: str) -> dict:
+    """Post a message to a Slack channel."""
+    response = await agent.request(
+        "POST",
+        "https://slack.com/api/chat.postMessage",
+        provider="slack",
+        json={"channel": channel, "text": text},
+    )
+    return response.json()
+
+if __name__ == "__main__":
+    build_server(name="alter-mcp").run()
+```
+
+`@tool` registers each function as an MCP tool. `build_server` returns a configured MCP server that handles the protocol; the agent's identity flows through `request()` automatically.
+
+### 3. Register the server with Claude Code
+
+In `~/.claude/claude_config.json` (or the equivalent for the platform):
+
+```json
+{
+  "mcpServers": {
+    "alter": {
+      "command": "python",
+      "args": ["/absolute/path/to/server.py"],
+      "env": {
+        "ALTER_MCP_AGENT_KEY": "alter_key_agent_..."
+      }
+    }
+  }
+}
+```
+
+Restart Claude Code. The tools appear in the conversation.
+
+### 4. Try it
+
+In Claude Code, ask the model to use the tools:
+
+> Find my next three calendar events and send a summary to #standup.
+
+Claude calls `list_events`, then `send_slack`. Each call appears in the audit log under the `claude-code-mcp` agent, with the tool name (`list_events`, `send_slack`) recorded in the context.
+
+## Patterns
+
+### Scoping the MCP agent to one user
+
+For a single-user MCP install, the simplest setup is one Alter agent per Claude Code installation, with delegations from that one user. The agent only ever needs that one user's grants, so there's no per-call user disambiguation.
+
+For multi-tenant MCP deployments (one server, many users), wire `user_token_getter` and pass the calling user's identity through the MCP request context.
+
+### Distinguishing tool calls in audit
+
+The MCP integration automatically records the tool name in the audit context. To add more (run ID, conversation ID, custom tags), wrap each tool call in a trace block:
+
+```python
+async with agent.trace(run_id=conversation_id, tool="list_events"):
+    response = await agent.request(...)
+```
+
+### Human-in-the-loop for destructive tools
+
+For tools that mutate state (sending email, posting to Slack, refunding a charge), configure an approval policy on the agent so destructive calls pause for explicit approval. See [Add human-in-the-loop approvals](/guides/add-human-in-the-loop-approvals).
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Tools don't appear in Claude Code | MCP server failed to start. | Check Claude Code's MCP logs; run `python server.py` directly to surface errors. |
+| `NoDelegatedGrantError` on a tool call | The agent has no delegation for the provider. | Run a Connect session with `agent=<this_agent_id>` to delegate. |
+| `AgentRevokedError` | Operator revoked the agent. | Provision a new agent and update the MCP env var. |
+| Conversation context not in audit | `agent.trace()` not used inside tool bodies. | Wrap tool bodies in a `trace()` block. |
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Give an agent scoped access" icon="robot" href="/guides/give-an-agent-scoped-access">
+    The general agent flow this guide builds on.
+  </Card>
+  <Card title="Add approvals" icon="circle-check" href="/guides/add-human-in-the-loop-approvals">
+    Gate destructive tools behind approval.
+  </Card>
+  <Card title="Python SDK reference" icon="python" href="/reference/python-sdk">
+    `alter_sdk.mcp` API.
+  </Card>
+</CardGroup>

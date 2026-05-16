@@ -1,0 +1,51 @@
+---
+title: 'Audit Logs'
+description: 'Every credential access, every policy decision, every grant lifecycle event — recorded with full identity context.'
+---
+
+**An audit log is the canonical record of what Alter did and why.** Every credential retrieval, every policy decision, every grant lifecycle event, and every administrative action is written to the audit trail with the full identity context needed to answer compliance and forensic questions later.
+
+Audit logs are not optional. There is no "disable audit" flag. The audit pipeline writes before the response returns; a failed audit write fails the request.
+
+## What's recorded
+
+For every `app.request()`:
+
+- **Caller identity** — the API key, agent identity, and `caller` attribution.
+- **Principal identity** — the user, group, system, or agent the grant belongs to.
+- **Grant** — the `grant_id`, provider, and grant kind.
+- **Request** — method, URL, response status, latency, retry metadata.
+- **Context** — application-supplied metadata: tool name, run ID, thread ID, reason.
+- **Outcome** — success, policy denial, provider error, network error.
+
+Sensitive headers (`Authorization`, `Cookie`, AWS signing headers) are stripped before storage. Request and response bodies are stored up to a 10 KB cap; larger payloads are truncated with a flag.
+
+For every grant lifecycle event:
+
+- Created, revoked, deleted, scope-drifted, policy-violated.
+- Who initiated the event (end user via Wallet, operator via portal, SDK call).
+
+For every administrative action:
+
+- Provider configuration changes, API key mint/rotate/revoke, agent create/update/revoke, identity provider configuration.
+
+## The two questions an audit trail answers
+
+Alter's audit model is built around two questions that traditional credential systems struggle with:
+
+- **"What was Alice's data used for?"** — every call carrying Alice's principal is queryable by user identity. The trail spans every app, every agent, every workload that touched her credentials.
+- **"What did Agent X access?"** — every call attributed to Agent X is queryable by caller. The trail spans every user the agent acted on behalf of.
+
+Both questions resolve to a single SQL query against the audit table; no cross-joining required.
+
+## Where to read the audit trail
+
+- **Developer portal** — every app has an Audit Logs view with filtering, search, and export.
+- **End-user Wallet** — each end user sees the slice of the audit trail concerning their own grants, including a `reason` field on each call that explains why the application made it.
+- **Export** — see [Audit log export](/admin/audit-export) for shipping logs to a SIEM or warehouse.
+
+## What's next
+
+- [Audit log export](/admin/audit-export) — sending audit logs to an external system.
+- [Policies](/concepts/policies) — denials are first-class audit events.
+- [Wallet](/admin/wallet) — what end users see.

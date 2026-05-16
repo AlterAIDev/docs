@@ -1,91 +1,57 @@
 ---
-title: 'Alter Vault'
-description: 'The credential and authorization layer for apps and AI agents that call third-party APIs on behalf of users.'
+title: 'Alter'
+description: 'Scoped credentials for apps and AI agents — without storing tokens, building OAuth flows, or running an audit pipeline.'
 ---
 
-Alter Vault stores OAuth tokens and API credentials in an encrypted vault, enforces identity-aware authorization on every retrieval, and logs every access with full actor context. Application code becomes a single call: `app.request(method, url, grant_id=...)`.
+Alter sits between application code and third-party APIs. Application code calls one method; Alter injects the credential, refreshes it, enforces policy, and writes the audit row.
 
 <CardGroup cols={2}>
-  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
-    Sign up, mint a key, and post a Slack message from app code. Hands-on, end-to-end, under five minutes.
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Sign up, mint a key, and post a Slack message from application code. Under 10 minutes.
   </Card>
-  <Card title="What is Alter Vault?" icon="compass" href="/concepts/what-is-alter-vault">
-    A one-page mental model. Read this once before anything else.
+  <Card title="How Alter works" icon="compass" href="/how-it-works">
+    The mental model in one page. Read this once before the Guides.
   </Card>
 </CardGroup>
 
-## Pick a path
+## Build
 
 <CardGroup cols={2}>
-  <Card title="Developer integrating Alter" icon="code" href="/concepts/what-is-alter-vault">
-    OAuth grants, managed secrets, agents, SDK reference — everything required to ship.
+  <Card title="Call APIs on behalf of users" icon="user-check" href="/guides/call-apis-on-behalf-of-users">
+    OAuth, Connect, and identity-aware token retrieval.
   </Card>
-  <Card title="End user" icon="user" href="/wallet/overview">
-    See and revoke the apps holding end-user credentials in [Alter Wallet](https://wallet.alterauth.com).
+  <Card title="Provision secrets for backend services" icon="key" href="/guides/provision-secrets-for-backend-services">
+    Static API keys and service tokens, scoped to users, groups, or the system.
   </Card>
-</CardGroup>
-
-## The three things to work with
-
-<CardGroup cols={3}>
-  <Card title="OAuth grants" icon="user-check" href="/oauth/overview">
-    For credentials that end users authorize — Gmail, Slack, GitHub.
+  <Card title="Give an AI agent scoped access" icon="robot" href="/guides/give-an-agent-scoped-access">
+    Per-agent identity, delegated user grants, and agent-owned secrets.
   </Card>
-  <Card title="Managed secrets" icon="key" href="/managed-secrets/overview">
-    For credentials the developer provisions — API keys, service tokens.
-  </Card>
-  <Card title="Agents" icon="robot" href="/agents/overview">
-    For workloads that need their own identity, key, and audit trail.
+  <Card title="Add human-in-the-loop approvals" icon="circle-check" href="/guides/add-human-in-the-loop-approvals">
+    Gate sensitive calls behind an in-app approval prompt.
   </Card>
 </CardGroup>
 
-## Why Alter Vault
-
-- **Zero token exposure.** Credentials never leave the vault. Application code only ever holds an API key.
-- **Identity-aware authorization.** Every credential access is checked against both the end-user identity and the workload identity. One [policy layer](/reference/policies) governs which callers reach which credentials.
-- **Dual-identity audit logging.** Every access is logged with both the end-user identity and the caller identity. Answer "what was Alice's data used for?" and "what did Agent X access?"
-- **Fail-closed by design.** When authorization cannot be evaluated, credential access is denied.
-- **Drop-in replacement.** `app.request()` is the application's HTTP client — same surface as `httpx` or `fetch`, with the credential injected automatically.
-
-## Quick example
-
-This is the call written in [First 5 Minutes](/first-5-minutes). It posts a Slack message; the token never touches application code.
-
-<CodeGroup>
-```python Python
-from alter_sdk import App, HttpMethod
-
-app = App(api_key=ALTER_API_KEY)
-response = await app.request(
-    HttpMethod.POST,
-    "https://slack.com/api/chat.postMessage",
-    grant_id=SLACK_GRANT_ID,
-    json={"channel": "#general", "text": "Hello from Alter Vault."},
-)
-```
-
-```typescript TypeScript
-import { App, HttpMethod } from "@alter-ai/alter-sdk";
-
-const app = new App({ apiKey: ALTER_API_KEY });
-const response = await app.request(
-  HttpMethod.POST,
-  "https://slack.com/api/chat.postMessage",
-  { grantId: SLACK_GRANT_ID, json: { channel: "#general", text: "Hello from Alter Vault." } },
-);
-```
-</CodeGroup>
-
-## Get started
+## SDKs
 
 <CardGroup cols={3}>
-  <Card title="First 5 Minutes" icon="rocket" href="/first-5-minutes">
-    Hands-on walkthrough.
+  <Card title="Python SDK" icon="python" href="/reference/python-sdk">
+    `pip install alter-sdk`
   </Card>
-  <Card title="Principals and grants" icon="user-shield" href="/concepts/principals-and-grants">
-    The vocabulary the rest of the docs assume.
+  <Card title="TypeScript SDK" icon="js" href="/reference/typescript-sdk">
+    `npm install @alter-ai/alter-sdk`
   </Card>
-  <Card title="Provider directory" icon="puzzle-piece" href="/providers/google">
-    100+ providers, each with a setup page.
+  <Card title="Connect (browser)" icon="window" href="/reference/connect-sdk">
+    `npm install @alter-ai/connect`
+  </Card>
+</CardGroup>
+
+## Admin
+
+<CardGroup cols={2}>
+  <Card title="Setting up an app" icon="gear" href="/admin/setting-up-your-app">
+    Create an app, configure providers, mint API keys.
+  </Card>
+  <Card title="Connecting an identity provider" icon="building-shield" href="/admin/identity-provider">
+    Auth0, Clerk, Okta, or any OIDC provider.
   </Card>
 </CardGroup>

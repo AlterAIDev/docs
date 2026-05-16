@@ -1,0 +1,47 @@
+---
+title: 'Providers'
+description: 'The third-party services Alter knows how to talk to.'
+---
+
+**A provider is a third-party service Alter knows how to talk to.** Alter ships with two kinds: **OAuth providers** (the end user authorizes access to their own account) and **managed-secret providers** (the operator pastes a long-lived credential into the portal).
+
+A provider is configured once per app. After configuration, the same provider can back many grants — one per end user for an OAuth provider, or one per bound principal for a managed-secret provider.
+
+## OAuth providers
+
+Used when the credential belongs to an end user. The user clicks a Connect button, completes the OAuth flow at the provider, and Alter stores the resulting tokens.
+
+Examples: Google, Slack, GitHub, Notion, HubSpot, Stripe (Connect), Salesforce.
+
+Configuration is a one-time step in the developer portal:
+
+1. Register an OAuth client at the provider.
+2. Add Alter's redirect URI as an authorized callback.
+3. Paste the client ID and secret into the portal.
+4. Pick the default scope set the app needs.
+
+Browse the full list at [OAuth providers](/reference/oauth-providers).
+
+## Managed-secret providers
+
+Used when the credential is owned by the operator — an API key, service-account token, or AWS access key. The operator pastes the credential once; the SDK injects it into outgoing calls the same way it injects an OAuth token.
+
+Examples: Datadog API key, Stripe secret key, SendGrid, AWS, Cloudflare, Twilio.
+
+Configuration is a one-time step:
+
+1. Generate the credential at the provider.
+2. Paste it into the portal under **Managed Secrets**.
+3. Issue grants binding the credential to specific [principals](/concepts/grants#principals) (users, groups, the system, or an agent).
+
+Browse the full list at [Managed secret providers](/reference/managed-secret-providers).
+
+## Custom providers
+
+For any OAuth provider not in the catalog, configure it through the **Custom OAuth** template — point Alter at the authorize / token / revoke URLs and Alter handles the rest. For any managed-secret provider not in the catalog, the **Custom** template supports arbitrary header names, injection formats (`Bearer {token}`, `Token {token}`, `Key {token}`), and multi-header or query-parameter injection.
+
+## What's next
+
+- [Grants](/concepts/grants) — what a configured provider produces at runtime.
+- [Connections](/concepts/connections) — the OAuth-grant variant.
+- [Managed secrets](/concepts/managed-secrets) — the operator-provisioned variant.

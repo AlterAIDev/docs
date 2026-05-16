@@ -1,0 +1,56 @@
+---
+title: 'Agents'
+description: 'Workload identities with their own API key, audit trail, and bound access set.'
+---
+
+**An agent is a named workload identity with its own API key, audit trail, and bound access set.** Use an agent when one app key is not enough — when multiple distinct workloads should be revocable, rotatable, and auditable independently.
+
+An agent is created by an operator (in the developer portal or via `app.agents.create()`). At runtime, the agent process holds a per-agent API key (`alter_key_agent_…`) and calls `agent.request()` the same way an app does. The backend resolves the calling identity from the key signature, scopes the request to the agent's access set, and attributes the audit row to the agent.
+
+## When to use an agent
+
+| Workload | Use |
+|---|---|
+| Single backend service | `App` |
+| Cron job, webhook handler | `App` |
+| Multi-step AI workflow with named sub-agents (researcher, writer, reviewer) | One agent per role |
+| MCP server in a sandbox where exposing the app key would be unsafe | Per-agent key |
+| Workload that must be revocable independently of the app key | Per-agent key |
+| Multi-tenant agent fleet | One agent per tenant |
+
+Apps and agents can be mixed freely. One app instance, N agent instances — each with its own key, audit, and access boundary.
+
+## What an agent can access
+
+An agent reaches **only** the grants the operator bound to that specific agent. Two paths:
+
+- **User-delegated OAuth grants** — a user consented to delegate one of their connections to this agent during the OAuth flow. See [Delegation](/concepts/delegation).
+- **Agent-owned managed secrets** — an operator issued a managed-secret grant directly to this agent.
+
+`agent.list_grants()` returns the merged view of both kinds. Anything else — grants belonging to other agents, grants belonging to users who did not delegate, generic system grants — is invisible to the agent.
+
+## Identity resolution
+
+Agents resolve grants the same way apps do, with three differences:
+
+- The agent identity comes from the key itself; no `user_token_getter` is needed for agent-owned grants.
+- For user-delegated grants, the agent can optionally bridge a user JWT via `user_token_getter` so the call routes to one specific delegation among several.
+- `agent.me()` introspects the calling agent's own record — its name, status, and active keys.
+
+See [Give an AI agent scoped access](/guides/give-an-agent-scoped-access) for the runtime flow.
+
+## Per-agent key lifecycle
+
+Each agent can hold multiple API keys. Keys are minted in the portal (or via `app.agents.mint_key()`), shown once, and stored only as a bcrypt hash on the backend. Keys can be:
+
+- **Active** — usable; the default state on mint.
+- **Deprecated** — still authenticates, but every response carries `X-Alter-Key-Deprecated: true` so operators can find lingering callers before fully revoking.
+- **Revoked** — terminal; the key no longer authenticates.
+
+See [API keys](/admin/api-keys) for rotation procedure.
+
+## What's next
+
+- [Delegation](/concepts/delegation) — sharing a user's grant with an agent.
+- [Give an agent scoped access](/guides/give-an-agent-scoped-access) — end-to-end guide.
+- [API keys](/admin/api-keys) — minting and rotation.

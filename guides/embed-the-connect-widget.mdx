@@ -1,0 +1,165 @@
+---
+title: 'Embed the Connect Widget'
+description: 'Run the OAuth flow in a popup or redirect, from a frontend, with one line of JavaScript.'
+---
+
+By the end of this guide, a frontend launches an OAuth flow from a button click. The user authorizes, the popup closes, and a callback fires with the new connection's metadata. Works in React, Vue, Angular, and plain HTML; popup on desktop, full-page redirect on mobile.
+
+The Connect widget is `@alter-ai/connect` — a 3.5 KB gzipped, zero-dependency package that opens a backend-served Connect UI in a popup or redirect.
+
+## Prerequisites
+
+- An [app](/admin/setting-up-your-app) with at least one [provider configured](/admin/setting-up-your-app#configuring-providers).
+- A backend endpoint that mints Connect session tokens (the app key must stay on the backend — see [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) for the backend half).
+- A frontend with a `<button>` that triggers the connection.
+
+## Walkthrough
+
+### 1. Install
+
+```bash
+npm install @alter-ai/connect
+```
+
+Or via CDN:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@alter-ai/connect@latest/dist/alter-connect.umd.js"></script>
+```
+
+### 2. Open the widget on click
+
+```typescript
+import AlterConnect from "@alter-ai/connect";
+
+const alterConnect = AlterConnect.create();
+
+// Note: open() must be called synchronously inside the click handler.
+// Using `await` between the click and `open()` (instead of a `.then()`
+// chain) breaks Safari and Firefox popup-blocker policies, because the
+// browser only allows a popup if it traces directly to the user gesture.
+button.addEventListener("click", () => {
+  fetch("/api/connect-session")
+    .then(r => r.json())
+    .then(({ sessionToken }) => {
+      alterConnect.open({
+        token: sessionToken,
+        onSuccess: (connection) => {
+          console.log("Connected", connection.provider, connection.accountIdentifier);
+          // Optionally persist the connection metadata for the in-app "Connected accounts" view
+        },
+        onError: (error) => {
+          console.error("Connect failed", error.code, error.message);
+        },
+        onExit: () => {
+          console.log("User closed the popup");
+        },
+      });
+    });
+});
+```
+
+The widget opens, the user completes OAuth, the popup closes (or the page redirects back on mobile), and `onSuccess` fires.
+
+### 3. Choose a flow
+
+The widget automatically picks the right flow based on device:
+
+| Device | Flow |
+|---|---|
+| Desktop | Centered popup, 500×700px, posts result via `postMessage` |
+| Phone (≤480px) or tablet portrait | Full-page redirect, returns to the URL configured in `return_url` |
+| Tablet landscape | Popup |
+
+No code change is required between desktop and mobile. The backend must include `return_url` in the session if the app supports mobile (otherwise mobile redirects have nowhere to land).
+
+## Patterns
+
+### React
+
+```jsx
+import { useState } from "react";
+import AlterConnect from "@alter-ai/connect";
+
+function ConnectButton() {
+  const [alterConnect] = useState(() => AlterConnect.create());
+
+  const handleConnect = () => {
+    fetch("/api/connect-session")
+      .then(r => r.json())
+      .then(({ sessionToken }) => {
+        alterConnect.open({
+          token: sessionToken,
+          onSuccess: (connection) => { /* … */ },
+        });
+      });
+  };
+
+  return <button onClick={handleConnect}>Connect Google</button>;
+}
+```
+
+Note the synchronous `.then(...)` chain inside the click handler. Putting an `await` between the click and the `open()` call breaks Safari and Firefox popup-blockers, which require the popup to be opened in the same synchronous task as the user gesture.
+
+### Vue
+
+```vue
+<script setup>
+import AlterConnect from "@alter-ai/connect";
+const alterConnect = AlterConnect.create();
+
+function handleConnect() {
+  fetch("/api/connect-session")
+    .then(r => r.json())
+    .then(({ sessionToken }) => {
+      alterConnect.open({
+        token: sessionToken,
+        onSuccess: (connection) => { /* … */ },
+      });
+    });
+}
+</script>
+
+<template>
+  <button @click="handleConnect">Connect Google</button>
+</template>
+```
+
+### Reauth flow
+
+When a stored grant's connection breaks (refresh token revoked, user changed password at the provider), the SDK raises `CredentialRevokedError` on the next API call. Trigger the same widget with the same session-creation flow; the resulting OAuth completes as a re-auth and the `grant_id` stays the same. The `connection.operation` field returned to `onSuccess` is `"reauth"` instead of `"creation"`.
+
+### Multiple providers in one session
+
+Pass several providers in `allowed_providers` when minting the session. The widget shows the user a provider picker before launching the OAuth flow:
+
+```python
+session = await alter.create_connect_session(
+    allowed_providers=["google", "github", "slack"],
+    user_token=user.jwt,
+)
+```
+
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| Popup blocked | `open()` was called after an `await` instead of synchronously inside the click handler. | Move the session-fetch into a `.then()` chain; open the popup in the click task. |
+| `invalid_token` | Session token expired (default 10 minutes) or was already used. | Mint a fresh session per click. |
+| Mobile redirect lands on a 404 | Backend did not include `return_url` in the session. | Add `return_url` to `create_connect_session`. |
+| Popup completes but `onSuccess` never fires | The session was minted without `allowed_origin` and no `website_url` is configured on the app. | Either set `allowed_origin` per session, or set `website_url` in the app's portal settings. |
+| `onError` fires with `popup_blocked` | Same as "popup blocked" above. | Same fix. |
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Call APIs on behalf of users" icon="user-check" href="/guides/call-apis-on-behalf-of-users">
+    The backend half of the user-grant flow.
+  </Card>
+  <Card title="Connect SDK reference" icon="book" href="/reference/connect-sdk">
+    Full API surface, events, error codes.
+  </Card>
+  <Card title="Connections" icon="link" href="/concepts/connections">
+    What the widget produces, in concept terms.
+  </Card>
+</CardGroup>

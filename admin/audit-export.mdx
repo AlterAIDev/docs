@@ -1,0 +1,77 @@
+---
+title: 'Exporting Audit Logs'
+description: 'Ship Alter audit logs into a SIEM or warehouse.'
+---
+
+Every Alter call writes a structured audit row. The developer portal includes search, filter, and one-off CSV export. For continuous export to a SIEM (Splunk, Datadog, Sumo) or a data warehouse (Snowflake, BigQuery, S3), use one of the paths below.
+
+## What's in an audit row
+
+See [Audit logs](/concepts/audit-logs) for the full field list. The short version per call:
+
+- Timestamps, app and provider identifiers, response status, latency.
+- Caller (key prefix, agent identity if applicable, free-form `caller` attribution).
+- Principal (user / group / system / agent that owns the grant).
+- Grant (`grant_id`, kind, scopes).
+- Context (application-supplied tool name, run ID, thread ID).
+- Reason (the human-readable explanation passed on the request).
+- Outcome (success / policy denial / provider error / network error).
+
+Sensitive headers are stripped; request and response bodies are capped at 10 KB and truncated past that point.
+
+## Export paths
+
+### 1. CSV export from the portal
+
+**Audit Logs → Filter → Export CSV.** One-off, ad-hoc, capped at 100k rows per export. Best for spot investigations and exporting evidence for a single ticket.
+
+### 2. Pull via SDK
+
+For continuous ingestion into a custom pipeline, query the audit endpoint directly. Run a worker that polls every N minutes for new rows since the last cursor, writes them downstream, and persists the cursor.
+
+The audit endpoint is paginated by `created_at`; the application is responsible for cursor management.
+
+### 3. Webhook stream *(coming soon)*
+
+A push-based stream — Alter POSTs new audit rows to a configured webhook endpoint with HMAC signing. Status: in development.
+
+### 4. Direct connector *(coming soon)*
+
+First-class connectors for Datadog, Splunk, and S3. Status: in development.
+
+## Schema for downstream tools
+
+The exported JSON is a flat record per call. For mapping into common SIEMs, the high-value fields are:
+
+| Field | SIEM mapping suggestion |
+|---|---|
+| `created_at` | `@timestamp` |
+| `app_id`, `provider_id` | service / source |
+| `caller_key_prefix`, `caller` | actor.id |
+| `principal_user_id`, `principal_type` | user.id, user.type |
+| `grant_id`, `grant_kind` | resource.id, resource.type |
+| `method`, `url` | http.request.method, http.url |
+| `response_status` | http.response.status_code |
+| `latency_ms` | event.duration |
+| `outcome` | event.outcome |
+| `reason` | message |
+
+## Retention
+
+Audit retention is set per app under **Settings → Audit retention**. The default is 365 days. Lengthening retention requires a plan change; shortening takes effect immediately and deletes rows older than the new window on the next sweep.
+
+For permanent retention, export to S3 or a warehouse — Alter is not the canonical long-term store.
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Audit logs concept" icon="list" href="/concepts/audit-logs">
+    What gets recorded and why.
+  </Card>
+  <Card title="Wallet" icon="wallet" href="/admin/wallet">
+    The end-user-facing slice of the audit trail.
+  </Card>
+  <Card title="Security architecture" icon="shield-halved" href="/reference/security-architecture">
+    The trust model audit operates inside.
+  </Card>
+</CardGroup>

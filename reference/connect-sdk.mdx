@@ -1,0 +1,155 @@
+---
+title: 'Connect SDK'
+description: 'Reference for `@alter-ai/connect` — the browser-side OAuth widget.'
+---
+
+The Connect SDK is a 3.5 KB gzipped, zero-dependency JavaScript package that opens an Alter-hosted Connect UI in a popup (desktop) or full-page redirect (mobile). It's the frontend half of the [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) flow.
+
+```bash
+npm install @alter-ai/connect
+```
+
+Or via CDN:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@alter-ai/connect@latest/dist/alter-connect.umd.js"></script>
+```
+
+Framework-agnostic. Works with React, Vue, Angular, Svelte, or no framework.
+
+For a step-by-step integration, see [Embed the Connect widget](/guides/embed-the-connect-widget). This page is API reference.
+
+## `AlterConnect.create(config?)`
+
+Construct an instance.
+
+```typescript
+import AlterConnect from "@alter-ai/connect";
+
+const alterConnect = AlterConnect.create({ debug: true });
+```
+
+| Field | Type | Default |
+|---|---|---|
+| `debug` | `boolean` | `false` — when true, logs lifecycle events to the console. |
+
+Returns an `AlterConnect` instance.
+
+## `alterConnect.open(options)`
+
+Open the Connect UI.
+
+```typescript
+await alterConnect.open({
+  token: string,
+  onSuccess: (connection: Connection) => void,
+  onError?: (error: AlterError) => void,
+  onExit?: () => void,
+  onEvent?: (eventName: string, metadata: object) => void,
+});
+```
+
+| Option | Required | Description |
+|---|---|---|
+| `token` | yes | A session token minted by the backend via `app.createConnectSession()`. |
+| `onSuccess` | yes | Fired once the OAuth flow completes successfully. |
+| `onError` | no | Fired on any failure (popup blocked, session expired, OAuth error, user denial). |
+| `onExit` | no | Fired when the user closes the popup without finishing. |
+| `onEvent` | no | Fired for lifecycle / analytics events: `OPEN`, `PROVIDER_SELECTED`, `OAUTH_STARTED`, `OAUTH_COMPLETE`, `EXIT`. |
+
+The widget picks the right transport based on device:
+
+- Desktop: a centered popup (500×700 px) communicating via `postMessage`.
+- Phone (≤480 px width) or tablet portrait: a full-page redirect that returns to the `return_url` configured on the session.
+- Tablet landscape: popup.
+
+### `Connection`
+
+```typescript
+type Connection = {
+  grant_id: string;            // store this if persistence is required
+  provider: string;            // e.g. "google"
+  provider_name: string;       // display name, e.g. "Google"
+  account_identifier: string;  // user account at the provider (typically email)
+  timestamp: string;           // ISO timestamp
+  operation: "creation" | "reauth";
+  scopes: string[];
+  status: "active" | "pending" | "error";
+  metadata?: Record<string, unknown>;
+};
+```
+
+When [JWT identity](/concepts/identity-resolution) is configured on the backend, persisting `grant_id` in application storage is **optional** — the backend resolves grants from the user's JWT on every call.
+
+### `AlterError`
+
+```typescript
+type AlterError = {
+  code: string;     // e.g. "popup_blocked", "invalid_token", "session_expired"
+  message: string;
+  details?: Record<string, unknown>;
+};
+```
+
+Common error codes:
+
+| Code | Cause | Fix |
+|---|---|---|
+| `popup_blocked` | The browser blocked the popup. | Call `open()` synchronously inside the click handler, not after an `await`. |
+| `invalid_token` | Session token is malformed. | Mint a fresh session. |
+| `session_expired` | Session token expired (default lifetime 10 min) or was already used. | Mint a fresh session per click. |
+| `oauth_denied` | The user denied at the provider's consent screen. | Surface the cancellation; offer to retry. |
+| `oauth_provider_error` | The provider returned an error during authorize/exchange. | `details` carries the provider's error code. |
+
+## `alterConnect.close()`
+
+Close the popup (if open). No-op on the redirect flow.
+
+## `alterConnect.destroy()`
+
+Tear down the instance. Releases event listeners and any pending callbacks.
+
+## `alterConnect.isOpen() -> boolean`
+
+Whether the popup is currently open.
+
+## `alterConnect.getVersion() -> string`
+
+The SDK version (e.g., `"0.3.0"`).
+
+## Browser support
+
+- Chrome / Edge 90+
+- Firefox 88+
+- Safari 14+
+- iOS Safari 14+
+- Chrome Mobile
+
+## Backend integration
+
+The session token passed to `open()` is minted on the backend with the app key:
+
+```python
+session = await app.create_connect_session(
+    allowed_providers=["google", "slack"],
+    allowed_origin="https://app.example.com",
+    user_token=user.jwt,            # binds the resulting grant to this user
+    agent=agent_id,                 # optional — also writes a delegation row
+    return_url="https://app.example.com/connected",  # required for mobile
+)
+return {"sessionToken": session.session_token}
+```
+
+See [Embed the Connect widget](/guides/embed-the-connect-widget) for the full backend half.
+
+## `allowed_origin` semantics
+
+The `allowed_origin` field on the session controls `postMessage` security for the desktop popup. Three patterns:
+
+| Pattern | Behavior |
+|---|---|
+| `allowed_origin: "https://app.example.com"` | The popup sends `postMessage` to that exact origin. Recommended for production. |
+| `allowed_origin` omitted, app has `website_url` set in the portal | Falls back to the configured `website_url`. |
+| `allowed_origin: "*"` | **Rejected.** Wildcards are not supported. |
+
+Trailing slashes, paths, or missing schemes raise validation errors. Use bare scheme + host only.

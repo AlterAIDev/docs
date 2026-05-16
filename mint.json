@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/schema.json",
-  "name": "Alter Vault",
+  "name": "Alter",
   "logo": {
     "dark": "/logo/alter-logo-dark.svg",
     "light": "/logo/alter-logo-light.svg",
@@ -43,370 +43,257 @@
       "url": "https://alterauth.com/blog"
     }
   ],
-  "redirects": [
-    { "source": "/quickstart", "destination": "/first-5-minutes" },
-    { "source": "/oauth-overview", "destination": "/oauth/overview" },
-    { "source": "/managed-secrets-overview", "destination": "/managed-secrets/overview" },
-    { "source": "/choosing-credential-type", "destination": "/concepts/what-is-alter-vault" },
-    { "source": "/choosing-principal", "destination": "/concepts/principals-and-grants" },
-    { "source": "/identity-providers/overview", "destination": "/oauth/identity-providers/overview" },
-    { "source": "/identity-providers/quickstart", "destination": "/oauth/identity-providers/overview" },
-    { "source": "/identity-providers/supported-providers", "destination": "/oauth/identity-providers/overview" },
-    { "source": "/oauth/identity-providers/keycloak", "destination": "/oauth/identity-providers/overview" },
-    { "source": "/oauth/identity-providers/workos", "destination": "/oauth/identity-providers/overview" },
-    { "source": "/sdks/python/overview", "destination": "/sdks/overview" },
-    { "source": "/sdks/typescript/overview", "destination": "/sdks/overview" },
-    { "source": "/sdks/javascript/quickstart", "destination": "/sdks/connect-js/quickstart" },
-    { "source": "/sdks/javascript/overview", "destination": "/sdks/connect-js/quickstart" },
-    { "source": "/sdks/javascript/reference", "destination": "/sdks/connect-js/reference" },
-    { "source": "/reference/wallet", "destination": "/wallet/overview" },
-    { "source": "/reference/managed-secrets", "destination": "/managed-secrets/overview" },
-    { "source": "/reference/scope-grammar", "destination": "/reference/scopes" },
-    { "source": "/reference/endpoint-scopes", "destination": "/reference/scopes" },
-    { "source": "/reference/pilot-migration", "destination": "/reference/scopes" },
-    { "source": "/concepts/verified-users-in-agent-code", "destination": "/agents/with-verified-users" }
-  ],
   "navigation": [
     {
-      "group": "Getting Started",
+      "group": "Get Started",
       "pages": [
         "index",
-        "concepts/what-is-alter-vault",
-        "first-5-minutes",
-        "concepts/principals-and-grants",
-        "concepts/identity-resolution"
-      ]
-    },
-    {
-      "group": "Identity Providers",
-      "pages": [
-        "oauth/identity-providers/overview",
-        "oauth/identity-providers/auth0",
-        "oauth/identity-providers/clerk",
-        "oauth/identity-providers/okta",
-        "oauth/identity-providers/custom-oidc"
-      ]
-    },
-    {
-      "group": "OAuth Grants",
-      "pages": [
-        "oauth/overview",
-        "oauth/jwt-identity",
-        "oauth/grant-id-identity",
-        "oauth/headless",
-        "oauth/managing-grants"
-      ]
-    },
-    {
-      "group": "Managed Secrets",
-      "pages": [
-        "managed-secrets/overview",
-        "managed-secrets/issuing-grants",
-        "managed-secrets/using-grants",
-        "managed-secrets/delegation"
-      ]
-    },
-    {
-      "group": "Agents",
-      "pages": [
-        "agents/overview",
-        "agents/creating-agents",
-        "agents/agent-runtime",
-        "agents/with-verified-users",
-        "agents/keys-and-rotation",
-        "agents/approvals"
-      ]
-    },
-    {
-      "group": "SDKs",
-      "pages": [
-        "sdks/overview",
-        {
-          "group": "Python",
-          "pages": [
-            "sdks/python/quickstart",
-            "sdks/python/fastapi",
-            "sdks/python/mcp",
-            "sdks/python/langchain",
-            {
-              "group": "Reference",
-              "pages": [
-                "sdks/python/reference/client",
-                "sdks/python/reference/request",
-                "sdks/python/reference/grants",
-                "sdks/python/reference/connect",
-                "sdks/python/reference/agents",
-                "sdks/python/reference/approvals",
-                "sdks/python/reference/errors",
-                "sdks/python/reference/types"
-              ]
-            }
-          ]
-        },
-        {
-          "group": "TypeScript",
-          "pages": [
-            "sdks/typescript/quickstart",
-            {
-              "group": "Reference",
-              "pages": [
-                "sdks/typescript/reference/client",
-                "sdks/typescript/reference/request",
-                "sdks/typescript/reference/grants",
-                "sdks/typescript/reference/connect",
-                "sdks/typescript/reference/agents",
-                "sdks/typescript/reference/approvals",
-                "sdks/typescript/reference/errors",
-                "sdks/typescript/reference/types"
-              ]
-            }
-          ]
-        },
-        {
-          "group": "Connect.js",
-          "pages": [
-            "sdks/connect-js/quickstart",
-            "sdks/connect-js/reference"
-          ]
-        }
+        "quickstart",
+        "how-it-works"
       ]
     },
     {
       "group": "Guides",
       "pages": [
-        "guides/mcp-claude-code",
-        "guides/agentic-app-pattern"
+        "guides/call-apis-on-behalf-of-users",
+        "guides/provision-secrets-for-backend-services",
+        "guides/give-an-agent-scoped-access",
+        "guides/add-human-in-the-loop-approvals",
+        "guides/embed-the-connect-widget",
+        "guides/integrate-with-claude-code-mcp"
       ]
     },
     {
-      "group": "OAuth Providers",
+      "group": "Concepts",
       "pages": [
-        {
-          "group": "Popular",
-          "pages": [
-            "providers/google",
-            "providers/github",
-            "providers/slack",
-            "providers/microsoft",
-            "providers/atlassian",
-            "providers/notion",
-            "providers/hubspot",
-            "providers/salesforce",
-            "providers/asana",
-            "providers/stripe",
-            "providers/calendly",
-            "providers/canva",
-            "providers/clickup"
-          ]
-        },
-        {
-          "group": "Productivity & Collaboration",
-          "pages": [
-            "providers/acuity-scheduling",
-            "providers/airtable",
-            "providers/basecamp",
-            "providers/cal-com",
-            "providers/docusign",
-            "providers/linear",
-            "providers/miro",
-            "providers/monday",
-            "providers/todoist",
-            "providers/typeform"
-          ]
-        },
-        {
-          "group": "CRM & Sales",
-          "pages": [
-            "providers/apollo",
-            "providers/attio",
-            "providers/close",
-            "providers/outreach",
-            "providers/pipedrive"
-          ]
-        },
-        {
-          "group": "Design & Creative",
-          "pages": [
-            "providers/adobe",
-            "providers/autodesk",
-            "providers/figma"
-          ]
-        },
-        {
-          "group": "Developer Tools",
-          "pages": [
-            "providers/bitbucket",
-            "providers/contentful",
-            "providers/digitalocean",
-            "providers/pagerduty",
-            "providers/sentry",
-            "providers/webflow"
-          ]
-        },
-        {
-          "group": "Marketing & Events",
-          "pages": [
-            "providers/bitly",
-            "providers/constant-contact",
-            "providers/eventbrite",
-            "providers/mailchimp"
-          ]
-        },
-        {
-          "group": "Communication",
-          "pages": [
-            "providers/aircall",
-            "providers/dialpad",
-            "providers/discord",
-            "providers/ringcentral",
-            "providers/webex"
-          ]
-        },
-        {
-          "group": "Social & Media",
-          "pages": [
-            "providers/facebook",
-            "providers/instagram",
-            "providers/linkedin",
-            "providers/pinterest",
-            "providers/reddit",
-            "providers/snapchat",
-            "providers/spotify",
-            "providers/tiktok",
-            "providers/twitter"
-          ]
-        },
-        {
-          "group": "Storage & Files",
-          "pages": [
-            "providers/box",
-            "providers/dropbox"
-          ]
-        },
-        {
-          "group": "Finance & HR",
-          "pages": [
-            "providers/brex",
-            "providers/deel",
-            "providers/mercury",
-            "providers/quickbooks",
-            "providers/ramp"
-          ]
-        },
-        {
-          "group": "Payments",
-          "pages": [
-            "providers/paypal",
-            "providers/square"
-          ]
-        },
-        {
-          "group": "E-Commerce",
-          "pages": [
-            "providers/ebay",
-            "providers/squarespace"
-          ]
-        }
+        "concepts/apps",
+        "concepts/providers",
+        "concepts/grants",
+        "concepts/connections",
+        "concepts/managed-secrets",
+        "concepts/agents",
+        "concepts/delegation",
+        "concepts/identity-resolution",
+        "concepts/policies",
+        "concepts/scopes",
+        "concepts/audit-logs"
       ]
     },
     {
-      "group": "Managed Secret Providers",
+      "group": "Admin",
       "pages": [
-        {
-          "group": "Monitoring & Observability",
-          "pages": [
-            "managed-secrets/axiom",
-            "managed-secrets/datadog",
-            "managed-secrets/grafana",
-            "managed-secrets/incident-io",
-            "managed-secrets/pagerduty",
-            "managed-secrets/rootly",
-            "managed-secrets/sentry"
-          ]
-        },
-        {
-          "group": "Communication",
-          "pages": [
-            "managed-secrets/brevo",
-            "managed-secrets/discord",
-            "managed-secrets/resend",
-            "managed-secrets/sendgrid",
-            "managed-secrets/twilio",
-            "managed-secrets/whatsapp-business"
-          ]
-        },
-        {
-          "group": "Marketing",
-          "pages": [
-            "managed-secrets/braze",
-            "managed-secrets/klaviyo"
-          ]
-        },
-        {
-          "group": "Cloud & Infrastructure",
-          "pages": [
-            "managed-secrets/aws",
-            "managed-secrets/cloudflare",
-            "managed-secrets/vercel"
-          ]
-        },
-        {
-          "group": "Developer Tools",
-          "pages": [
-            "managed-secrets/clerk",
-            "managed-secrets/cursor",
-            "managed-secrets/github",
-            "managed-secrets/gitlab",
-            "managed-secrets/posthog",
-            "managed-secrets/shortcut",
-            "managed-secrets/stripe",
-            "managed-secrets/supabase",
-            "managed-secrets/terraform",
-            "managed-secrets/workos"
-          ]
-        },
-        {
-          "group": "Productivity",
-          "pages": [
-            "managed-secrets/airtable",
-            "managed-secrets/coda"
-          ]
-        },
-        {
-          "group": "Search",
-          "pages": [
-            "managed-secrets/algolia",
-            "managed-secrets/exa"
-          ]
-        },
-        {
-          "group": "E-Commerce",
-          "pages": [
-            "managed-secrets/recharge",
-            "managed-secrets/shopify"
-          ]
-        }
+        "admin/setting-up-your-app",
+        "admin/identity-provider",
+        "admin/api-keys",
+        "admin/wallet",
+        "admin/audit-export"
       ]
     },
     {
-      "group": "Platform Reference",
+      "group": "Reference",
       "pages": [
-        "reference/architecture",
-        "reference/policies",
-        "reference/scopes",
-        "reference/audit-logs",
-        "reference/developer-portal",
-        "reference/glossary"
-      ]
-    },
-    {
-      "group": "End-User Docs",
-      "pages": [
-        "wallet/overview",
-        "wallet/managing-grants",
-        "wallet/security"
+        "reference/python-sdk",
+        "reference/typescript-sdk",
+        "reference/connect-sdk",
+        "reference/oauth-providers",
+        "reference/managed-secret-providers",
+        "reference/managed-secret-providers/aws",
+        "reference/errors",
+        "reference/security-architecture"
       ]
     }
+  ],
+  "redirects": [
+    { "source": "/first-5-minutes", "destination": "/quickstart" },
+
+    { "source": "/concepts/what-is-alter-vault", "destination": "/how-it-works" },
+    { "source": "/concepts/principals-and-grants", "destination": "/concepts/grants" },
+    { "source": "/concepts/verified-users-in-agent-code", "destination": "/guides/give-an-agent-scoped-access" },
+
+    { "source": "/oauth/overview", "destination": "/concepts/connections" },
+    { "source": "/oauth-overview", "destination": "/concepts/connections" },
+    { "source": "/oauth/jwt-identity", "destination": "/concepts/identity-resolution" },
+    { "source": "/oauth/grant-id-identity", "destination": "/concepts/identity-resolution" },
+    { "source": "/oauth/headless", "destination": "/guides/call-apis-on-behalf-of-users" },
+    { "source": "/oauth/managing-grants", "destination": "/guides/call-apis-on-behalf-of-users" },
+
+    { "source": "/oauth/identity-providers/overview", "destination": "/admin/identity-provider" },
+    { "source": "/oauth/identity-providers/auth0", "destination": "/admin/identity-provider" },
+    { "source": "/oauth/identity-providers/clerk", "destination": "/admin/identity-provider" },
+    { "source": "/oauth/identity-providers/okta", "destination": "/admin/identity-provider" },
+    { "source": "/oauth/identity-providers/custom-oidc", "destination": "/admin/identity-provider" },
+    { "source": "/oauth/identity-providers/keycloak", "destination": "/admin/identity-provider" },
+    { "source": "/oauth/identity-providers/workos", "destination": "/admin/identity-provider" },
+    { "source": "/identity-providers/overview", "destination": "/admin/identity-provider" },
+    { "source": "/identity-providers/quickstart", "destination": "/admin/identity-provider" },
+    { "source": "/identity-providers/supported-providers", "destination": "/admin/identity-provider" },
+
+    { "source": "/managed-secrets/overview", "destination": "/concepts/managed-secrets" },
+    { "source": "/managed-secrets-overview", "destination": "/concepts/managed-secrets" },
+    { "source": "/managed-secrets/issuing-grants", "destination": "/guides/provision-secrets-for-backend-services" },
+    { "source": "/managed-secrets/using-grants", "destination": "/guides/provision-secrets-for-backend-services" },
+    { "source": "/managed-secrets/delegation", "destination": "/concepts/delegation" },
+
+    { "source": "/managed-secrets/aws", "destination": "/reference/managed-secret-providers/aws" },
+    { "source": "/managed-secrets/airtable", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/algolia", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/axiom", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/braze", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/brevo", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/clerk", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/cloudflare", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/coda", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/cursor", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/datadog", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/discord", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/exa", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/github", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/gitlab", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/grafana", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/incident-io", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/klaviyo", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/pagerduty", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/posthog", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/recharge", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/resend", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/rootly", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/sendgrid", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/sentry", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/shopify", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/shortcut", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/stripe", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/supabase", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/terraform", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/twilio", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/vercel", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/whatsapp-business", "destination": "/reference/managed-secret-providers" },
+    { "source": "/managed-secrets/workos", "destination": "/reference/managed-secret-providers" },
+    { "source": "/reference/managed-secrets", "destination": "/concepts/managed-secrets" },
+
+    { "source": "/agents/overview", "destination": "/concepts/agents" },
+    { "source": "/agents/creating-agents", "destination": "/admin/api-keys" },
+    { "source": "/agents/agent-runtime", "destination": "/guides/give-an-agent-scoped-access" },
+    { "source": "/agents/with-verified-users", "destination": "/guides/give-an-agent-scoped-access" },
+    { "source": "/agents/keys-and-rotation", "destination": "/admin/api-keys" },
+    { "source": "/agents/approvals", "destination": "/guides/add-human-in-the-loop-approvals" },
+
+    { "source": "/sdks/overview", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/quickstart", "destination": "/quickstart" },
+    { "source": "/sdks/python/fastapi", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/mcp", "destination": "/guides/integrate-with-claude-code-mcp" },
+    { "source": "/sdks/python/langchain", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/overview", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/client", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/request", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/grants", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/connect", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/agents", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/approvals", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/errors", "destination": "/reference/errors" },
+    { "source": "/sdks/python/reference/types", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/typescript/quickstart", "destination": "/quickstart" },
+    { "source": "/sdks/typescript/overview", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/client", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/request", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/grants", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/connect", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/agents", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/approvals", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/errors", "destination": "/reference/errors" },
+    { "source": "/sdks/typescript/reference/types", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/connect-js/quickstart", "destination": "/reference/connect-sdk" },
+    { "source": "/sdks/connect-js/reference", "destination": "/reference/connect-sdk" },
+    { "source": "/sdks/javascript/quickstart", "destination": "/reference/connect-sdk" },
+    { "source": "/sdks/javascript/overview", "destination": "/reference/connect-sdk" },
+    { "source": "/sdks/javascript/reference", "destination": "/reference/connect-sdk" },
+
+    { "source": "/guides/mcp-claude-code", "destination": "/guides/integrate-with-claude-code-mcp" },
+    { "source": "/guides/agentic-app-pattern", "destination": "/guides/give-an-agent-scoped-access" },
+
+    { "source": "/providers/google", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/github", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/slack", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/microsoft", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/atlassian", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/notion", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/hubspot", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/salesforce", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/asana", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/stripe", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/calendly", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/canva", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/clickup", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/acuity-scheduling", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/airtable", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/basecamp", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/cal-com", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/docusign", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/linear", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/miro", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/monday", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/todoist", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/typeform", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/apollo", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/attio", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/close", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/outreach", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/pipedrive", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/adobe", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/autodesk", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/figma", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/bitbucket", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/contentful", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/digitalocean", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/pagerduty", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/sentry", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/webflow", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/bitly", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/constant-contact", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/eventbrite", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/mailchimp", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/aircall", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/dialpad", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/discord", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/ringcentral", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/webex", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/facebook", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/instagram", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/linkedin", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/pinterest", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/reddit", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/snapchat", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/spotify", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/tiktok", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/twitter", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/box", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/dropbox", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/brex", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/deel", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/mercury", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/quickbooks", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/ramp", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/paypal", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/square", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/ebay", "destination": "/reference/oauth-providers" },
+    { "source": "/providers/squarespace", "destination": "/reference/oauth-providers" },
+
+    { "source": "/reference/architecture", "destination": "/reference/security-architecture" },
+    { "source": "/reference/policies", "destination": "/concepts/policies" },
+    { "source": "/reference/scopes", "destination": "/concepts/scopes" },
+    { "source": "/reference/scope-grammar", "destination": "/concepts/scopes" },
+    { "source": "/reference/endpoint-scopes", "destination": "/concepts/scopes" },
+    { "source": "/reference/pilot-migration", "destination": "/concepts/scopes" },
+    { "source": "/reference/audit-logs", "destination": "/concepts/audit-logs" },
+    { "source": "/reference/developer-portal", "destination": "/admin/setting-up-your-app" },
+    { "source": "/reference/glossary", "destination": "/concepts/grants" },
+
+    { "source": "/wallet/overview", "destination": "/admin/wallet" },
+    { "source": "/wallet/managing-grants", "destination": "/admin/wallet" },
+    { "source": "/wallet/security", "destination": "/admin/wallet" },
+    { "source": "/reference/wallet", "destination": "/admin/wallet" },
+
+    { "source": "/choosing-credential-type", "destination": "/how-it-works" },
+    { "source": "/choosing-principal", "destination": "/concepts/grants" }
   ],
   "footerSocials": {
     "linkedin": "https://linkedin.com/company/alter-ai",

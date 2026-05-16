@@ -1,0 +1,168 @@
+---
+title: 'AWS'
+description: 'SigV4 credentials and the boto3 bridge.'
+---
+
+AWS managed secrets carry extra structure because Alter computes the full AWS Signature Version 4 (SigV4) signature per outgoing request. One stored AWS access key works against every AWS service — S3, Lambda, DynamoDB, Bedrock, CloudWatch — without any per-service configuration.
+
+| Property | Value |
+|---|---|
+| Provider slug | `aws` |
+| Credential type | SigV4 |
+| Required credentials | Access Key ID + Secret Access Key |
+| Region / service | Auto-detected from the request URL |
+
+## Storing the credential
+
+1. In AWS IAM, create or pick a user with **least-privilege** permissions and generate an access key.
+2. In the developer portal: **Managed Secrets → Add Provider → AWS**.
+3. Paste **Access Key ID** and **Secret Access Key**. No region or service configuration is needed.
+4. Save. A `grant_id` is returned.
+
+Never use root account access keys. Always scope IAM permissions to the routes the application needs.
+
+## Calling AWS — `app.request()` (Python and TypeScript)
+
+The default path. Pass the standard AWS hostname; Alter parses region and service from the URL and signs the request.
+
+<CodeGroup>
+```python Python
+from alter_sdk import App, HttpMethod
+
+async with App(api_key=os.environ["ALTER_API_KEY"]) as app:
+    # S3
+    r = await app.request(
+        HttpMethod.GET,
+        "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+        grant_id=AWS_GRANT_ID,
+    )
+
+    # Bedrock — same credential, different service and region
+    r = await app.request(
+        HttpMethod.POST,
+        "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-sonnet-4-6/invoke",
+        grant_id=AWS_GRANT_ID,
+        json={"prompt": "Hello"},
+    )
+
+    # Lambda
+    r = await app.request(
+        HttpMethod.POST,
+        "https://lambda.eu-west-1.amazonaws.com/2015-03-31/functions/my-func/invocations",
+        grant_id=AWS_GRANT_ID,
+        json={"key": "value"},
+    )
+```
+
+```typescript TypeScript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey: process.env.ALTER_API_KEY! });
+try {
+  // S3
+  const s3 = await app.request(
+    HttpMethod.GET,
+    "https://s3.us-east-1.amazonaws.com/my-bucket/my-key",
+    { grantId: AWS_GRANT_ID },
+  );
+
+  // Bedrock
+  const bedrock = await app.request(
+    HttpMethod.POST,
+    "https://bedrock-runtime.us-west-2.amazonaws.com/model/anthropic.claude-sonnet-4-6/invoke",
+    { grantId: AWS_GRANT_ID, json: { prompt: "Hello" } },
+  );
+} finally {
+  await app.close();
+}
+```
+</CodeGroup>
+
+No AWS SDK dependency. SigV4 is computed by the Alter SDK using standard cryptographic libraries.
+
+## Calling AWS — `boto3_client()` (Python only)
+
+For applications that prefer the native boto3 API (response parsing, pagination, `botocore.exceptions.ClientError`):
+
+```bash
+pip install 'alter-sdk[aws]'
+```
+
+```python
+import asyncio
+from alter_sdk import App
+
+async def main():
+    async with App(api_key=os.environ["ALTER_API_KEY"]) as app:
+        s3 = await app.boto3_client(
+            "s3",
+            grant_id=AWS_GRANT_ID,
+            region_name="us-east-1",
+            reason="Listing objects for data pipeline",
+        )
+
+        # boto3 methods are synchronous — run in a thread from async code
+        resp = await asyncio.to_thread(
+            s3.list_objects_v2, Bucket="my-bucket", MaxKeys=10,
+        )
+        for obj in resp.get("Contents", []):
+            print(obj["Key"], obj["Size"])
+
+        # Same credential, different service
+        dynamo = await app.boto3_client("dynamodb", grant_id=AWS_GRANT_ID, region_name="us-east-1")
+        await asyncio.to_thread(
+            dynamo.put_item, TableName="MyTable", Item={"pk": {"S": "k1"}},
+        )
+
+asyncio.run(main())
+```
+
+Every boto3 call routes through Alter — credential retrieval, SigV4 signing, [policy enforcement](/concepts/policies), [audit logging](/concepts/audit-logs) all happen on every call.
+
+`boto3_client()` parameters:
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `service_name` | `str` | — | AWS service (`s3`, `dynamodb`, `bedrock-runtime`, …). |
+| `grant_id` | `str` | — | The AWS grant. |
+| `region_name` | `str` | `us-east-1` | AWS region. |
+| `timeout` | `float` | client timeout | Per-request timeout (seconds). |
+| `reason` | `str` | — | Audit reason applied to every call from this client. |
+| `context` | `dict` | — | Per-client audit context. |
+
+Error handling matches native boto3 (`botocore.exceptions.ClientError` for AWS errors like `NoSuchBucket`, `AccessDenied`; `AlterSDKError` for Alter-side issues).
+
+For multi-GB responses (e.g., `s3.get_object` on large files), use `app.request()` with httpx streaming instead — `boto3_client()` buffers responses in memory.
+
+## Supported URL patterns
+
+Alter auto-detects region and service from these AWS hostname formats:
+
+| Pattern | Example | Detected |
+|---|---|---|
+| Standard | `s3.us-east-1.amazonaws.com` | service `s3`, region `us-east-1` |
+| Hyphenated service | `bedrock-runtime.us-west-2.amazonaws.com` | service `bedrock-runtime`, region `us-west-2` |
+| S3 virtual-hosted | `my-bucket.s3.us-west-2.amazonaws.com` | service `s3`, region `us-west-2` |
+| PrivateLink (regional) | `vpce-xxx.monitoring.us-east-2.vpce.amazonaws.com` | service `monitoring`, region `us-east-2` |
+| PrivateLink (zonal) | `vpce-xxx-us-east-2c.monitoring.us-east-2.vpce.amazonaws.com` | service `monitoring`, region `us-east-2` |
+| GovCloud | `s3.us-gov-west-1.amazonaws.com` | service `s3`, region `us-gov-west-1` |
+
+For non-AWS custom domains (LocalStack, custom proxies), region and service cannot be auto-detected. Contact support to wire explicit configuration.
+
+## Rotation
+
+When the AWS access key rotates: regenerate in IAM, then update the stored value in the portal under **Managed Secrets → AWS → Update credential**. Every existing `grant_id` keeps working with the new key.
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Provision secrets for backend services" icon="key" href="/guides/provision-secrets-for-backend-services">
+    General managed-secret flow.
+  </Card>
+  <Card title="Managed secret providers" icon="grid" href="/reference/managed-secret-providers">
+    Other catalog entries.
+  </Card>
+  <Card title="Python SDK" icon="python" href="/reference/python-sdk">
+    `boto3_client()` and `request()` reference.
+  </Card>
+</CardGroup>

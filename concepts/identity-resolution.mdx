@@ -1,27 +1,23 @@
 ---
 title: 'Identity Resolution'
-description: 'The three ways the SDK figures out which grant to use. Pick one per call site.'
-icon: 'fingerprint'
+description: 'The three ways the SDK decides which grant to use per call.'
 ---
 
-*Identity resolution is how the SDK decides which grant backs a `app.request()` call.*
+**Identity resolution is how the SDK decides which grant backs a given `app.request()` call.** Three modes exist, and every call site uses exactly one.
 
-Three modes. They appear in this order everywhere in these docs because that's the order to consider them in:
+Pick the mode based on what the call site has on hand:
 
-1. **JWT** — recommended for apps with an IDP and logged-in users
-2. **`grant_id`** — for scripts, batch jobs, and explicit-grant flows
-3. **Headless** — for CLIs, notebooks, and agents bootstrapping their own grants
+1. **JWT identity** — there's a logged-in end user, the app has an IDP configured.
+2. **Explicit `grant_id`** — the call has no end user, or explicit grant control is needed.
+3. **Headless** — the call has no end user *and* no `grant_id` yet (one-time bootstrap flows).
 
-The same `app.request()` method serves all three. Only the wiring differs.
+The mode picks *how the SDK finds the grant*, not *what credential is behind it*. An OAuth connection and a managed secret bound to the same user resolve under JWT identity the same way.
 
-The mode picks *how the SDK finds the grant*, not *what credential is behind it*. An OAuth grant and a managed secret bound to the same user both resolve under JWT identity the same way — see [Credential type vs. principal type](/concepts/principals-and-grants#credential-type-vs-principal-type).
+## 1. JWT identity — for apps with logged-in users
 
-## 1. JWT — recommended for user-driven flows
+The app has an [identity provider](/admin/identity-provider) configured. Construct the SDK with a `user_token_getter` that returns the calling user's JWT; the SDK includes the JWT on every request and the backend resolves the user's grant from it.
 
-Configure an [Identity Provider](/oauth/identity-providers/overview), pass a `user_token_getter` at construction, and the SDK resolves the user's grant from their JWT on every call.
-
-<CodeGroup>
-```python Python
+```python
 app = App(
     api_key=ALTER_API_KEY,
     user_token_getter=lambda: get_jwt_from_request(),
@@ -31,84 +27,54 @@ app = App(
 response = await app.request("GET", url, provider="google")
 ```
 
-```typescript TypeScript
-const app = new App({
-  apiKey: ALTER_API_KEY,
-  userTokenGetter: () => getJwtFromRequest(),
-});
+**When to use**: any flow where a logged-in user is the reason for the call. SaaS products, agentic apps with a user session, anything that already has a JWT in scope.
 
-const response = await app.request("GET", url, { provider: "google" });
-```
-</CodeGroup>
+**Why it's the default**: the app stops tracking `grant_id` in its own database. Deprovisioning a user in the IDP automatically locks them out of grants they own.
 
-**When to use:** any flow where a logged-in user is the reason for the call. SaaS products, agentic apps with a user session, anything that already has a JWT in scope.
-
-**Why it's the default:** the app stops tracking `grant_id` in its own database. Deprovisioning a user in the IDP automatically locks them out of grants they own.
-
-[Full setup →](/oauth/jwt-identity)
-
-## 2. `grant_id` — for scripts, batch jobs, and explicit-grant flows
+## 2. Explicit `grant_id` — for scripts, batch jobs, system-principal grants
 
 Pass an explicit `grant_id` per call. Use this when:
 
 - The call has no end user (cron jobs, webhook handlers, system-principal managed secrets).
-- Explicit control over which grant a request uses is needed.
+- Explicit control over which grant a request uses is required.
 
-A managed secret bound to a *user* or *group* does not require this mode — it resolves under JWT identity (mode 1) automatically.
-
-<CodeGroup>
-```python Python
+```python
 app = App(api_key=ALTER_API_KEY)
-
 response = await app.request("GET", url, grant_id=STRIPE_GRANT_ID)
 ```
 
-```typescript TypeScript
-const app = new App({ apiKey: ALTER_API_KEY });
+A managed-secret grant bound to a *user* or *group* does not require this mode — it resolves under JWT identity (mode 1) automatically.
 
-const response = await app.request("GET", url, { grantId: STRIPE_GRANT_ID });
-```
-</CodeGroup>
+## 3. Headless — for CLIs, notebooks, agent bootstrap
 
-[Full setup →](/oauth/grant-id-identity)
+`app.connect()` opens a browser, walks through OAuth, and returns a `grant_id` usable immediately. No frontend, no callback URL, no JWT.
 
-## 3. Headless — for CLIs, notebooks, and agent bootstrap
-
-`app.connect()` and `app.authenticate()` open a browser, walk through OAuth, and return a `grant_id` usable immediately. No frontend, no callback URL.
-
-<CodeGroup>
-```python Python
+```python
 app = App(api_key=ALTER_API_KEY)
 results = await app.connect(providers=["github"])
 grant_id = results[0].grant_id
 ```
 
-```typescript TypeScript
-const app = new App({ apiKey: ALTER_API_KEY });
-const results = await app.connect({ providers: ["github"] });
-const grantId = results[0].grantId;
-```
-</CodeGroup>
+**When to use**: local scripts, Jupyter notebooks, server-side workloads bootstrapping a long-lived grant, the [Quickstart](/quickstart) walkthrough.
 
-**When to use:** local scripts, Jupyter notebooks, server-side agents bootstrapping a long-lived grant, the [First 5 Minutes](/first-5-minutes) walkthrough.
-
-[Full setup →](/oauth/headless)
-
-## Picking one — the short version
+## Picking one
 
 ```
 Is there a logged-in user with a JWT?
 ├── Yes → JWT
-└── No  → Is a grant_id already available?
+└── No  → Is a grant_id already known?
          ├── Yes → grant_id
-         └── No  → Headless (app.connect())
+         └── No  → Headless
 ```
 
-Modes can be mixed in one app — different SDK instances for different code paths. See [Agents → Overview](/agents/overview) when the caller is an agent workload.
+Modes can be mixed in one application — different SDK instances for different code paths. For agent workloads, see [Give an agent scoped access](/guides/give-an-agent-scoped-access).
 
-## See also
+## Ambiguous resolution
 
-- [Principals and grants](/concepts/principals-and-grants) — the concepts each mode produces a principal for
-- [OAuth → JWT identity](/oauth/jwt-identity) — full JWT setup
-- [OAuth → grant_id identity](/oauth/grant-id-identity) — explicit `grant_id` flows
-- [OAuth → Headless](/oauth/headless) — `connect()` and `authenticate()`
+A JWT can match more than one grant if the user has connected the same provider multiple times (personal + work Gmail). The backend raises [`AmbiguousGrantError`](/reference/errors) with the matching account identifiers; application code passes `account=…` on retry to pick one.
+
+## What's next
+
+- [Connections](/concepts/connections) — OAuth grants resolved by these modes.
+- [Managed secrets](/concepts/managed-secrets) — operator-provisioned grants.
+- [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) — JWT identity in production.

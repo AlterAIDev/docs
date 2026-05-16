@@ -1,0 +1,46 @@
+---
+title: 'Connections'
+description: 'OAuth grants — end users authorize the app to call third-party APIs on their behalf.'
+---
+
+**A connection is an OAuth grant** — the result of an end user authorizing the app to call a provider on their behalf. Connections are the most common kind of [grant](/concepts/grants) in user-facing products.
+
+A connection is created when a user completes the OAuth flow at a provider (Google, Slack, GitHub, …). Alter stores the resulting access and refresh tokens encrypted in the vault and returns a `grant_id`. Subsequent calls reach the provider via `app.request()`; the SDK looks up the connection, refreshes the token if it has expired, and injects the credential.
+
+## How a user creates a connection
+
+Three triggers, all producing the same `grant_id`:
+
+| Trigger | Best for | How it's reached |
+|---|---|---|
+| **Embedded widget** | SPAs and web apps | [Alter Connect](/reference/connect-sdk) — a popup or redirect launched from a button click |
+| **Server-side redirect** | Server-rendered apps, email links | `app.create_connect_session()` returns a `connect_url`; the backend redirects the user there |
+| **Headless** | CLIs, scripts, one-time setup | `app.connect()` opens a local browser and polls until complete |
+
+All three end at the same OAuth flow, write the same `grant_id`, and produce the same revocation surface in the Wallet.
+
+## Multi-account
+
+A single end user can hold many connections for the same provider — personal Gmail and work Gmail, two GitHub orgs, three Stripe accounts. Each is a separate grant with its own `grant_id` and `account_identifier`.
+
+When the SDK resolves a connection via JWT identity and finds more than one match, it raises [`AmbiguousGrantError`](/reference/errors) with the matching account identifiers so application code can prompt the user to pick.
+
+## Automatic refresh
+
+OAuth access tokens expire. Alter refreshes them transparently:
+
+- On each `app.request()`, the backend checks token age before injecting.
+- If the access token has expired (or is within a refresh buffer), the backend uses the stored refresh token to get a new one.
+- Concurrent requests for the same connection hold a single distributed lock so only one refresh runs at a time; the others wait for the result.
+
+If the refresh fails permanently (the user revoked the app at the provider, the refresh token was invalidated), Alter raises [`CredentialRevokedError`](/reference/errors) and the user must re-authorize.
+
+## End-user revocation
+
+Every connection an app holds is visible to the end user in the [Wallet dashboard](/admin/wallet). The user can revoke, see when the connection was last used, and review the activity reason for each call. Revocation is immediate; the next `app.request()` against a revoked grant raises [`GrantRevokedError`](/reference/errors).
+
+## What's next
+
+- [Identity resolution](/concepts/identity-resolution) — how the SDK picks the right connection per call.
+- [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) — the end-to-end guide.
+- [Connect SDK](/reference/connect-sdk) — embedding the connection flow in a frontend.

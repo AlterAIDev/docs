@@ -1,0 +1,149 @@
+---
+title: 'Errors'
+description: 'Every exception class, what it means, what to do.'
+---
+
+The SDK error hierarchy is organized by **developer action** — the action to take is the first thing to know when an exception is caught. Both SDKs expose the same class names; the snippets below are Python but the TS hierarchy is identical (camelCase fields).
+
+```
+AlterSDKError
+├── AlterValueError                 — SDK rejected caller input; fix the code
+├── BackendError                    — Alter backend returned an error
+│   ├── ReAuthRequiredError         — user must re-authorize via Connect
+│   │   ├── GrantExpiredError
+│   │   ├── GrantRevokedError
+│   │   ├── CredentialRevokedError
+│   │   └── GrantDeletedError
+│   ├── GrantNotFoundError          — wrong grant_id; fix the code
+│   ├── AmbiguousGrantError         — JWT matched multiple grants; pick one
+│   ├── PolicyViolationError        — policy denied; may resolve later
+│   ├── InsufficientScopeError      — key scopes don't cover the route
+│   ├── NoDelegatedGrantError       — agent has no access path to the provider
+│   └── TokenRefreshInProgressError — transient 409; retry
+├── ConnectFlowError                — Connect flow failed
+│   ├── ConnectDeniedError          — user clicked Deny
+│   ├── ConnectConfigError          — OAuth app misconfigured
+│   └── ConnectTimeoutError         — user didn't complete in time
+├── ProviderAPIError                — provider returned 4xx/5xx
+│   └── ScopeReauthRequiredError   — 403 + scope mismatch; re-authorize
+├── ApprovalError                   — HITL approval branch
+│   ├── ApprovalDeniedError
+│   ├── ApprovalExpiredError
+│   ├── ApprovalTimeoutError
+│   └── ApprovalExecutionFailedError
+├── AgentError                      — managed-agent management
+│   ├── InvalidKeyError
+│   ├── AgentNotFoundError
+│   ├── AgentNameExistsError
+│   ├── MeRequiresAgentKeyError
+│   ├── KeyRevokedError
+│   ├── AgentInactiveError
+│   ├── AgentRevokedError
+│   ├── KeyNotFoundError
+│   ├── KeyAlreadyRevokedError
+│   ├── LastActiveKeyError
+│   ├── AgentCannotMintSubagentsError
+│   ├── AgentScopeNarrowingNotSupportedError
+│   ├── IdempotencyKeyBodyMismatchError
+│   ├── IdempotencyKeyAgentRevokedError
+│   └── IdempotencyKeyAgentInactiveError
+└── NetworkError
+    └── TimeoutError                — request timed out
+```
+
+## Catching by action
+
+The hierarchy is built so that catching a parent class handles every leaf that requires the same response.
+
+- **"The user needs to re-authorize."** Catch `ReAuthRequiredError`. Triggers: revoked grant, expired grant, broken credential, deleted grant. Response: show the Connect widget.
+- **"The user needs to re-authorize with a wider scope."** Catch `ScopeReauthRequiredError` (subclass of `ProviderAPIError`). Trigger: the provider returned 403 and the grant's stored scopes don't cover the route. Response: show the Connect widget; the new authorization upgrades the grant in place.
+- **"The agent has no access to this provider."** Catch `NoDelegatedGrantError`. Trigger: an agent called `request(provider=...)` and no delegation or agent-owned managed-secret grant resolved. Response: prompt a user to delegate, or issue a managed-secret grant to the agent.
+- **"A transient backend condition."** Catch `TokenRefreshInProgressError`. Trigger: a parallel refresh holds the lock. Response: retry with backoff.
+- **"A network problem."** Catch `NetworkError`. Trigger: connection failure, DNS, timeout. Response: retry with backoff (catch `TimeoutError` separately if a different retry profile is needed for timeouts vs connection refused).
+
+## Selected exception details
+
+### `AmbiguousGrantError`
+
+Raised when the JWT matches more than one grant for the same provider.
+
+| Attribute | Description |
+|---|---|
+| `provider_id` | The provider whose grants matched. |
+| `account_identifiers` | List of matching accounts; show to the user to pick. |
+| `account_was_provided` | True if `account=` was already passed and still produced an ambiguity (sign of a mis-set account). |
+| `app_user_ids` | (Agent flavor) UUIDs of the users with matching delegations. |
+
+Pass `account=<chosen>` (or `user_token=<jwt>` for the agent flavor) to disambiguate on retry.
+
+### `InsufficientScopeError`
+
+Raised when the calling key — possibly after per-call attenuation — lacks a scope the backend route requires.
+
+| Attribute | Description |
+|---|---|
+| `required` | Scopes the route requires. |
+| `granted` | Scopes the key has, post-intersection with constraints. |
+| `missing` | `required \ granted`. |
+| `scope_version` | Catalog version the key was minted against. |
+| `current_scope_version` | Catalog version the server is on. |
+| `scope_version_mismatch` | True iff the missing scope only exists at the server's version — rotate the key. |
+| `documentation_url` | Per-scope docs link. |
+
+### `ScopeReauthRequiredError`
+
+Raised when the provider returns 403 and the grant's stored scopes don't cover the route.
+
+| Attribute | Description |
+|---|---|
+| `grant_id` | The grant that needs re-authorization. |
+| `provider_id` | The provider. |
+| `missing_scopes` | When parsed from a `WWW-Authenticate: insufficient_scope` challenge, the specific scopes missing. `None` when the source was a pre-flight backend flag. |
+| `status_code`, `response_body` | The provider's raw response. |
+
+Pattern:
+
+```python
+try:
+    await app.request(...)
+except ScopeReauthRequiredError as e:
+    session = await app.create_connect_session(allowed_providers=[e.provider_id])
+    notify_user(session.connect_url)
+```
+
+### `PolicyViolationError`
+
+Raised when a [policy](/concepts/policies) denies the call.
+
+| Attribute | Description |
+|---|---|
+| `policy_error` | Backend-supplied identifier for the violated policy (e.g., `outside_business_hours`, `ip_not_allowed`, `rate_limit_exceeded`). |
+
+May resolve on its own (time-of-day window opens, rate limit decays).
+
+### `LastActiveKeyError`
+
+Raised by `agents.revoke_key()` when revoking would leave the agent with zero non-revoked keys.
+
+Recovery: mint a replacement first, deploy it, then retry the revoke. Or pass `force=True` to deliberately brick the agent.
+
+### `AgentError` family
+
+All inherit from `BackendError`. Each carries a stable `code` attribute (`agent_not_found`, `agent_inactive`, `key_revoked`, …). Switch on `err.code` (not on the message) when handling multiple agent error types.
+
+## Approval errors
+
+| Error | Meaning | Recovery |
+|---|---|---|
+| `ApprovalDeniedError` | Approver clicked Deny. | Inspect `e.details` for the approver's reason; surface to the requester. |
+| `ApprovalExpiredError` | Window elapsed; no decision made. | Re-issue the call or widen the policy's window. |
+| `ApprovalTimeoutError` | SDK gave up waiting; row may still be pending. | Persist `approval_id` and re-poll later. |
+| `ApprovalExecutionFailedError` | Approved, but the eventual provider call failed. | Inspect `e.details`. Common cause: grant revoked between approval and execution. |
+
+## Connect flow errors
+
+| Error | Meaning |
+|---|---|
+| `ConnectDeniedError` | User clicked Deny on the provider's consent screen. |
+| `ConnectConfigError` | OAuth client is misconfigured (wrong redirect URI, invalid client ID/secret). Check the provider configuration in the portal. |
+| `ConnectTimeoutError` | User did not complete OAuth within the session lifetime. |

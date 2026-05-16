@@ -1,0 +1,152 @@
+---
+title: 'OAuth Providers'
+description: 'Catalog of 65+ OAuth providers pre-configured for Alter.'
+---
+
+Alter ships with pre-configured OAuth integrations for the providers below. Adding any of them is the same flow: pick the provider in **Developer Portal → OAuth Providers → Add Provider**, register an OAuth client at the provider, and paste back the client ID and secret.
+
+For step-by-step setup, see [Setting up an app](/admin/setting-up-your-app#configuring-providers). For the runtime flow, see [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users).
+
+For any provider not listed here that supports OAuth 2.0, use the **Custom OAuth** template — point Alter at the authorize / token / revoke URLs and Alter handles the rest.
+
+The **PKCE** and **Token refresh** columns reflect the runtime behavior Alter applies for each provider. These columns are part of the runtime contract and are validated against the backend config in CI — if a row drifts from the implementation, the build fails.
+
+## Popular
+
+| Provider | Slug | PKCE | Token refresh | Provider docs |
+|---|---|---|---|---|
+| Google | `google` | Supported | Automatic | [Google OAuth docs](https://developers.google.com/identity/protocols/oauth2) |
+| GitHub | `github` | Supported | Not supported | [GitHub OAuth docs](https://docs.github.com/en/apps/oauth-apps) |
+| Slack | `slack` | Not supported | Automatic | [Slack OAuth docs](https://api.slack.com/authentication/oauth-v2) |
+| Microsoft | `microsoft` | Supported | Automatic | [Microsoft identity platform](https://learn.microsoft.com/en-us/entra/identity-platform/) |
+| Atlassian | `atlassian` | Supported | Automatic | [Atlassian OAuth 2.0](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) |
+| Notion | `notion` | Not supported | Automatic | [Notion OAuth docs](https://developers.notion.com/docs/authorization) |
+| HubSpot | `hubspot` | Supported | Automatic | [HubSpot OAuth docs](https://developers.hubspot.com/docs/api/oauth-quickstart-guide) |
+| Salesforce | `salesforce` | Supported | Automatic | [Salesforce OAuth docs](https://help.salesforce.com/s/articleView?id=sf.remoteaccess_authenticate.htm) |
+| Asana | `asana` | Supported | Automatic | [Asana OAuth docs](https://developers.asana.com/docs/oauth) |
+| Stripe (Connect) | `stripe` | Not supported | Not supported | [Stripe Connect OAuth](https://stripe.com/docs/connect/oauth-reference) |
+| Calendly | `calendly` | Supported | Automatic | [Calendly OAuth docs](https://developer.calendly.com/api-docs/ZG9jOjE0NDk2OTYz-oauth-2-0) |
+| Canva | `canva` | Supported | Automatic | [Canva Connect API](https://www.canva.dev/docs/connect/authentication/) |
+| ClickUp | `clickup` | Supported | Automatic | [ClickUp OAuth docs](https://clickup.com/api/developer-portal/authentication/) |
+
+## Productivity & collaboration
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Acuity Scheduling | `acuity-scheduling` | Supported | Automatic |
+| Airtable | `airtable` | Supported | Automatic |
+| Basecamp | `basecamp` | Supported | Automatic |
+| Cal.com | `cal-com` | Not supported | Automatic |
+| DocuSign | `docusign` | Supported | Automatic |
+| Linear | `linear` | Supported | Automatic |
+| Miro | `miro` | Supported | Automatic |
+| Monday | `monday` | Not supported | Not supported |
+| Todoist | `todoist` | Not supported | Not supported |
+| Typeform | `typeform` | Supported | Automatic |
+
+## CRM & sales
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Apollo | `apollo` | Not supported | Automatic |
+| Attio | `attio` | Supported | Automatic |
+| Close | `close` | Supported | Automatic |
+| Outreach | `outreach` | Supported | Automatic |
+| Pipedrive | `pipedrive` | Supported | Automatic |
+
+## Design & creative
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Adobe | `adobe` | Supported | Automatic |
+| Autodesk | `autodesk` | Not supported | Automatic |
+| Figma | `figma` | Supported | Automatic |
+
+## Developer tools
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Bitbucket | `bitbucket` | Not supported | Automatic |
+| Contentful | `contentful` | Supported | Automatic |
+| DigitalOcean | `digitalocean` | Supported | Automatic |
+| PagerDuty | `pagerduty` | Supported | Automatic |
+| Sentry | `sentry` | Supported | Automatic |
+| Webflow | `webflow` | Not supported | Not supported |
+
+## Marketing & events
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Bitly | `bitly` | Supported | Not supported |
+| Constant Contact | `constant-contact` | Not supported | Automatic |
+| Eventbrite | `eventbrite` | Not supported | Not supported |
+| Mailchimp | `mailchimp` | Not supported | Not supported |
+
+## Communication
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Aircall | `aircall` | Supported | Automatic |
+| Dialpad | `dialpad` | Supported | Automatic |
+| Discord | `discord` | Supported | Automatic |
+| RingCentral | `ringcentral` | Supported | Automatic |
+| Webex | `webex` | Supported | Automatic |
+
+## Social & media
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Facebook | `facebook` | Supported | Automatic |
+| Instagram | `instagram` | Supported | Automatic |
+| LinkedIn | `linkedin` | Supported | Automatic |
+| Pinterest | `pinterest` | Supported | Automatic |
+| Reddit | `reddit` | Supported | Automatic |
+| Snapchat | `snapchat` | Supported | Automatic |
+| Spotify | `spotify` | Supported | Automatic |
+| TikTok | `tiktok` | Supported | Automatic |
+| Twitter | `twitter` | Supported | Automatic |
+
+## Storage & files
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Box | `box` | Not supported | Automatic |
+| Dropbox | `dropbox` | Supported | Automatic |
+
+## Finance & HR
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| Brex | `brex` | Supported | Automatic |
+| Deel | `deel` | Supported | Automatic |
+| Mercury | `mercury` | Supported | Automatic |
+| QuickBooks | `quickbooks` | Supported | Automatic |
+| Ramp | `ramp` | Supported | Automatic |
+
+## Payments
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| PayPal | `paypal` | Supported | Automatic |
+| Square | `square` | Supported | Automatic |
+
+## E-commerce
+
+| Provider | Slug | PKCE | Token refresh |
+|---|---|---|---|
+| eBay | `ebay` | Supported | Automatic |
+| Squarespace | `squarespace` | Supported | Automatic |
+
+## What's next
+
+<CardGroup cols={3}>
+  <Card title="Setting up an app" icon="gear" href="/admin/setting-up-your-app">
+    The setup flow for any provider.
+  </Card>
+  <Card title="Call APIs on behalf of users" icon="user-check" href="/guides/call-apis-on-behalf-of-users">
+    Runtime flow once configured.
+  </Card>
+  <Card title="Managed secret providers" icon="key" href="/reference/managed-secret-providers">
+    For operator-owned credentials.
+  </Card>
+</CardGroup>

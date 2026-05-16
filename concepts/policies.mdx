@@ -1,0 +1,46 @@
+---
+title: 'Policies'
+description: 'Rules that decide whether a credential access is allowed.'
+---
+
+**A policy is a rule that decides whether a credential access is allowed.** Every `app.request()` is evaluated against the relevant policies before the token is injected; if the policy denies, the call raises [`PolicyViolationError`](/reference/errors) and the provider is never reached.
+
+Policies sit between *who can call* (the [principal](/concepts/grants#principals) on the grant) and *what they're allowed to call right now*. The principal binding answers "is Alice's grant?"; the policy answers "is now a valid time, from a valid place, within rate?"
+
+## Where a policy lives
+
+| Layer | Set by | Example |
+|---|---|---|
+| **Grant policy** | The operator or end user, at grant creation | TTL: this grant expires in 1 hour |
+| **App policy** | The operator, in the developer portal | IP allowlist: only requests from 203.0.113.0/24 |
+| **Provider policy** | The operator | Time-of-day: only between 09:00–18:00 UTC |
+| **Agent policy** | The operator, when provisioning a managed agent | Rate limit: 60 requests per minute |
+
+Policies compose. A request that satisfies the grant policy but violates the agent's rate limit still fails.
+
+## What policies can express
+
+- **Time-of-day windows** — business-hours-only access.
+- **IP allowlists** — call only from named CIDRs.
+- **Group membership** — restrict to members of an IDP group.
+- **Rate limits** — cap per-grant or per-agent calls per minute.
+- **TTL** — hard expiry on a grant.
+- **Approval requirements** — route to a [human-in-the-loop](/guides/add-human-in-the-loop-approvals) decision before executing.
+
+Policies are evaluated by [Cerbos](https://www.cerbos.dev), an open-source policy engine. Operators do not author Cerbos files directly — the portal exposes a structured form per policy type.
+
+## Fail-closed
+
+If a policy cannot be evaluated (the policy engine is unreachable, the inputs are malformed, the policy version drifted), the request is **denied**. No call is made; no token leaves the vault. The error surfaces as `PolicyViolationError` with the failure reason on `policy_error`.
+
+This is the opposite of fail-open systems where a missing policy is treated as "no rule, allow." Alter treats a missing policy evaluator as "no decision, deny."
+
+## Audit
+
+Every policy decision (allow or deny) is recorded in the [audit log](/concepts/audit-logs) with the policy name, the inputs evaluated, and the outcome. Denied calls never reach the provider but always appear in the audit trail — they are first-class evidence for compliance reviews.
+
+## What's next
+
+- [Audit logs](/concepts/audit-logs) — where policy decisions are recorded.
+- [Add human-in-the-loop approvals](/guides/add-human-in-the-loop-approvals) — policy-driven approval flow.
+- [Security architecture](/reference/security-architecture) — the policy engine in the larger picture.

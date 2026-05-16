@@ -1,0 +1,49 @@
+---
+title: 'Scopes'
+description: 'How a credential'"'"'s reach is narrowed from "everything the credential could do" to "exactly what this call needs."'
+---
+
+**A scope is a string that narrows what a credential can do.** Scopes appear in two distinct contexts in Alter, and confusing them is the most common source of "why is this call failing 403."
+
+| Scope kind | Lives on | Bounded by | Example |
+|---|---|---|---|
+| **Provider scope** | An OAuth grant | The OAuth provider's scope vocabulary | `https://www.googleapis.com/auth/calendar.readonly` |
+| **Alter scope** | An Alter API key | The Alter scope catalog | `grants:read`, `agents:write` |
+
+This page covers both.
+
+## Provider scopes
+
+When a user completes the OAuth flow at Google, the consent screen lists the scopes the app is requesting. The user approves a specific set; Alter stores it on the grant. At call time, the provider checks the access token against the scope set and rejects the call if the route requires a scope the user did not grant.
+
+Provider scopes are managed two places:
+
+- **Per-app default set** — the operator picks the default scope set when configuring the provider in the developer portal. Users see this set on the consent screen.
+- **Per-call narrowing** — the SDK can request a *subset* of the configured scopes per Connect session via `allowed_scopes`. Useful when one product surface needs read-only access and another needs read-write.
+
+Scope mismatch handling: if the operator adds a new required scope after users have already connected, those existing grants are flagged with `scope_mismatch=true`. The SDK raises [`ScopeReauthRequiredError`](/reference/errors) on a 403 from the provider, and the user is prompted to re-authorize.
+
+## Alter scopes
+
+Alter API keys carry their own scope set, separate from any provider's scopes. These are *capability scopes on the Alter API itself* — what the key is allowed to do against Alter's own management surface:
+
+- `grants:read` — list grants.
+- `grants:write` — revoke grants, create managed-secret grants.
+- `agents:read` — list agents.
+- `agents:write` — create / update / revoke agents.
+- `connect:create` — mint Connect sessions.
+- (Full list in the [scope catalog](https://portal.alterauth.com/scopes).)
+
+App-level keys carry a broad default set. Per-agent keys can be minted with narrower scope sets — an agent that only needs to issue OAuth calls (`request`) does not need `agents:write`.
+
+### Attenuation
+
+`with_constraints(scopes=[...])` returns a sibling SDK instance that signs every request with `X-Alter-Scope-Constraints: <scopes>`. The constraint is the **intersection** of the key's scopes and the supplied list — it can only narrow, never broaden. Useful for handing a derived SDK instance to a less-trusted component (a plugin, a tool call) without minting a new key.
+
+If the route requires a scope not in the intersection, the backend raises [`InsufficientScopeError`](/reference/errors) with the missing scope listed.
+
+## What's next
+
+- [Errors](/reference/errors) — `ScopeReauthRequiredError`, `InsufficientScopeError`.
+- [API keys](/admin/api-keys) — minting keys with specific scope sets.
+- [Connections](/concepts/connections) — where provider scopes are first established.

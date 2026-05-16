@@ -1,0 +1,33 @@
+---
+title: 'Apps & Organizations'
+description: 'The unit that owns API keys, provider configuration, and grants.'
+---
+
+**An app is the unit that owns API keys, provider configuration, and grants.** One app per integrated product is the usual shape.
+
+An organization groups apps that belong to the same company or team. Most workspaces have one organization; the distinction matters mainly for billing, member management, and isolating production from staging.
+
+## What lives on an app
+
+- **API keys** — `alter_key_app_…` (operator keys) and `alter_key_agent_…` (per-agent keys). See [API keys](/admin/api-keys).
+- **Provider configurations** — OAuth client IDs and secrets per provider, managed-secret credentials, scope allowlists. See [Providers](/concepts/providers).
+- **Identity provider settings** — the IDP that authenticates the app's end users (Auth0, Clerk, Okta, custom OIDC). See [Connecting an identity provider](/admin/identity-provider).
+- **Grants** — every OAuth authorization a user has completed and every managed secret an operator has provisioned. See [Grants](/concepts/grants).
+- **Managed agents** — workload identities for AI agents and background services. See [Agents](/concepts/agents).
+- **Audit logs** — every API call routed through this app. See [Audit logs](/concepts/audit-logs).
+
+## Boundary semantics
+
+An app is a **hard boundary** for grants, API keys, and agents. A key minted for app A cannot read grants on app B; an agent provisioned in app A cannot be addressed from app B. Cross-app access is rejected as if the resource did not exist.
+
+This makes apps the right primitive for separating:
+
+- **Production from staging** — distinct apps means distinct keys, distinct grants, and no chance of a staging credential reaching a production grant.
+- **Distinct products in the same organization** — a calendar product and a billing product can coexist in one org without sharing grants.
+- **Multi-tenant isolation** *(usually unnecessary)* — most apps multiplex many end users through the same app via [identity resolution](/concepts/identity-resolution), not separate apps per tenant.
+
+## What's next
+
+- [Setting up an app](/admin/setting-up-your-app) — the operator surface.
+- [API keys](/admin/api-keys) — minting, rotation, revocation.
+- [Providers](/concepts/providers) — the provider catalog.
