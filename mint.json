@@ -74,6 +74,7 @@
         "concepts/agents",
         "concepts/delegation",
         "concepts/identity-resolution",
+        "concepts/runtime-modes",
         "concepts/policies",
         "concepts/scopes",
         "concepts/audit-logs"

@@ -33,7 +33,7 @@ Application                Alter SDK              Alter backend         Third-pa
     │◀── response ─────────────│                        │                      │
 ```
 
-The token leaves the vault only as an injected header on the outgoing call. Application code never holds, logs, or stores it.
+Application code never holds, logs, or stores the token. Whether the injection happens on the backend or inside the SDK depends on the [runtime mode](/concepts/runtime-modes) the call uses.
 
 ## The four primitives
 

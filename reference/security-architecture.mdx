@@ -11,7 +11,7 @@ Three boundaries matter:
 
 1. **Application ↔ Alter SDK** — the application holds an API key (`alter_key_app_…` or `alter_key_agent_…`). The SDK signs every request with the key.
 2. **Alter SDK ↔ Alter backend** — every request is HMAC-signed with the key as the secret; the backend verifies before performing any action.
-3. **Alter backend ↔ third-party provider** — Alter holds the OAuth tokens and credentials. Application code never sees them; the backend injects them into outgoing provider requests as headers.
+3. **Alter backend ↔ third-party provider** — Alter holds the OAuth tokens and credentials. Application code never sees them; the SDK or backend injects them into outgoing provider requests as headers, depending on the [runtime mode](/concepts/runtime-modes) the call uses.
 
 A compromised application leaks the API key but **not** the credentials themselves — the key authenticates the right to *use* credentials within its scope, not to *read* them. Rotating the key invalidates the leak.
 
@@ -32,7 +32,7 @@ Every credential access — every `app.request()` — goes through a determinist
 2. **Authorization.** The grant is looked up. The principal kind must match an authorization path (operator owns the grant; agent has a delegation; user JWT matches a user-bound grant).
 3. **Policy evaluation.** Every [policy](/concepts/policies) attached to the grant, the app, or the agent is evaluated. A denial returns `PolicyViolationError`; no further pipeline runs.
 4. **Token retrieval.** The token is decrypted from the vault. If expired (or within a refresh buffer), the backend refreshes it using the stored refresh token, holding a distributed lock so concurrent requests share one refresh.
-5. **Injection.** The token is injected as a header on the outgoing provider request (`Authorization: Bearer …` by default; the [managed-secret](/concepts/managed-secrets) configuration controls the exact format).
+5. **Injection.** The token is injected as a header on the outgoing provider request (`Authorization: Bearer …` by default; the [managed-secret](/concepts/managed-secrets) configuration controls the exact format). In proxy mode the backend injects and makes the outgoing call; in retrieve mode the SDK injects and makes the call from the application process. See [runtime modes](/concepts/runtime-modes).
 6. **Audit.** The pipeline result — success, denial, error — is written to the audit log before the response returns to the caller.
 
 If any step before injection fails, no provider call is made and no credential leaves the vault.

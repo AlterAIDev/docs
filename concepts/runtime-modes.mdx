@@ -1,0 +1,90 @@
+---
+title: 'Runtime modes'
+description: 'Retrieve vs proxy — the two ways an SDK call reaches a third-party API, and when to use each.'
+---
+
+**Every Alter call reaches the third party in one of two modes: retrieve or proxy.** The SDK exposes them as two separate methods (`request` vs `proxy_request`), and each requires a different scope on the API key. Most operators only need to know the tradeoffs to pick a default; HITL forces the choice.
+
+| | Retrieve | Proxy |
+|---|---|---|
+| **SDK method** | `app.request(...)` | `app.proxy_request(...)` |
+| **Scope** | `tokens:retrieve` | `proxy:execute` |
+| **Token returned to SDK** | Yes — to the SDK process, never to application code | No — stays on the backend |
+| **Who calls the third party** | The SDK, from the application process | The Alter backend |
+| **HITL compatible** | No — see below | Yes |
+| **Streaming / WebSocket** | Yes | Limited |
+| **Audit granularity** | Token issuance + outcome | Full wire-level request + response |
+
+## How a call flows in each mode
+
+### Retrieve
+
+```
+Application      Alter SDK            Alter backend       Third-party API
+    │                │                      │                    │
+    │── request() ──▶│                      │                    │
+    │                │── ask for token ────▶│                    │
+    │                │                policy + decrypt           │
+    │                │◀── token + headers ──│                    │
+    │                │── inject + call ────────────────────────▶ │
+    │                │◀── response ─────────────────────────────│
+    │◀── response ──│                      │                    │
+```
+
+The token lives in SDK process memory between the backend response and the outgoing call. Application code only sees the third-party response.
+
+### Proxy
+
+```
+Application      Alter SDK            Alter backend       Third-party API
+    │                │                      │                    │
+    │ proxy_request()│                      │                    │
+    │───────────────▶│── forward request ──▶│                    │
+    │                │              policy + approval (HITL?)    │
+    │                │              decrypt + inject + call ──▶ │
+    │                │                      │◀────── response ───│
+    │                │◀── response ─────────│                    │
+    │◀── response ──│                      │                    │
+```
+
+The token never leaves the backend. The exact wire-level request that was approved is the wire-level request that gets executed — this is the integrity guarantee that HITL relies on.
+
+## When to pick retrieve
+
+- The default for high-volume, low-stakes calls (a fleet of agents pulling calendar events).
+- Long-lived SDK processes with pooled HTTP clients to the provider — the SDK keeps connection state the proxy can't replay.
+- Streaming endpoints, Server-Sent Events, WebSockets, or any protocol where an extra hop adds unacceptable latency.
+- Calls that need provider-SDK features the proxy doesn't surface (e.g., the Google SDK's retry semantics, or a provider's signed-request helper).
+
+The token sits in SDK process memory for the duration of one call. Threat-model implications: crash dumps, error reporters in the SDK process, and any debugger attached to the SDK can read the token while the call is in flight.
+
+## When to pick proxy
+
+- Any grant that uses [HITL approval](/guides/add-human-in-the-loop-approvals) — proxy is **required**. Retrieve mode fails closed with `hitl_grant_requires_proxy`.
+- Centralized audit of the exact wire request and response, not just the token issuance event.
+- Strong isolation of credentials from the application process (no token in caller memory, no risk of token leaking into crash dumps or APM traces).
+- Centralized policy enforcement at the call site, not just at token mint — the backend can deny based on the actual request body, headers, or method.
+- Token refresh handled transparently mid-call without the SDK observing the new token.
+
+## Why HITL is proxy-only
+
+In retrieve mode the SDK holds the token. The approver sees a request payload at approval time; the SDK can then call the provider with a different payload using the same token. There is no integrity binding between the approved payload and the executed payload.
+
+In proxy mode the backend holds the token and the approved payload. The execution call uses both, atomically. The approver is reviewing the exact bytes that will reach the provider.
+
+This is enforced by the backend, not the SDK: any grant with HITL configured fails closed in retrieve mode with `400 hitl_grant_requires_proxy`. There is no policy knob to disable it.
+
+## Scoping a key for each mode
+
+Alter scopes on the API key gate which mode the key can use:
+
+- `tokens:retrieve` — required for `app.request()`.
+- `proxy:execute` — required for `app.proxy_request()`.
+
+Most operators mint a single backend-service key with both scopes and let call sites pick per call. The [scope picker](https://portal.alterauth.com) in the developer portal bundles them in the **Backend service** preset for this reason. A strict least-privilege deployment can mint two keys (one per mode) and hand them to different runtimes.
+
+## What's next
+
+- [Add human-in-the-loop approvals](/guides/add-human-in-the-loop-approvals) — the only path that mandates proxy mode.
+- [Scopes](/concepts/scopes) — `tokens:retrieve` and `proxy:execute` in the wider scope catalog.
+- [Security architecture](/reference/security-architecture) — the credential pipeline both modes share.
