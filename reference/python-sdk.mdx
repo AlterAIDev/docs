@@ -64,9 +64,21 @@ agent = Agent(
 
 ## Making requests
 
+`request` and `proxy_request` are the two [runtime modes](/concepts/runtime-modes). They share the same argument shape; the difference is *where the third-party call happens* and *what the SDK returns*.
+
+| | `request` (retrieve) | `proxy_request` (proxy) |
+|---|---|---|
+| Token returned to SDK | Yes — to the SDK process | No — stays on the backend |
+| Third-party call made by | The SDK | The Alter backend |
+| Return type | `httpx.Response` | `ApprovalResult \| PendingApproval` |
+| Scope required on the API key | `tokens:retrieve` | `proxy:execute` |
+| HITL grants | Rejected (`hitl_grant_requires_proxy`) | Required path |
+
+A non-HITL grant works in *either* mode. Pick proxy when wire-level audit, strong token isolation, or backend-side policy enforcement matter; pick retrieve for long-lived clients, streaming, or any path where the extra hop hurts. See the [runtime modes page](/concepts/runtime-modes) for the full tradeoffs.
+
 ### `request(method, url, *, grant_id=..., provider=..., json=..., headers=..., query_params=..., reason=..., context=..., user_token=..., account=...) -> httpx.Response`
 
-The token-injected HTTP call. Returns an `httpx.Response`.
+Retrieve-mode call. The SDK fetches a token from the backend, injects it into the outgoing provider request, and makes the call itself. Returns an `httpx.Response`.
 
 Two ways to identify the grant:
 
@@ -90,9 +102,46 @@ response = await app.request(
 )
 ```
 
-### `proxy_request(...) -> ApprovalResult | PendingApproval`
+### `proxy_request(method, url, *, grant_id=..., provider=..., json=..., headers=..., query_params=..., reason=..., context=..., user_token=..., account=...) -> ApprovalResult | PendingApproval`
 
-Same arg shape as `request`, but routes through the [HITL approval](/guides/add-human-in-the-loop-approvals) pipeline. Returns `PendingApproval` when an approval is required, `ApprovalResult` when the call ran synchronously.
+Proxy-mode call. The backend holds the token, makes the outgoing call, and returns the result — application code and the SDK never observe the token.
+
+Use proxy mode whenever you want the backend to be the credential boundary, regardless of whether HITL is configured. For grants *with* HITL configured, this is the only path that works: the backend gates the call on the approval decision and only then executes.
+
+Two ways to identify the grant:
+
+- `grant_id=<uuid>` — explicit.
+- `provider=<slug>` — resolved from the user's JWT via the configured `user_token_getter`.
+
+Other kwargs:
+
+- `json` — request JSON body.
+- `headers` — additional request headers (Authorization is auto-injected on the backend).
+- `query_params` — query-string parameters.
+- `reason` — human-readable explanation surfaced to end users in the [Wallet](/admin/wallet), stored in the audit trail, and shown to the approver when HITL is configured.
+- `context` — application metadata (`dict[str, str]`).
+- `user_token` — per-call JWT (overrides `user_token_getter`).
+- `account` — disambiguator when the JWT matches multiple grants.
+
+Returns:
+
+- `ApprovalResult` — the call ran synchronously (no approval required, or approval was pre-granted). Contains the third-party response.
+- `PendingApproval` — an approver must act before the call executes. Poll with `get_approval_status(approval_id)` or block with `await_approval(approval_id, timeout=...)`. See the [HITL guide](/guides/add-human-in-the-loop-approvals).
+
+Branch on the return type to handle both cases:
+
+```python
+result = await app.proxy_request(
+    HttpMethod.POST, "https://api.example.com/transfer",
+    grant_id=grant_id, json={"amount": 1000}, reason="Quarterly payout",
+)
+if isinstance(result, PendingApproval):
+    # surface to the user, wait for approval, then poll
+    ...
+else:
+    # ran synchronously; result.response is the provider response
+    ...
+```
 
 ### `boto3_client(grant_id, service, region=None) -> boto3.Client`
 

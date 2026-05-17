@@ -63,7 +63,21 @@ const agent = new Agent({
 
 ## Making requests
 
+`request` and `proxyRequest` are the two [runtime modes](/concepts/runtime-modes). They share the same option shape; the difference is *where the third-party call happens* and *what the SDK returns*.
+
+| | `request` (retrieve) | `proxyRequest` (proxy) |
+|---|---|---|
+| Token returned to SDK | Yes — to the SDK process | No — stays on the backend |
+| Third-party call made by | The SDK | The Alter backend |
+| Return type | `Promise<AlterResponse>` | `Promise<ApprovalResult \| PendingApproval>` |
+| Scope required on the API key | `tokens:retrieve` | `proxy:execute` |
+| HITL grants | Rejected (`hitl_grant_requires_proxy`) | Required path |
+
+A non-HITL grant works in *either* mode. Pick proxy when wire-level audit, strong token isolation, or backend-side policy enforcement matter; pick retrieve for long-lived clients, streaming, or any path where the extra hop hurts. See the [runtime modes page](/concepts/runtime-modes) for the full tradeoffs.
+
 ### `request(method, url, options?) -> Promise<AlterResponse>`
+
+Retrieve-mode call. The SDK fetches a token from the backend, injects it into the outgoing provider request, and makes the call itself.
 
 ```typescript
 const response = await app.request(
@@ -93,9 +107,49 @@ const response = await app.request(
 | `userToken` | Per-call JWT override. |
 | `account` | Disambiguator for ambiguous JWT resolution. |
 
-### `proxyRequest(...) -> Promise<ApprovalResult | PendingApproval>`
+### `proxyRequest(method, url, options?) -> Promise<ApprovalResult | PendingApproval>`
 
-Same shape as `request`, routes through the [HITL approval](/guides/add-human-in-the-loop-approvals) pipeline.
+Proxy-mode call. The backend holds the token, makes the outgoing call, and returns the result — application code and the SDK never observe the token.
+
+Use proxy mode whenever you want the backend to be the credential boundary, regardless of whether HITL is configured. For grants *with* HITL configured, this is the only path that works: the backend gates the call on the approval decision and only then executes.
+
+**Options:**
+
+| Option | Description |
+|---|---|
+| `grantId` | Explicit grant. |
+| `provider` | Resolve from `userTokenGetter`. |
+| `json` | Request JSON body. |
+| `headers` | Extra request headers (Authorization is auto-injected on the backend). |
+| `queryParams` | Query-string parameters. |
+| `reason` | Audit reason — also shown to the approver when HITL is configured. |
+| `context` | Application metadata (`Record<string, string>`). |
+| `userToken` | Per-call JWT override. |
+| `account` | Disambiguator for ambiguous JWT resolution. |
+
+Returns:
+
+- `ApprovalResult` — the call ran synchronously (no approval required, or approval was pre-granted). Contains the third-party response.
+- `PendingApproval` — an approver must act before the call executes. Poll with `getApprovalStatus(approvalId)` or block with `awaitApproval(approvalId, { timeout })`. See the [HITL guide](/guides/add-human-in-the-loop-approvals).
+
+Branch on the return type to handle both cases:
+
+```typescript
+const result = await app.proxyRequest(
+  HttpMethod.POST,
+  "https://api.example.com/transfer",
+  {
+    grantId,
+    json: { amount: 1000 },
+    reason: "Quarterly payout",
+  },
+);
+if (result.kind === "pending") {
+  // surface to the user, wait for approval, then poll
+} else {
+  // ran synchronously; result.response is the provider response
+}
+```
 
 ### `boto3Client(grantId, service, region?)`
 
