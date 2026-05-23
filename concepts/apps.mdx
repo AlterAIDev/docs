@@ -26,6 +26,14 @@ This makes apps the right primitive for separating:
 - **Distinct products in the same organization** — a calendar product and a billing product can coexist in one org without sharing grants.
 - **Multi-tenant isolation** *(usually unnecessary)* — most apps multiplex many end users through the same app via [identity resolution](/concepts/identity-resolution), not separate apps per tenant.
 
+## Lifecycle
+
+An app moves through three states:
+
+- **Active** — the normal operating state. Grants resolve, agents authenticate, the SDK accepts requests routed to this app.
+- **Archived** — a soft-stop. Existing grants and managed secrets are retained, but every credential request to the app is denied. Use this when sunsetting a product or freezing access during an incident review. Archived apps can be restored back to active.
+- **Deleted** — a hard, irreversible cascade. All grants, keys, secrets, and audit-row external references owned by the app are revoked and the underlying vault material is wiped. Deletion requires a typed-confirmation step in the portal and the CLI.
+
 ## What's next
 
 - [Setting up an app](/admin/setting-up-your-app) — the operator surface.

@@ -172,9 +172,20 @@ Agent: `revoke_delegation(grant_id)` revokes the calling agent's own delegation 
 
 Mint a short-lived session token for [the Connect widget](/reference/connect-sdk).
 
-### `create_managed_secret_connect_session(*, agent_id) -> ManagedSecretConnectSession`
+### `create_managed_secret_connect_session(*, template_slug, delegated_agent_id, user_token, requested_ttl_seconds=None, delegated_agent_name=None, allowed_origin=None, return_url=None) -> ManagedSecretConnectSession`
 
-Mint a session for the user → agent [delegation](/concepts/delegation) flow on a managed secret.
+Mint a session for the user → agent [delegation](/concepts/delegation) flow on a managed secret. The end user signs in (verified against the app's IDP using `user_token`), reviews the agent identified by `delegated_agent_id`, and consents to delegate access on the `template_slug` managed secret.
+
+The backend resolves the delegation's effective expiry as the **earliest** of four candidate expiry datetimes — all normalized to absolute timestamps before comparison:
+
+| Candidate | Source | Unit on the wire |
+|---|---|---|
+| Caller-requested | `now + requested_ttl_seconds` | seconds (omit to skip this cap) |
+| Source-grant ceiling | `source_grant.expires_at` | absolute datetime |
+| Template policy ceiling | `now + template.max_delegation_ttl_days × 86400` | days (operator-set on the template) |
+| Default | `now + 90 days` | applied when nothing else binds |
+
+A hard ceiling of 5 years applies on top. `ManagedSecretConnectSession.expires_at` on the response carries the resolved datetime.
 
 ### `connect(providers=[...], email=None, scopes=None) -> list[ConnectResult]`
 

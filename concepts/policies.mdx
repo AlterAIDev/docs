@@ -27,7 +27,7 @@ Policies compose. A request that satisfies the grant policy but violates the age
 - **TTL** — hard expiry on a grant.
 - **Approval requirements** — route to a [human-in-the-loop](/guides/add-human-in-the-loop-approvals) decision before executing.
 
-Policies are evaluated by [Cerbos](https://www.cerbos.dev), an open-source policy engine. Operators do not author Cerbos files directly — the portal exposes a structured form per policy type.
+Operators do not write policy files directly — the portal exposes a structured form per policy type, evaluated against a dedicated policy engine on every request.
 
 ## Fail-closed
 
