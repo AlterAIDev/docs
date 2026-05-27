@@ -1,0 +1,112 @@
+---
+title: 'alter agents'
+description: 'Manage managed-agent identities and their API keys.'
+---
+
+A managed agent is a first-class identity for an AI workload, with its own keys and its own audit attribution. These commands manage agents and their key lifecycle.
+
+```
+alter agents list       [--status ...] [--type ...] [--provider ...] [--search ...]
+alter agents create     --name <name> [--display-name ...] [--type ...] [--scopes ...] [--input ...]
+alter agents show       --agent <agent-id>
+alter agents update     --agent <agent-id> [--display-name ...] [--metadata ...]
+alter agents revoke     --agent <agent-id> [--yes]
+alter agents mint-key   --agent <agent-id>
+alter agents list-keys  --agent <agent-id>
+alter agents revoke-key --agent <agent-id> --key <key-id> [--force] [--yes]
+```
+
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show` / `list-keys`) need `dashboard_agents:read`; `create` / `update` / `mint-key` need `dashboard_agents:write`; `revoke` and `revoke-key` need `dashboard_agents:admin`.
+
+<Note>
+Both `agents create` and `agents mint-key` return an API key that is shown **once**. Capture it when printed.
+</Note>
+
+## list
+
+| Flag | Default | Description |
+|---|---|---|
+| `--status <list>` | all | Comma-separated filter: `active`, `inactive`, `revoked`. |
+| `--type <type>` | all | `agent` or `service`. |
+| `--provider <provider>` | all | Agents whose scopes include this provider. |
+| `--search <query>` | — | Substring match on name / display name. |
+| `--limit <n>` | `50` | Page size (1–1000). |
+| `--offset <n>` | `0` | Pagination offset. |
+
+```bash
+alter agents list --status active --type service
+```
+
+## create
+
+Create a managed agent. `--name` is required unless you supply `--input`.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--name <name>` | yes | Stable identifier. |
+| `--display-name <name>` | no | Human-readable name. |
+| `--type <type>` | no | `agent` (default) or `service`. |
+| `--scopes <json>` | no | JSON-encoded initial scope set (advanced; most operators edit scopes in the dashboard). |
+| `--input <path>` | no | JSON body from a file (`@path`) or stdin (`-`); replaces the per-field flags. |
+
+```bash
+alter agents create --name nightly-sync --type service --display-name "Nightly Sync"
+```
+
+## show
+
+```bash
+alter agents show --agent <agent-id>
+```
+
+## update
+
+Edit cosmetic fields. At least one of `--display-name` or `--metadata` (a JSON object) is required.
+
+```bash
+alter agents update --agent <agent-id> --display-name "Nightly Sync (EU)"
+```
+
+## revoke
+
+Revoke an agent. This cascade-revokes all of its keys. Revocation is recoverable — you can re-create an agent with the same scopes — so the prompt is a simple `y/N` (skip with `--yes`).
+
+```bash
+alter agents revoke --agent <agent-id>
+```
+
+## Key lifecycle
+
+An agent can hold several keys, which lets you rotate without downtime: mint the new key, deploy it, then revoke the old one.
+
+```bash
+# Mint a fresh key (plaintext shown once)
+alter agents mint-key --agent <agent-id>
+
+# List every key (active / deprecated / revoked) with last-used timestamps
+alter agents list-keys --agent <agent-id>
+
+# Revoke one key
+alter agents revoke-key --agent <agent-id> --key <key-id>
+```
+
+`revoke-key` accepts `--force` to override the last-active-key guard (leaving the agent with no active key) and `--yes` to skip the prompt.
+
+## Recipes
+
+**Rotate an agent's key without downtime**
+
+```bash
+# 1. Mint a fresh key (printed once) and deploy it to the agent.
+alter agents mint-key --agent <agent-id>
+# 2. Confirm the agent is calling with the new key — check the LAST USED column.
+alter agents list-keys --agent <agent-id>
+# 3. Revoke the superseded key.
+alter agents revoke-key --agent <agent-id> --key <old-key-id>
+```
+
+## Related
+
+- [`alter keys`](/cli/commands/keys) — app-level runtime keys
+- [`alter managed-secrets grants`](/cli/commands/managed-secrets#grants) — give an agent a backend credential
+- [Agents](/concepts/agents)

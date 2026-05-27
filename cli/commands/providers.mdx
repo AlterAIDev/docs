@@ -1,0 +1,120 @@
+---
+title: 'alter providers'
+description: 'Configure OAuth providers per app and browse the provider catalog.'
+---
+
+Each app configures the OAuth providers its users can connect. These commands manage those per-app provider configs.
+
+```
+alter providers list-catalog
+alter providers list
+alter providers create  --provider <id> --scopes <list> [--client-id ...] [--client-secret ...]
+alter providers show    --provider <id>
+alter providers update  --provider <id> [--scopes ...] [--status ...] [...]
+alter providers delete  --provider <id> [--force] [--yes]
+```
+
+App-scoped commands take `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show`) need `dashboard_providers:read`; `create` / `update` need `dashboard_providers:write`; `delete` needs `dashboard_providers:admin` (`list-catalog` is unauthenticated). `create` also accepts the alias `configure`.
+
+## list-catalog
+
+List the catalog of supported OAuth providers — the set that can be configured for any app. This is the global catalog, not the per-app config, so it needs no `--app`.
+
+```bash
+alter providers list-catalog
+```
+
+## list
+
+List the providers configured for an app, with grant counts and status.
+
+```bash
+alter providers list
+```
+
+## create
+
+Configure a provider for the app.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--provider <id>` | yes | Provider ID (e.g. `google`, `slack`, `github`). |
+| `--scopes <list>` | yes | Comma-separated provider scopes (e.g. `email,profile`). At least one is required. |
+| `--credential-source <source>` | no | `custom` (default) or `shared_dev`. |
+| `--client-id <id>` | no | OAuth client ID. |
+| `--client-secret <value>` | no | OAuth client secret. Use `-` to read from stdin or `@/path/to/file` — preferred over passing it inline. |
+| `--redirect-uri <uri>` | no | Add a redirect URI. Repeatable, or comma-separated; both forms accumulate. |
+| `--input <path>` | no | JSON body from a file (`@path`) or stdin (`-`); replaces the per-field flags. |
+
+```bash
+alter providers create \
+  --provider google \
+  --scopes openid,email,https://www.googleapis.com/auth/calendar.readonly \
+  --client-id <google-client-id> \
+  --client-secret @/run/secrets/google
+```
+
+<Note>
+Provider-specific required scopes (for example, Google's `openid`) are enforced when the config is saved. Consult the provider's own documentation for its scope vocabulary.
+</Note>
+
+## show
+
+Shows the provider config. The client secret is never returned.
+
+```bash
+alter providers show --provider google
+```
+
+## update
+
+Patch a provider config. Every field is optional; only what you pass changes. Narrowing the scope set is a breaking change, and the response lists any breaking changes it detected.
+
+| Flag | Description |
+|---|---|
+| `--credential-source <source>` | `custom` or `shared_dev`. |
+| `--client-id <id>` | New client ID. |
+| `--client-secret <value>` | New client secret (`-` for stdin, `@file` for a file). |
+| `--scopes <list>` | New provider scopes (comma-separated). |
+| `--redirect-uri <uri>` | Replace redirect URIs (repeatable or comma-separated). |
+| `--status <status>` | `active` or `disabled`. |
+| `--input <path>` | JSON body from a file (`@path`) or stdin (`-`); replaces the per-field flags. |
+
+```bash
+alter providers update --provider google --status disabled
+```
+
+## delete
+
+Remove a provider config. The cascade is recoverable — reconfiguring the same provider restores the integration, though existing grants are orphaned and users must reconnect. The prompt is a simple `y/N` (skip with `--yes`).
+
+`--force` deletes even when active grants exist (orphaning them).
+
+```bash
+alter providers delete --provider google
+```
+
+## Recipes
+
+**Configure a provider with the secret read from a file (CI-safe)**
+
+```bash
+alter providers create \
+  --provider google \
+  --scopes openid,email \
+  --client-id <google-client-id> \
+  --client-secret @/run/secrets/google
+```
+
+**Temporarily disable a provider, then re-enable it**
+
+```bash
+alter providers update --provider google --status disabled
+# ...later...
+alter providers update --provider google --status active
+```
+
+## Related
+
+- [`alter managed-secrets`](/cli/commands/managed-secrets) — non-OAuth backend credentials
+- [Providers](/concepts/providers), [Connections](/concepts/connections)

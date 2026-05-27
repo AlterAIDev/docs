@@ -1,0 +1,36 @@
+---
+title: 'alter policy'
+description: 'Read app-level policy from the command line.'
+---
+
+Read the app-level [policy](/concepts/policies) configuration for an app.
+
+```
+alter policy show-app
+```
+
+This command is app-scoped — pass `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. It needs `dashboard_app_policy:read` and accepts `--output`.
+
+```bash
+alter policy show-app
+alter policy show-app --app <app-id> --output json
+```
+
+## Why it's read-only
+
+The CLI can read app policy but not change it. Editing policy — app-level rules like time restrictions and IP allowlists, or anything org-wide — affects every grant in scope at once. A single scripted call should never be able to weaken security that broadly, so policy edits are **dashboard-only**.
+
+Org-wide key policy goes a step further: even *reading* it is dashboard-only, because the response is a security-posture fingerprint that would help an attacker tailor a follow-up. This mirrors how GitHub keeps org-security settings web-only. App-level policy reads are exposed here precisely because they're scoped to a single app.
+
+## Recipes
+
+**Snapshot app policy for review or diffing in CI**
+
+```bash
+alter policy show-app --output json > app-policy.json
+```
+
+## Related
+
+- [Policies](/concepts/policies) — the policy model
+- [`alter audit`](/cli/commands/audit) — see policy decisions on real calls (`alter audit list --policy-decision DENY`)

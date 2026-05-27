@@ -1,0 +1,105 @@
+---
+title: 'Alter CLI'
+description: 'Manage apps, keys, agents, providers, secrets, and audit logs from the command line.'
+---
+
+`alter` is the command-line client for the Alter developer portal. The day-to-day dashboard operations — create apps, mint keys, configure providers, issue managed-secret grants, read the audit log — are available as scriptable commands, authenticated with a Personal Access Token (PAT). A few org-wide and destructive operations stay dashboard-only by design (see [What's not in the CLI](#whats-not-in-the-cli)).
+
+It's built for two audiences: operators who'd rather stay in the terminal than click through the dashboard, and CI pipelines that need to provision Alter resources as part of a deploy.
+
+<Note>
+The CLI manages the **dashboard surface** (apps, keys, configuration). It is not the runtime SDK — application code that calls third-party APIs uses the [Python](/reference/python-sdk) or [TypeScript](/reference/typescript-sdk) SDK. The one bridge between them is [`alter sdk-passthrough`](/cli/commands/sdk-passthrough), an escape hatch for one-off runtime requests while debugging.
+</Note>
+
+## Install
+
+```bash
+npm install -g @alter-ai/cli
+alter --version
+```
+
+Requires Node 20+. The binary is named `alter`.
+
+## First commands
+
+<Steps>
+  <Step title="Sign in">
+    Opens the dashboard in the browser for the **Authorize** step, and the CLI receives a freshly-minted PAT.
+
+    ```bash
+    alter auth login
+    ```
+
+    For CI and headless hosts, [pass a pre-minted PAT instead](/cli/authentication#headless-and-ci).
+  </Step>
+
+  <Step title="Pin a default app">
+    Most commands operate on one app. Pin it once per project so you don't retype the ID:
+
+    ```bash
+    alter link <app-id>
+    ```
+
+    From anywhere in that directory tree, `--app` becomes optional. See [workspace linking](/cli/scripting#workspace-linking).
+  </Step>
+
+  <Step title="Run a command">
+    ```bash
+    alter apps list
+    alter keys list
+    alter audit list --since 24h
+    ```
+  </Step>
+</Steps>
+
+## The resource model
+
+The CLI mirrors the dashboard's resource model. Each namespace maps to a concept you already know from the docs:
+
+| Namespace | Manages | Concept |
+|---|---|---|
+| [`auth`](/cli/authentication) | Sign in / out, inspect the active PAT | — |
+| [`apps`](/cli/commands/apps) | Applications | [Apps](/concepts/apps) |
+| [`keys`](/cli/commands/keys) | Runtime API keys | [API keys](/admin/api-keys) |
+| [`agents`](/cli/commands/agents) | Managed-agent identities + their keys | [Agents](/concepts/agents) |
+| [`providers`](/cli/commands/providers) | OAuth provider configuration | [Providers](/concepts/providers) |
+| [`managed-secrets`](/cli/commands/managed-secrets) | Backend credentials, grants, and access | [Managed secrets](/concepts/managed-secrets) |
+| [`policy`](/cli/commands/policy) | App-level policy (read-only) | [Policies](/concepts/policies) |
+| [`audit`](/cli/commands/audit) | The audit log | [Audit logs](/concepts/audit-logs) |
+| [`sdk-passthrough`](/cli/commands/sdk-passthrough) | One-off authenticated provider requests | — |
+
+Every namespace follows the same shape: `alter <namespace> <verb> [arguments] [flags]`. Run any command with `--help` for its full option list.
+
+## Global flags
+
+These apply to every command:
+
+| Flag | Effect |
+|---|---|
+| `--output <format>` | `json`, `table`, or `jsonl`. List commands default to `table`; single-object commands default to `json`. |
+| `--fields <a,b,c>` | Narrow JSON / JSONL output to specific top-level keys. |
+| `--help` | Show help for the command or subcommand. |
+| `--version` | Print the CLI version. |
+
+See [output & scripting](/cli/scripting) for how to combine these in pipelines, plus the [exit-code contract](/cli/scripting#exit-codes).
+
+## What's not in the CLI
+
+A few dashboard operations are intentionally **dashboard-only**, because a single scripted call should never be able to weaken security for an entire organization:
+
+- **Minting or revoking PATs** — a PAT can't manage another PAT, including itself.
+- **Org-wide key policy** and **identity-provider configuration** — these affect every key and every grant in the org.
+- **App-level policy edits** — the CLI can [read](/cli/commands/policy) app policy but not change it.
+
+This mirrors how GitHub keeps org-security settings web-only. The boundary is deliberate, not a missing feature.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Authentication" icon="key" href="/cli/authentication">
+    Browser sign-in, headless PATs, and where credentials are stored.
+  </Card>
+  <Card title="Output & scripting" icon="terminal" href="/cli/scripting">
+    Output formats, exit codes, workspace linking, and shell completion.
+  </Card>
+</CardGroup>

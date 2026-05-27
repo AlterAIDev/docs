@@ -1,0 +1,133 @@
+---
+title: 'Output & scripting'
+description: 'Output formats, exit codes, workspace linking, environment variables, and shell completion.'
+---
+
+The CLI is built to be scripted. Output is machine-parseable, exit codes are a stable contract, and the app a command operates on can be resolved from the environment instead of a flag on every invocation.
+
+## Output formats
+
+Every command takes `--output` (alias: the format is also the default for its category):
+
+| Format | Best for | Notes |
+|---|---|---|
+| `table` | Interactive use | Plain-ASCII, the default for list commands. |
+| `json` | Scripts and `jq` | Pretty-printed. The default for single-object commands. |
+| `jsonl` | Streaming large lists | One JSON object per line — pipe into `jq -c` / `grep` / `awk` without buffering. Falls back to `json` for single-object responses. |
+
+```bash
+alter apps list --output json
+alter audit list --since 7d --output jsonl | jq -c 'select(.action == "token.retrieved")'
+```
+
+### Field selection
+
+Narrow JSON / JSONL output to specific top-level keys with `--fields`:
+
+```bash
+alter apps list --fields id,name
+# [
+#   { "id": "<app-id>", "name": "demo" },
+#   ...
+# ]
+```
+
+The value is comma-separated (spaces around commas are fine; spaces *inside* a name are rejected as a typo). An unknown field name fails loudly rather than emitting `null` — so a typo surfaces on the first run. `--fields` is inert with `--output table`, since table columns are already a fixed slice.
+
+## Exit codes
+
+The CLI returns a structured exit code so scripts can branch on the failure mode without parsing stderr. These are a stable contract across releases.
+
+| Code | Name | Meaning |
+|---|---|---|
+| `0` | OK | Command succeeded. |
+| `1` | ERROR | Generic runtime failure (uncategorized — unknown SDK / network errors). |
+| `2` | USAGE | Bad flag, argument, or input format. Always paired with a stderr line naming the offending input. |
+| `3` | AUTH | Not signed in, or the PAT was revoked / expired. **Fix:** re-run `alter auth login`. |
+| `4` | NOT_FOUND | Resource not found (404), or a referenced local file is missing. |
+| `5` | CONFLICT | A 409 — most often a type-to-confirm mismatch or a dependent-resource block. |
+| `6` | RATE_LIMIT | A 429 — retry with backoff. |
+| `7` | FORBIDDEN | The PAT is valid but lacks the required scope. **Fix:** re-mint the PAT with broader [scopes](/cli/authentication#scopes). |
+| `8` | CANCELLED | You declined an interactive prompt (a type-to-confirm mismatch, or "no" at a `y/N` gate). The CLI did nothing wrong. Pass `--yes` or `--confirm <name>` to skip the prompt in CI. |
+
+Example — probe whether an app exists without erroring on the not-found case:
+
+```bash
+alter apps show "$APP_ID" --output json > /dev/null 2>&1
+status=$?
+if [ "$status" -eq 0 ]; then
+  echo "app exists"
+elif [ "$status" -eq 4 ]; then
+  echo "app not found"
+elif [ "$status" -eq 7 ]; then
+  echo "PAT lacks dashboard_apps:read — re-mint with broader scopes"
+else
+  echo "unexpected error" && exit 1
+fi
+```
+
+Capture `$?` into a variable immediately — every command clobbers it.
+
+## Environment variables
+
+| Variable | Used by | Effect |
+|---|---|---|
+| `ALTER_PAT` | All commands | The PAT to authenticate with. Highest-precedence credential source. |
+| `ALTER_APP_ID` | App-scoped commands | Default app ID when `--app` is omitted. |
+| `ALTER_API_KEY` | [`sdk-passthrough`](/cli/commands/sdk-passthrough) | Runtime API key for the one-off request escape hatch (not a PAT). |
+
+## Workspace linking
+
+If you work primarily on one app, pin it to the current directory tree so app-scoped commands don't need `--app`:
+
+```bash
+cd ~/code/my-product
+alter link <app-id>
+# alter: pinned app_id=<app-id> in .../.alter/config.yaml
+# alter: appended `.alter/` to .gitignore so the pin isn't committed.
+
+# From anywhere in this tree, --app is now optional:
+alter keys list
+alter agents create --name worker --type service
+alter policy show-app
+
+# Inspect or clear the pin
+alter link --status
+alter unlink
+```
+
+The app ID is resolved in this order (highest precedence first):
+
+1. `--app <id>` on the command line
+2. `ALTER_APP_ID` environment variable
+3. The nearest `.alter/config.yaml`, found by walking up from the current directory
+4. Otherwise: `no app selected` (exit code 2)
+
+Discovery walks up until it finds an `.alter/` directory or crosses the home directory, so a stray config in `$HOME` can't silently pin every shell. In a git repo, `alter link` appends `.alter/` to `.gitignore` — the pin is personal to the checkout, like `vercel link`.
+
+## Shell completion
+
+Generate completion scripts for `bash`, `zsh`, or `fish`:
+
+```bash
+# Write the script to the conventional location and print the line to add to the rc file
+alter completion install
+
+# Or print to stdout to install it yourself
+alter completion print --shell zsh >> ~/.zsh/completions/_alter
+```
+
+`install` writes the script and prints the line to activate it; it never edits `.bashrc` / `.zshrc` automatically. The shell is auto-detected from `$SHELL` unless `--shell` is passed.
+
+## Upgrading
+
+```bash
+# Upgrade to the latest published version
+alter self-update
+
+# Pin a specific version, or preview the command without running it
+alter self-update --to 0.3.0
+alter self-update --dry-run
+```
+
+`self-update` runs `npm install -g @alter-ai/cli` and smoke-tests the result. It's skipped if the CLI was installed through a platform package manager (Homebrew, apt, …) — use that manager to update instead.

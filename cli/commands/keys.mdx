@@ -1,0 +1,109 @@
+---
+title: 'alter keys'
+description: 'Mint, rotate, revoke, and rename runtime API keys.'
+---
+
+Runtime API keys authenticate application code against Alter. These commands manage the keys for one app.
+
+```
+alter keys list   [--status active|revoked] [--limit ...] [--offset ...]
+alter keys mint   --name <name> --scopes <list> [--key-type ...] [...]
+alter keys show   --key <key-id>
+alter keys rotate --key <key-id> [--scopes ...]
+alter keys revoke --key <key-id> [--force] [--yes]
+alter keys rename --key <key-id> --name <name>
+```
+
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. `list` / `show` need `dashboard_keys:read`; `mint` / `rotate` / `rename` need `dashboard_keys:write`; `revoke` needs `dashboard_keys:admin`.
+
+<Warning>
+Plaintext keys are shown **once** — on `mint` and `rotate`. The CLI never caches them; re-running a command shows metadata only, not the secret. Capture the value when it's printed.
+</Warning>
+
+## list
+
+| Flag | Default | Description |
+|---|---|---|
+| `--status <status>` | all | Filter to `active` or `revoked`. |
+| `--limit <n>` | `200` | Page size (1–1000). |
+| `--offset <n>` | `0` | Pagination offset. |
+
+```bash
+alter keys list --status active
+```
+
+## mint
+
+Mint a new scoped key. `--name` and `--scopes` are required unless you supply a full JSON body with `--input`.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--name <name>` | yes | Display name. |
+| `--scopes <list>` | yes | Comma-separated Alter scopes (e.g. `grants:read,agents:read`). |
+| `--key-type <type>` | no | `runtime` (default — an SDK key) or `agent` (an agent key). |
+| `--cidr <list>` | no | Comma-separated CIDR allowlist. Catch-all `/0` ranges are rejected. |
+| `--rate-limit-rpm <n>` | no | Per-key requests-per-minute cap (1–100000). |
+| `--expires-in <duration>` | no | Relative expiry, e.g. `30d`, `12h`, `5m`. Mutually exclusive with `--expires-at`. |
+| `--expires-at <iso>` | no | Absolute ISO 8601 expiry. Mutually exclusive with `--expires-in`. |
+| `--input <path>` | no | JSON body from a file (`@path`) or stdin (`-`); replaces the per-field flags. |
+
+```bash
+alter keys mint --name "prod-worker" --scopes grants:read,agents:read --expires-in 90d
+```
+
+## show
+
+```bash
+alter keys show --key <key-id>
+```
+
+## rotate
+
+Issue a new secret for an existing key. The new plaintext is returned once; the old key enters a grace period until it's revoked. `--scopes` optionally changes the scope set (defaults to the current one).
+
+```bash
+alter keys rotate --key <key-id>
+```
+
+## revoke
+
+Revoke a key immediately. This cascades to any derived keys. Revocation is recoverable — mint a new key — so the CLI asks a simple `y/N` (skip with `--yes`).
+
+`--force` overrides the last-active-key guard, which otherwise blocks revoking an agent's only active key (doing so leaves the agent unusable until a fresh key is minted).
+
+```bash
+alter keys revoke --key <key-id>
+alter keys revoke --key <key-id> --yes --force   # CI, deliberate
+```
+
+## rename
+
+Change a key's display name. Cosmetic only — it does not rotate the secret.
+
+```bash
+alter keys rename --key <key-id> --name "prod-worker-east"
+```
+
+## Recipes
+
+**Rotate a key without downtime**
+
+```bash
+# 1. Rotate — a new plaintext is printed once; the old secret keeps
+#    working during its grace window.
+alter keys rotate --key <key-id>
+# 2. Roll the new value out everywhere and confirm healthy traffic.
+# 3. Revoke the superseded key once nothing depends on it.
+alter keys revoke --key <key-id> --yes
+```
+
+**Mint a short-lived key for a CI job**
+
+```bash
+alter keys mint --name ci-deploy --scopes grants:read,agents:read --expires-in 1h
+```
+
+## Related
+
+- [`alter agents`](/cli/commands/agents) — managed-agent identities and their own keys
+- [API keys](/admin/api-keys), [Scopes](/concepts/scopes)

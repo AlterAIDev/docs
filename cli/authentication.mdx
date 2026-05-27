@@ -1,0 +1,128 @@
+---
+title: 'Authentication'
+description: 'Sign in with a browser or a pre-minted PAT, and control where credentials are stored.'
+---
+
+The CLI authenticates with a **Personal Access Token (PAT)** — the same credential the dashboard issues under **Settings → Personal Access Tokens**. A PAT carries a fixed scope set chosen at mint time; the CLI sends it on every request.
+
+There are two ways to sign in: an interactive browser flow (best for laptops) and a pre-minted token (best for CI).
+
+## Interactive sign-in
+
+```bash
+alter auth login
+```
+
+This opens the dashboard in the browser, waits for the **Authorize** click, and receives the freshly-minted PAT on a local listener. No copy-paste, and the token never lands in shell history.
+
+By default the CLI requests the full read + write scope set across every command — enough for day-to-day work. Narrow it, or opt into the higher tiers, with `--scopes`:
+
+```bash
+# Read-only session
+alter auth login --scopes dashboard_apps:read,dashboard_keys:read
+
+# Day-to-day plus key administration and app deletion
+alter auth login --scopes dashboard_keys:admin,dashboard_apps:delete
+```
+
+Scope names are validated before the browser opens, so a typo fails fast. See [the scope reference](#scopes) below.
+
+<Note>
+`--scopes` only applies to the interactive flow — it controls what's **requested** on the consent page. A pre-minted PAT already has its scopes baked in; narrow them by minting a new token in the dashboard.
+</Note>
+
+## Headless and CI
+
+In an environment with no browser, mint a PAT in the dashboard (**Settings → Personal Access Tokens → New token**) and hand it to the CLI through one of these channels, in decreasing order of safety.
+
+<Tabs>
+  <Tab title="Environment variable">
+    The cleanest option for CI — nothing is persisted to disk and the value never appears in process arguments.
+
+    ```bash
+    export ALTER_PAT="alter_pat_..."
+    alter apps list
+    ```
+  </Tab>
+
+  <Tab title="Token file">
+    Keeps the value out of shell history and out of `ps` output.
+
+    ```bash
+    umask 077 && printf '%s' "$PAT" > ~/alter-pat.txt
+    alter auth login --token-file ~/alter-pat.txt
+    ```
+  </Tab>
+
+  <Tab title="Stdin">
+    Pipe the token in:
+
+    ```bash
+    echo "$PAT" | alter auth login --token-stdin
+    ```
+  </Tab>
+</Tabs>
+
+Passing the token inline with `--token <pat>` works but is discouraged — the value is visible to other local users via `ps` and lands in shell history. The CLI prints a warning when you use it.
+
+The CLI verifies the token authenticates before storing it, so a wrong paste fails immediately rather than on the next command.
+
+## Credential storage
+
+After a successful `alter auth login`, the PAT is resolved in this order (highest precedence first):
+
+1. **`ALTER_PAT` environment variable** — the canonical CI / headless source.
+2. **OS keychain** — macOS Keychain, Linux Secret Service / `gnome-keyring`, or Windows Credential Manager. This is the default location after an interactive login.
+3. **Plaintext fallback file** at `~/.config/alter/auth.toml` (mode `0600`) — used only when the OS keychain isn't available on the host. The CLI prints a warning when it falls back to this path.
+
+If keychain support isn't loading, install the platform build tools and reinstall:
+
+<CodeGroup>
+```bash macOS
+xcode-select --install
+npm install -g @alter-ai/cli
+```
+
+```bash Linux (Debian/Ubuntu)
+sudo apt install libsecret-1-dev gnome-keyring
+npm install -g @alter-ai/cli
+```
+</CodeGroup>
+
+## Status and sign-out
+
+```bash
+# Show the active PAT, its scopes, and expiry
+alter auth status
+
+# Same view, under the pats namespace
+alter pats whoami
+
+# Forget the locally-stored PAT (does NOT revoke it server-side)
+alter auth logout
+```
+
+`alter auth logout` only clears the local credential. To revoke a PAT so it can no longer be used anywhere, delete it in the dashboard.
+
+## Self-hosted and staging
+
+By default the CLI talks to Alter's production API. If you run a self-hosted or staging deployment, point the CLI at it with `--base-url` (and `--dashboard-url` for the interactive flow). Both must use `https://`.
+
+## Scopes
+
+A PAT's scopes are `<resource>:<verb>` strings. Each resource supports a fixed verb set:
+
+| Resource | Verbs | Used by |
+|---|---|---|
+| `dashboard_apps` | `read`, `write`, `delete` | [`apps`](/cli/commands/apps) |
+| `dashboard_keys` | `read`, `write`, `admin` | [`keys`](/cli/commands/keys) |
+| `dashboard_agents` | `read`, `write`, `admin` | [`agents`](/cli/commands/agents) |
+| `dashboard_providers` | `read`, `write`, `admin` | [`providers`](/cli/commands/providers) |
+| `dashboard_secrets` | `read`, `write`, `delete` | [`managed-secrets`](/cli/commands/managed-secrets) |
+| `dashboard_app_policy` | `read`, `write`, `admin` | [`policy`](/cli/commands/policy) |
+| `dashboard_audit` | `read` | [`audit`](/cli/commands/audit) |
+| `dashboard_pats` | `read` | [`pats whoami`](#status-and-sign-out) |
+
+Two resources separate `delete` into its own verb instead of bundling it under `admin`: `dashboard_apps` and `dashboard_secrets`. Deleting an app or a managed secret is an irreversible cascade, so it requires an explicit opt-in at mint time — the same posture as GitHub's separate `delete_repo` scope. A token with `write` or `admin` can do everything *except* those cascade deletes.
+
+If a command returns [exit code 7 (`FORBIDDEN`)](/cli/scripting#exit-codes), the PAT is valid but missing a scope — mint a new one with the broader set. Re-running `alter auth login` alone won't help, since it produces a token with the same scopes.

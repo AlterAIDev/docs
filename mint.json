@@ -91,6 +91,27 @@
       ]
     },
     {
+      "group": "CLI",
+      "pages": [
+        "cli/index",
+        "cli/authentication",
+        "cli/scripting",
+        {
+          "group": "Command reference",
+          "pages": [
+            "cli/commands/apps",
+            "cli/commands/keys",
+            "cli/commands/agents",
+            "cli/commands/providers",
+            "cli/commands/managed-secrets",
+            "cli/commands/policy",
+            "cli/commands/audit",
+            "cli/commands/sdk-passthrough"
+          ]
+        }
+      ]
+    },
+    {
       "group": "Reference",
       "pages": [
         "reference/python-sdk",

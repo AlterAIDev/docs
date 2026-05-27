@@ -1,0 +1,117 @@
+---
+title: 'alter apps'
+description: 'Create, inspect, update, archive, and delete applications.'
+---
+
+An app owns API keys, provider configuration, agents, and grants. These commands manage the app objects themselves.
+
+```
+alter apps list      [--include-archived] [--no-include-stats]
+alter apps create    --name <name> [--description ...] [--website-url ...]
+alter apps show      <app-id>
+alter apps update    <app-id> [--name ...] [--description ...] [--website-url ...]
+alter apps archive   <app-id>
+alter apps unarchive <app-id>
+alter apps delete    <app-id> [--confirm <name>]
+```
+
+Reads need `dashboard_apps:read`; create / update / archive need `dashboard_apps:write`; delete needs `dashboard_apps:delete`. Every command accepts `--output`.
+
+## list
+
+List apps in the current organization.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--include-archived` | off | Include archived (soft-deleted) apps. Default is active-only. |
+| `--no-include-stats` | stats on | Skip per-app grant / key / API-call counts (faster). |
+
+```bash
+alter apps list
+alter apps list --include-archived --output json
+```
+
+## create
+
+Create a new app.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--name <name>` | yes | App name. |
+| `--description <text>` | no | Free-form description. |
+| `--website-url <url>` | no | Public website URL (`http://` or `https://`). |
+
+```bash
+alter apps create --name "Acme Production" --description "Customer-facing app"
+```
+
+## show
+
+Show one app by ID.
+
+```bash
+alter apps show <app-id>
+```
+
+## update
+
+Patch app fields. At least one of `--name`, `--description`, or `--website-url` is required — an empty update is rejected.
+
+```bash
+alter apps update <app-id> --description "Renamed for Q3"
+```
+
+## archive / unarchive
+
+Archiving is a reversible soft-delete: the app disappears from the default `apps list` view but keeps all its keys, grants, providers, and audit history. Both need only `dashboard_apps:write`.
+
+```bash
+alter apps archive <app-id>
+alter apps unarchive <app-id>   # 409 if the app isn't archived
+```
+
+## delete
+
+<Warning>
+`apps delete` is an **irreversible cascade**. It permanently removes the app and every key, grant, secret, agent, and audit row beneath it. There is no undo. To hide an app without losing its data, use `archive` instead.
+</Warning>
+
+Because the cascade is permanent, delete is gated behind the separate `dashboard_apps:delete` scope (not bundled into `:admin`) and a type-to-confirm check:
+
+- **Interactive:** the CLI prompts you to type the app's exact name.
+- **Non-interactive (CI):** pass `--confirm <name>` matching the app's name. There is no `--yes` shortcut — the name must be surfaced so the audit trail records the intent.
+
+```bash
+# Interactive — prompts for the name
+alter apps delete <app-id>
+
+# CI — name supplied explicitly
+alter apps delete <app-id> --confirm "Acme Production"
+```
+
+A wrong `--confirm` value exits [2 (`USAGE`)](/cli/scripting#exit-codes); declining the interactive prompt exits 8 (`CANCELLED`).
+
+## Recipes
+
+**Provision an app in CI and pin it for later steps**
+
+```bash
+APP_ID=$(alter apps create --name "ci-staging" --output json | jq -r '.id')
+alter link "$APP_ID"   # subsequent steps in this directory skip --app
+```
+
+**Review and clean up archived apps**
+
+```bash
+# List what's archived...
+alter apps list --include-archived --output json \
+  | jq -r '.[] | select(.archived_at) | "\(.id)\t\(.name)"'
+# ...then permanently delete one (name required as confirmation)
+alter apps delete "$APP_ID" --confirm "ci-staging"
+```
+
+## Related
+
+- [`alter keys`](/cli/commands/keys), [`alter providers`](/cli/commands/providers), [`alter agents`](/cli/commands/agents) — the resources an app owns
+- [Workspace linking](/cli/scripting#workspace-linking) — pin a default app so commands skip `--app`
+- [Apps](/concepts/apps) — the underlying concept

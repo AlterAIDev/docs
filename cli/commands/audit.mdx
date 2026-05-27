@@ -1,0 +1,117 @@
+---
+title: 'alter audit'
+description: 'Read the audit log: runtime calls, portal actions, grant events, and traces.'
+---
+
+Every credential-touching call and every admin action produces an [audit row](/concepts/audit-logs). These read-only commands query the log from four angles.
+
+```
+alter audit list           [--since ...] [--start ...] [--end ...] [--action ...] [--policy-decision ...]
+alter audit show           <trace-id>
+alter audit portal-actions [--principal-kind ...] [--resource-type ...]
+alter audit grant-events   [--grant-type ...] [--provider ...]
+alter audit traces         [--actor ...]
+```
+
+All commands need `dashboard_audit:read` and accept `--output`. For large pulls, use `--output jsonl` to stream into `jq` / `grep` without buffering. Filters are validated client-side, so a typo fails fast.
+
+Time filters are shared across the list-style commands: `--start <iso>` / `--end <iso>` for absolute bounds, or `--since <duration>` (e.g. `1h`, `7d`) as a relative start. `--start` and `--since` are mutually exclusive.
+
+## list
+
+Runtime audit rows — token retrievals and outbound API calls.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--since <duration>` | — | Relative start, e.g. `24h`, `7d`. Mutually exclusive with `--start`. |
+| `--start <iso>` / `--end <iso>` | — | Absolute bounds. |
+| `--app <app-id>` | all | Filter by app. |
+| `--action <action>` | all | e.g. `token.retrieved`. |
+| `--actor <actor-id>` | all | Filter by actor. |
+| `--provider <provider>` | all | Filter by provider. |
+| `--policy-decision <decision>` | all | `ALLOW` or `DENY` (case-sensitive). |
+| `--limit <n>` | `100` | Page size (1–1000). |
+| `--offset <n>` | `0` | Pagination offset. |
+
+```bash
+alter audit list --since 24h --policy-decision DENY
+```
+
+## show
+
+Show every event for one trace, by trace ID.
+
+```bash
+alter audit show <trace-id>
+```
+
+## portal-actions
+
+Admin actions taken in the dashboard or via the CLI — app CRUD, key mints, policy edits.
+
+| Flag | Description |
+|---|---|
+| `--principal-kind <kind>` | `portal`, `sdk`, `system`, or `pat`. Use `pat` to see CLI-driven actions. |
+| `--resource-type <type>` | Filter by resource type. |
+| `--action <action>` | e.g. `app.created`. |
+| `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `100`). |
+
+```bash
+alter audit portal-actions --principal-kind pat --since 7d
+```
+
+## grant-events
+
+Grant-lifecycle events for both OAuth and managed-secret grants.
+
+| Flag | Description |
+|---|---|
+| `--grant-type <type>` | `oauth` or `managed_secret`. |
+| `--provider <provider>` | Filter by provider. |
+| `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `100`). |
+
+```bash
+alter audit grant-events --grant-type oauth --since 30d
+```
+
+## traces
+
+Trace summaries — one row per request trace, with event count and status.
+
+| Flag | Description |
+|---|---|
+| `--actor <actor-id>` | Filter by actor. |
+| `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `50`). |
+
+```bash
+alter audit traces --app <app-id> --since 24h
+```
+
+## Recipes
+
+**Investigate denied calls**
+
+```bash
+# Recent denials
+alter audit list --since 24h --policy-decision DENY
+# Find a trace to expand (trace IDs come from `audit traces`), then drill in
+alter audit traces --since 24h --output json | jq -r '.items[].trace_id'
+alter audit show <trace-id>
+```
+
+**Stream a day of activity into a pipeline**
+
+```bash
+alter audit list --since 24h --output jsonl | jq -c 'select(.action == "token.retrieved")'
+```
+
+**Find CLI / PAT-driven admin actions**
+
+```bash
+alter audit portal-actions --principal-kind pat --since 7d
+```
+
+## Related
+
+- [Audit logs](/concepts/audit-logs) — what gets recorded and why
+- [`alter policy`](/cli/commands/policy) — the policy whose decisions show up here

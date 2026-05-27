@@ -19,7 +19,23 @@ AlterSDKError
 │   ├── PolicyViolationError        — policy denied; may resolve later
 │   ├── InsufficientScopeError      — key scopes don't cover the route
 │   ├── NoDelegatedGrantError       — agent has no access path to the provider
-│   └── TokenRefreshInProgressError — transient 409; retry
+│   ├── TokenRefreshInProgressError — transient 409; retry
+│   └── AgentError                  — managed-agent management
+│       ├── InvalidKeyError
+│       ├── AgentNotFoundError
+│       ├── AgentNameExistsError
+│       ├── MeRequiresAgentKeyError
+│       ├── KeyRevokedError
+│       ├── AgentInactiveError
+│       ├── AgentRevokedError
+│       ├── KeyNotFoundError
+│       ├── KeyAlreadyRevokedError
+│       ├── LastActiveKeyError
+│       ├── AgentCannotMintSubagentsError
+│       ├── AgentScopeNarrowingNotSupportedError
+│       ├── IdempotencyKeyBodyMismatchError
+│       ├── IdempotencyKeyAgentRevokedError
+│       └── IdempotencyKeyAgentInactiveError
 ├── ConnectFlowError                — Connect flow failed
 │   ├── ConnectDeniedError          — user clicked Deny
 │   ├── ConnectConfigError          — OAuth app misconfigured
@@ -31,22 +47,6 @@ AlterSDKError
 │   ├── ApprovalExpiredError
 │   ├── ApprovalTimeoutError
 │   └── ApprovalExecutionFailedError
-├── AgentError                      — managed-agent management
-│   ├── InvalidKeyError
-│   ├── AgentNotFoundError
-│   ├── AgentNameExistsError
-│   ├── MeRequiresAgentKeyError
-│   ├── KeyRevokedError
-│   ├── AgentInactiveError
-│   ├── AgentRevokedError
-│   ├── KeyNotFoundError
-│   ├── KeyAlreadyRevokedError
-│   ├── LastActiveKeyError
-│   ├── AgentCannotMintSubagentsError
-│   ├── AgentScopeNarrowingNotSupportedError
-│   ├── IdempotencyKeyBodyMismatchError
-│   ├── IdempotencyKeyAgentRevokedError
-│   └── IdempotencyKeyAgentInactiveError
 └── NetworkError
     └── TimeoutError                — request timed out
 ```
@@ -147,3 +147,76 @@ All inherit from `BackendError`. Each carries a stable `code` attribute (`agent_
 | `ConnectDeniedError` | User clicked Deny on the provider's consent screen. |
 | `ConnectConfigError` | OAuth client is misconfigured (wrong redirect URI, invalid client ID/secret). Check the provider configuration in the portal. |
 | `ConnectTimeoutError` | User did not complete OAuth within the session lifetime. |
+
+## Recovering from missing-grant errors
+
+When a request fails because the user hasn't authorized the provider yet, the SDK exposes recovery context on the typed error so a re-consent flow can be driven without manual derivation:
+
+- `NoDelegatedGrantError` carries `provider_id` / `agent_id` / `app_user_id` (camelCase in TypeScript).
+- `GrantNotFoundError` carries `provider_id` / `agent_id` / `app_user_id` when the raise was identity-mode.
+- `CredentialRevokedError` carries `provider_id` / `app_user_id` (no `agent_id` — credential revocation is grant-scoped, not agent-scoped).
+
+**Python**
+
+```python
+from alter_sdk import NoDelegatedGrantError
+
+try:
+    await vault.request(provider="slack", user_token=jwt, url=..., method=...)
+except NoDelegatedGrantError as e:
+    # 1. Mint a recovery Connect session using the error's context.
+    session = await vault.create_connect_session_for_error(
+        e,
+        allowed_origin="https://app.example.com",
+    )
+    # 2. Surface the URL to the user.
+    redirect_user(session.connect_url)
+    # 3. Poll until consent completes.
+    results = await vault.poll_connect_session(session.session_token)
+    # 4. Retry with the freshly-minted grant_id.
+    response = await vault.request(grant_id=results[0].grant_id, url=..., method=...)
+```
+
+**TypeScript**
+
+```typescript
+import { NoDelegatedGrantError } from "@alter-ai/alter-sdk";
+
+try {
+  await vault.request(HttpMethod.GET, "...", { provider: "slack", userToken: jwt });
+} catch (e) {
+  if (e instanceof NoDelegatedGrantError) {
+    // 1. Mint a recovery Connect session.
+    const session = await vault.createConnectSessionForError(e, {
+      allowedOrigin: "https://app.example.com",
+    });
+    // 2. Surface the URL.
+    redirectUser(session.connectUrl);
+    // 3. Poll until consent completes.
+    const results = await vault.pollConnectSession(session.sessionToken);
+    // 4. Retry.
+    const response = await vault.request(HttpMethod.GET, "...", {
+      grantId: results[0].grantId,
+    });
+  } else {
+    // Re-throw every other error class — silently swallowing
+    // NetworkError, BackendError, or programming bugs would hide
+    // the real failure.
+    throw e;
+  }
+}
+```
+
+### When recovery context is available
+
+| Error | Identity-mode raise (carries context) | Direct-mode raise (context is `None`) |
+|---|---|---|
+| `NoDelegatedGrantError` | Agent-runtime resolution with `provider=` + optional `user_token=` | n/a — always identity-mode |
+| `GrantNotFoundError` | Identity-mode lookup by `(user, provider)` failed | Caller passed an explicit `grant_id=` that doesn't exist |
+| `CredentialRevokedError` | Token refresh hit a permanent failure (provider revoked, refresh token expired) | n/a — always carries a grant_id |
+
+`create_connect_session_for_error` raises `AlterValueError` when recovery context isn't available — for direct-mode `GrantNotFoundError` (stale `grant_id`), the SDK can't infer which provider to re-consent to, so the developer must call `create_connect_session` directly with the right `allowed_providers=`.
+
+### What recovery does NOT cover
+
+- **`AmbiguousGrantError`** — surface the existing `account_identifiers` / `app_user_ids` fields to let the user pick, then retry with `account=` or `user_token=`. Minting a new session would be the wrong remediation here.

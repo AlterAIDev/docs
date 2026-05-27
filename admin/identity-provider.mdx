@@ -25,7 +25,7 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
 |---|---|
 | Auth0, Clerk, Okta | First-class — pick the tab below. |
 | Other standards-compliant OIDC providers (OneLogin, Ping, Stytch, JumpCloud, …) | Use **Custom OIDC** — supply issuer, JWKS, audience, claim mappings. |
-| Keycloak, Microsoft Entra ID, Amazon Cognito, Firebase Auth, Supabase Auth | **Broker through Auth0, Clerk, or Okta.** Direct integration is rejected at validation time. |
+| Keycloak, Microsoft Entra ID, Amazon Cognito, Google, Firebase Auth, Supabase Auth | **Broker through Auth0, Clerk, or Okta.** Direct integration is rejected at validation time. |
 
 ## Setup by provider
 
@@ -36,7 +36,13 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
     In the **Auth0 Dashboard**:
 
     1. Pick the API or application whose JWTs Alter should accept.
-    2. Note the **Issuer URL** (`https://<tenant>.us.auth0.com/` or the custom-domain URL) and **Audience**.
+    2. Note the **Issuer URL** and **Audience**. Auth0 issuers vary by tenant region:
+       - `https://<tenant>.us.auth0.com/` (US — default for new tenants)
+       - `https://<tenant>.eu.auth0.com/` (EU)
+       - `https://<tenant>.au.auth0.com/` (AU)
+       - `https://<tenant>.jp.auth0.com/` (JP)
+       - `https://<tenant>.auth0.com/` (legacy / no region prefix)
+       - The tenant's custom-domain URL when a custom domain is configured.
 
     In the **Alter portal** → app's **Identity** page:
 
@@ -57,7 +63,7 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
 
     In Alter: **Webhooks → Enable** → copy the signing secret and endpoint URL (shown once).
 
-    In Auth0: **Monitoring → Streams → Create Stream → Custom Webhook**. **Payload URL** = the Alter endpoint. **Authorization Token** = the signing secret. Filter events to `sdu` (user deleted), `ublkdu` (user blocked), `ubuu` (user unblocked).
+    In Auth0: **Monitoring → Streams → Create Stream → Custom Webhook**. **Payload URL** = the Alter endpoint. **Authorization Token** = the signing secret (no `Bearer ` prefix — Auth0 adds it). Set **Content Type** to `application/json` and **Content Format** to `JSON Object`. Filter by **Event** and subscribe **only** to these codes: `sdu` (Success User Deletion → deprovision) and `ublkdu` (anomaly-detection login block released → reactivates a previously-suspended user). **Do not subscribe to `sul`** — it fires on every successful login and would flood the receiver. Auth0 publishes no log code for "admin manually blocked user", so suspension is not auto-synced from Auth0 today; lifecycle deprovisioning is reliable for explicit user deletes.
 
     ### Common pitfalls
 
@@ -70,17 +76,17 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
 
     In the **Clerk Dashboard**: note the instance URL (`https://<app>.clerk.accounts.dev` for dev, `https://clerk.<custom-domain>` for production). That's the issuer.
 
-    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer → **Discover**. Clerk is recognized; claim mappings pre-fill (`sub` = Clerk user ID). For Clerk organizations with group-based authorization, set the group claim to `org_memberships` (or whatever the JWT template uses) **before** the first sign-in. **Add Provider**.
+    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer → **Discover**. Clerk is recognized; the user-ID claim pre-fills (`sub` = Clerk user ID). For group-based authorization, configure a Clerk **JWT template** (Clerk Dashboard → JWT Templates) that copies the active organization's role into a top-level claim — Clerk's default v2 session token nests the role at `o.rol`, which is not a top-level claim path. Enter that custom claim name in the Group Claim field **before** the first sign-in. **Add Provider**.
 
     ### 2. OIDC sign-in (optional)
 
-    Requires a **production** Clerk instance. In Clerk: **Configure → OAuth Applications → Create**. Add both Alter redirect URIs. Copy **Client ID** and **Client Secret**. Paste into the Alter portal.
+    Requires a **production** Clerk instance. In Clerk Dashboard: navigate to **OAuth applications** → **Add OAuth application**. Select scopes `openid`, `profile`, and `email`. Add both Alter redirect URIs. Copy the **Client Secret** from the modal immediately (Clerk does not store it and cannot show it again) and the **Client ID** from the application's settings page. Paste both into the Alter portal.
 
     ### 3. Webhook deprovisioning (optional)
 
     Clerk needs the webhook URL first. In Alter: note the **Webhook URL**; do not click Enable yet.
 
-    In Clerk: **Webhooks → Add Endpoint** → paste the Alter URL. Subscribe to `user.updated`, `user.deleted`, `organizationMembership.deleted`. Copy the **Signing Secret** (`whsec_...`).
+    In Clerk: **Webhooks → Add Endpoint** → paste the Alter URL. Subscribe to `user.updated`, `user.deleted`, `organizationMembership.deleted`, `organization.deleted`. Copy the **Signing Secret** (`whsec_...`).
 
     Back in Alter: toggle **Enable Webhooks** → paste the secret → **Save**.
 
@@ -93,7 +99,10 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
   <Tab title="Okta">
     ### 1. JWT verification
 
-    In the **Okta Admin Console** → **Security → API → Authorization Servers** → pick the server (default is `default`). Note the **Issuer URI** (`https://<org>.okta.com/oauth2/default`) and **Audience**.
+    In the **Okta Admin Console** → **Security → API → Authorization Servers** → pick the server (default is `default`). Note the **Issuer URI** and **Audience**. The host varies by tenant type:
+       - `https://<org>.okta.com/oauth2/default` — standard production tenants (incl. trial-* and integrator-*)
+       - `https://<org>.okta-emea.com/oauth2/default` — EMEA-region tenants
+       - `https://<org>.oktapreview.com/oauth2/default` — preview / dev tenants
 
     For group-based authorization: edit the authorization server → **Claims** → add a claim — name `groups`, include in **Access Token**, value type **Groups**, filter `Matches regex` `.*`.
 
@@ -105,9 +114,13 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
 
     ### 3. Webhook deprovisioning (optional)
 
-    In Alter: **Webhooks → Enable** → copy the signing secret and endpoint.
+    Okta owns secret generation: you set the Event Hook secret in the Okta Admin Console, then paste the same value into Alter. The order matters — clicking **Enable** in Alter opens a paste dialog expecting the value Okta gave you, not a generated secret.
 
-    In Okta: **Workflow → Event Hooks → Create Event Hook**. **URL** = the Alter endpoint. **Authentication field** = `Authorization`, **secret** = the signing secret. Subscribe to `user.lifecycle.delete.initiated`, `user.lifecycle.deactivate`, `user.lifecycle.suspend`. Verify and Activate.
+    In Alter: note the **Webhook URL** shown on the Identity Provider detail page; do not click Enable yet.
+
+    In Okta: **Workflow → Event Hooks → Create Event Hook**. **URL** = the Alter webhook URL. **Authentication field** = `Authorization`. Set the secret to a value you control and copy it — Okta does not retrieve it for you later. Subscribe to `user.lifecycle.delete.initiated`, `user.lifecycle.deactivate`, `user.lifecycle.suspend`, plus their recovery counterparts `user.lifecycle.unsuspend`, `user.lifecycle.reactivate`, and `user.lifecycle.activate` so suspended users come back to active state in Alter when their Okta status is restored. Verify and Activate the Event Hook — Okta sends a GET challenge to the Alter URL automatically.
+
+    Back in Alter: toggle **Enable Webhooks** → paste the same secret value → **Save**.
 
     ### Common pitfalls
 
@@ -117,7 +130,7 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
   </Tab>
 
   <Tab title="Custom OIDC">
-    For any OIDC-compliant provider not listed above (OneLogin, Ping, Stytch, JumpCloud, etc.). Providers in the **brokered-only** row of the support table — Keycloak, Microsoft Entra ID, Amazon Cognito, Firebase Auth, Supabase Auth — are **rejected at validation time** by Custom OIDC and must instead be brokered through Auth0, Clerk, or Okta using the broker's enterprise-connection feature.
+    For any OIDC-compliant provider not listed above (OneLogin, Ping, Stytch, JumpCloud, etc.). Providers in the **brokered-only** row of the support table — Keycloak, Microsoft Entra ID, Amazon Cognito, Google, Firebase Auth, Supabase Auth — are **rejected at validation time** by Custom OIDC and must instead be brokered through Auth0, Clerk, or Okta using the broker's enterprise-connection feature.
 
     ### 1. JWT verification
 
@@ -143,7 +156,7 @@ Claim mappings (user-ID claim, group claim, role claim) **lock** after the first
 
     ### Common pitfalls
 
-    - **Brokered-only providers fail at save time.** Issuer URLs from Keycloak, Entra, Cognito, Firebase, or Supabase are rejected. Use the broker pattern instead (Auth0 / Clerk / Okta with an enterprise connection).
+    - **Brokered-only providers fail at save time.** Issuer URLs from Keycloak, Entra, Cognito, Google (`accounts.google.com`), Firebase, or Supabase are rejected. Use the broker pattern instead (Auth0 / Clerk / Okta with an enterprise connection).
     - **Audience formatting** — some providers send a string, some an array. Alter handles both; the portal value must match an entry.
   </Tab>
 </Tabs>
