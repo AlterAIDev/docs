@@ -1,0 +1,125 @@
+---
+title: 'Events & callbacks'
+description: 'Per-open callbacks and the long-lived on / off event bus.'
+---
+
+The Connect SDK exposes two parallel APIs for reacting to lifecycle events:
+
+- **Per-open callbacks** passed to [`open()`](/reference/connect-sdk/open) — `onSuccess`, `onError`, `onExit`, `onEvent`. These fire once and are torn down when the flow ends.
+- **The event bus** — `alterConnect.on(event, handler)` / `alterConnect.off(event, handler)`. Listeners stay registered across multiple `open()` calls.
+
+The two work together — the SDK emits internal events to the bus first, then forwards them to the per-open callbacks. Application code can use either or both.
+
+## Per-open callbacks
+
+Passed inside the `OpenOptions` object to [`open()`](/reference/connect-sdk/open).
+
+### `onSuccess`
+
+```typescript
+onSuccess: (grants: Grant[]) => void
+```
+
+Fires once the user finishes the OAuth flow successfully. Receives an **array** of [`Grant`](/reference/connect-sdk/types#grant) objects — the Connect UI supports authorizing multiple providers in a single session. When the session is single-provider, the array has length 1.
+
+`onSuccess` is the only required callback on `open()`.
+
+```typescript
+await alterConnect.open({
+  token: sessionToken,
+  onSuccess: (grants) => {
+    for (const grant of grants) {
+      console.log(grant.provider, grant.grant_id);
+    }
+  },
+});
+```
+
+### `onError`
+
+```typescript
+onError?: (error: AlterError) => void
+```
+
+Fires on any failure during the flow — popup blocked, session expired, invalid token, OAuth denial at the provider, network failure. The [`AlterError`](/reference/connect-sdk/types#altererror) shape carries a stable `code`, a human-readable `message`, and provider-specific `details`. See the [Errors reference](/reference/errors) for the full code catalog.
+
+### `onExit`
+
+```typescript
+onExit?: () => void
+```
+
+Fires when the user closes the popup window without finishing. Does not fire on the mobile redirect flow — there is no popup to close. Does not fire when the SDK closes the popup itself (after success or error).
+
+### `onEvent`
+
+```typescript
+onEvent?: (eventName: string, metadata: object) => void
+```
+
+Hook for analytics integrations. **The SDK emits exactly one event today**:
+
+| Event name | Fires when | `metadata` |
+|---|---|---|
+| `connect_opened` | `open()` has launched the Connect UI (popup or redirect). | `{ timestamp: string }` — ISO 8601 timestamp. |
+
+<Note>
+Earlier drafts of this SDK documented `OPEN`, `PROVIDER_SELECTED`, `OAUTH_STARTED`, `OAUTH_COMPLETE`, and `EXIT` events. None of those are emitted. The other lifecycle transitions flow exclusively through `onSuccess`, `onError`, and `onExit`. Future event additions will appear in this table.
+</Note>
+
+## The event bus: `on` and `off`
+
+For listeners that need to outlive a single `open()` call — typically when a long-lived component subscribes once at mount and unsubscribes at unmount — use the bus methods.
+
+### Signatures
+
+```typescript
+alterConnect.on(event: string, handler: (...args: any[]) => void): () => void
+alterConnect.off(event: string, handler: (...args: any[]) => void): void
+```
+
+`on()` returns an **unsubscribe function**. Calling it is equivalent to calling `off(event, handler)`. The returned function is the recommended cleanup path — application code does not need to retain a reference to the handler itself.
+
+### Events on the bus
+
+| Event | Handler signature | Fires when |
+|---|---|---|
+| `success` | `(grants: Grant[]) => void` | OAuth flow succeeded. Same shape as `onSuccess`. |
+| `error` | `(error: AlterError) => void` | Any failure. Same shape as `onError`. |
+| `exit` | `() => void` | User closed the popup without finishing. Same trigger as `onExit`. |
+| `close` | `() => void` | The Connect UI was torn down — either by the user via `exit`, by `alterConnect.close()`, or internally after success / error. Always fires; useful for resetting UI state. |
+
+### Example — React component
+
+```tsx
+import { useEffect, useState } from "react";
+import AlterConnect, { type Grant } from "@alter-ai/connect";
+
+const alterConnect = AlterConnect.create();
+
+export function ConnectionStatus() {
+  const [latest, setLatest] = useState<Grant | null>(null);
+
+  useEffect(() => {
+    const unsubscribeSuccess = alterConnect.on("success", (grants: Grant[]) => {
+      setLatest(grants[0]);
+    });
+    const unsubscribeError = alterConnect.on("error", (err) => {
+      console.error("connect failed", err);
+    });
+
+    return () => {
+      unsubscribeSuccess();
+      unsubscribeError();
+    };
+  }, []);
+
+  return latest ? <p>Connected: {latest.provider_name}</p> : null;
+}
+```
+
+### When to prefer the bus over per-open callbacks
+
+- **Mobile redirect flow.** The `open()` call lives on one page; the result arrives on a different page after a full-page navigation. The receiving page mounts a fresh `AlterConnect` instance and listens with `on('success', ...)`.
+- **Cross-component state.** Multiple components react to a successful connection — register a single `on('success', ...)` and dispatch from there.
+- **Analytics middleware.** A long-lived `on('error', ...)` handler can forward every failure to an error tracker without each `open()` site having to remember.

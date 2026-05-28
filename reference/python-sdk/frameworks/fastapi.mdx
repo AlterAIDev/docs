@@ -1,0 +1,115 @@
+---
+title: 'FastAPI'
+description: 'AlterFastAPI dependency — automatic JWT capture for FastAPI apps.'
+---
+
+`AlterFastAPI` is a FastAPI dependency that captures the user's Bearer token on every request and feeds it to the SDK's identity resolution layer. The result is identity-mode `request()` without any per-route ContextVar boilerplate.
+
+Requires the `fastapi` extra:
+
+```bash
+pip install 'alter-sdk[fastapi]'
+```
+
+```python
+from fastapi import FastAPI, Depends
+from alter_sdk.fastapi import AlterFastAPI
+
+alter = AlterFastAPI(api_key="alter_key_app_…", caller="chat-api")
+app = FastAPI()
+
+@app.post("/chat")
+async def chat(vault = Depends(alter)):
+    resp = await vault.request("GET", "https://www.googleapis.com/oauth2/v2/userinfo", provider="google")
+    return resp.json()
+```
+
+## AlterFastAPI
+
+```python
+AlterFastAPI(
+    api_key: str,
+    *,
+    kind: str | None = None,
+    caller: str | None = None,
+    **kwargs: Any,
+)
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `api_key` | `str` | — | Alter API key. |
+| `kind` | `str \| None` | `None` | `"app"` (build an `App`), `"agent"` (build an `Agent`). When omitted, the key prefix decides — unknown prefixes fail closed. |
+| `caller` | `str \| None` | `None` | Caller identifier for audit attribution. |
+| `**kwargs` | | | Forwarded to the constructed `App` / `Agent`. `user_token_getter` is reserved by the class. |
+
+**Raises:** `AlterSDKError` for an unrecognized `kind` value, or a missing/unknown prefix when `kind` is not pinned.
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `vault` | `App \| Agent` | The constructed SDK client. |
+| `app` | `App` | The underlying `App`. Raises if constructed with an agent key. |
+| `agent` | `Agent` | The underlying `Agent`. Raises if constructed with an app key. |
+
+### Methods
+
+`AlterFastAPI` is itself callable — FastAPI invokes `__call__` on each request. It extracts the `Authorization: Bearer <token>` via `HTTPBearer` (FastAPI returns 401 if missing), stores the token in a task-scoped ContextVar, and returns the SDK client.
+
+- `set_user_token(token: str) -> None` — manually set the user token for the current request context. Use this in non-FastAPI paths (e.g. MCP auth callbacks) that need to inject identity.
+- `auth_provider(*, base_url: str = "", providers: dict[str, list[str]] | None = None)` — construct an `AlterAuthProvider` for FastMCP (see [MCP](/reference/python-sdk/frameworks/mcp)).
+
+## Operator app pattern
+
+```python
+from fastapi import FastAPI, Depends
+from alter_sdk.fastapi import AlterFastAPI
+
+alter = AlterFastAPI(
+    api_key=os.environ["ALTER_API_KEY"],
+    kind="app",
+    caller="webapp-api",
+)
+app = FastAPI()
+
+@app.get("/grants")
+async def list_grants(vault = Depends(alter)):
+    page = await vault.list_grants()
+    return [{"id": g.grant_id, "provider": g.provider_id} for g in page.grants]
+
+@app.post("/connect")
+async def start_connect(vault = Depends(alter)):
+    session = await vault.create_connect_session(allowed_providers=["github"])
+    return {"connect_url": session.connect_url}
+```
+
+## Agent workload pattern
+
+```python
+alter = AlterFastAPI(
+    api_key=os.environ["AGENT_API_KEY"],
+    kind="agent",
+    caller="research-agent",
+)
+
+@app.post("/agent/run")
+async def run(vault = Depends(alter)):
+    # vault is an Agent; user JWT is bridged automatically
+    resp = await vault.request("GET", "https://api.notion.com/v1/search", provider="notion")
+    return resp.json()
+```
+
+## MCP integration
+
+`auth_provider()` produces an `AlterAuthProvider` whose token-storage callback shares the same vault instance:
+
+```python
+from fastmcp import FastMCP
+
+auth = alter.auth_provider(
+    base_url="http://localhost:8000/mcp",
+    providers={"google": ["gmail.readonly"]},
+)
+mcp = FastMCP("Gmail", auth=auth)
+```

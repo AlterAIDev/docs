@@ -41,10 +41,10 @@ See [Give an AI agent scoped access](/guides/give-an-agent-scoped-access) for th
 
 ## Per-agent key lifecycle
 
-Each agent can hold multiple API keys. Keys are minted in the portal (or via `app.agents.mint_key()`), shown once, and stored only as a bcrypt hash on the backend. Keys can be:
+Each agent can hold multiple API keys. Keys are minted in the portal (or via `app.agents.mint_key()`), shown once, and stored only as a hashed fingerprint on the backend. Keys can be:
 
 - **Active** — usable; the default state on mint.
-- **Deprecated** — still authenticates, but every response carries `X-Alter-Key-Deprecated: true` so operators can find lingering callers before fully revoking.
+- **Deprecated** — still authenticates, but the SDK surfaces a deprecation warning every time the key is used so operators can find lingering callers before fully revoking.
 - **Revoked** — terminal; the key no longer authenticates.
 
 See [API keys](/admin/api-keys) for rotation procedure.

@@ -1,0 +1,67 @@
+---
+title: 'AWS bridge'
+description: 'Call AWS APIs through request(). SigV4 is computed automatically.'
+---
+
+The TypeScript SDK signs AWS requests using SigV4 automatically. There is no separate AWS client class — call AWS exactly like any other provider with [`request()`](/reference/typescript-sdk/request) and pass the URL of the AWS service endpoint. The SDK recognizes grants that resolve to AWS credentials and computes the multi-header signature transparently.
+
+```typescript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey: process.env.ALTER_API_KEY! });
+
+const response = await app.request(
+  HttpMethod.GET,
+  "https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15",
+  { grantId },
+);
+const xml = await response.text();
+```
+
+## How it works
+
+When the grant resolves to an AWS managed-secret credential, the backend returns the AWS access key ID, secret access key, region, and service slug on the token-fetch response. The SDK uses those to compute `Authorization`, `x-amz-date`, `x-amz-content-sha256`, and (when present) `x-amz-security-token` headers before issuing the request.
+
+The credential never crosses the network unencrypted: the secret access key is held in memory inside the SDK process for the duration of the call and is never exposed to application code.
+
+| Step | Where it happens |
+|---|---|
+| Resolve grant → AWS credential | Alter backend |
+| Compute SigV4 signature | SDK process |
+| Call AWS endpoint | SDK process |
+| Audit row write | Alter backend |
+
+## Region and service
+
+Both come from the credential's stored metadata — set them when the managed-secret grant is provisioned. The SDK uses those values verbatim when computing the signature.
+
+If the URL targets a different region than the credential is configured for, AWS rejects the call with `SignatureDoesNotMatch`. Provision a credential per region, or update the existing credential's region attribute.
+
+## Using AWS SDK clients
+
+The official AWS SDK clients (`@aws-sdk/client-s3`, `@aws-sdk/client-dynamodb`, etc.) accept a `credentials` provider. The recommended pattern is to fetch Alter-issued credentials once per workload, hand them to the AWS client, and refresh on demand:
+
+```typescript
+// Pseudo-pattern: surface Alter credentials to @aws-sdk/* clients.
+// Use proxyRequest() or a higher-level wrapper when the credential
+// should NEVER reach application code — request() does not expose
+// the AWS secret to the SDK consumer either, but the AWS client
+// patterns below assume direct access for region-specific calls.
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+
+// Call through the SDK: signature is computed for you.
+const response = await app.request(
+  HttpMethod.GET,
+  "https://my-bucket.s3.us-east-1.amazonaws.com/path/to/object",
+  { grantId },
+);
+```
+
+For everything outside the simple "call a URL" shape — multipart uploads, streaming downloads, paginators — use the official AWS SDK and resolve credentials through [`proxyRequest()`](/reference/typescript-sdk/proxy) so the backend brokers each call.
+
+## Throws
+
+Same exception set as [`request()`](/reference/typescript-sdk/request#throws). Two AWS-specific failure modes:
+
+- [`BackendError`](/reference/typescript-sdk/errors) `AWS SigV4 credential is missing secret_key in additional_credentials` — the credential row stores only the access key ID. Re-store the credential with both the access key ID and secret access key.
+- [`ProviderAPIError`](/reference/typescript-sdk/errors) with AWS `SignatureDoesNotMatch` — region or service slug on the credential does not match the URL.

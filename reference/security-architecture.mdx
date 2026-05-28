@@ -10,7 +10,7 @@ This page is the whitepaper-style reference for how Alter handles credentials en
 Three boundaries matter:
 
 1. **Application ↔ Alter SDK** — the application holds an API key (`alter_key_app_…` or `alter_key_agent_…`). The SDK signs every request with the key.
-2. **Alter SDK ↔ Alter backend** — every request is HMAC-signed with the key as the secret; the backend verifies before performing any action.
+2. **Alter SDK ↔ Alter backend** — every request is cryptographically signed; the backend verifies the signature before performing any action.
 3. **Alter backend ↔ third-party provider** — Alter holds the OAuth tokens and credentials. Application code never sees them; the SDK or backend injects them into outgoing provider requests as headers, depending on the [runtime mode](/concepts/runtime-modes) the call uses.
 
 A compromised application leaks the API key but **not** the credentials themselves — the key authenticates the right to *use* credentials within its scope, not to *read* them. Rotating the key invalidates the leak.
@@ -89,10 +89,10 @@ There is no "developer can suppress revocation" flag — the Wallet exists by vi
 
 ## Operational properties
 
-- **HMAC-signed requests.** Every SDK → backend call signs the body + timestamp with the API key as the secret. Replays past a clock-skew window are rejected.
+- **Signed requests.** Every SDK → backend call is cryptographically signed; replays are rejected.
 - **TLS everywhere.** Every backend interaction is TLS 1.2+.
 - **Edge protection.** Rate limiting and abuse prevention live at the network edge, not in the application path — application-level limits exist for billing only.
-- **Key plaintext shown once.** Every API key (app, agent, derived) is shown to the operator exactly once at mint time. Subsequent fetches return only the bcrypt hash's prefix for identification.
+- **Key plaintext shown once.** Every API key (app, agent, derived) is shown to the operator exactly once at mint time. Subsequent fetches return only a hashed fingerprint for identification.
 
 ## Compliance posture
 

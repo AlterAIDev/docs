@@ -1,0 +1,121 @@
+---
+title: 'Errors'
+description: 'Exception hierarchy exported from @alter-ai/alter-sdk.'
+---
+
+Every public exception thrown by the SDK extends `AlterSDKError`. The hierarchy mirrors the [Python SDK](/reference/python-sdk) one-for-one — same class names, same semantics, same fields.
+
+For the canonical error code → exception class mapping and recovery guidance, see [Errors](/reference/errors).
+
+```typescript
+import {
+  AlterSDKError,
+  GrantNotFoundError,
+  NoDelegatedGrantError,
+  ScopeReauthRequiredError,
+} from "@alter-ai/alter-sdk";
+
+try {
+  await app.request("GET", url, { provider: "google" });
+} catch (error) {
+  if (error instanceof NoDelegatedGrantError) {
+    const session = await app.createConnectSessionForError(error);
+    redirectUser(session.connectUrl);
+    return;
+  }
+  if (error instanceof ScopeReauthRequiredError) {
+    // The user re-authorized provider scopes are needed.
+    console.warn(`Missing scopes: ${error.missingScopes?.join(", ")}`);
+  }
+  throw error;
+}
+```
+
+## Class hierarchy
+
+### Base
+
+- `AlterSDKError` — root of the hierarchy. Every other exception extends this.
+- `AlterValueError` — input validation failed at the SDK boundary. Distinct from `BackendError` so callers can branch on "I passed something bad" vs "the backend said no."
+
+### Backend errors
+
+- `BackendError` — generic backend failure. `details.status_code` is populated when an HTTP status code is the proximate cause.
+- `ReAuthRequiredError` — the calling user JWT is invalid or expired.
+
+### Grant state
+
+- `GrantExpiredError`
+- `GrantRevokedError`
+- `GrantDeletedError`
+- `GrantNotFoundError`
+- `CredentialRevokedError`
+
+### Identity resolution
+
+- `AmbiguousGrantError` — multiple grants match the identity + provider tuple. Pass `account` or use direct `grantId` mode.
+- `NoDelegatedGrantError` — the calling agent has no delegation for the resolved user on this provider. Recoverable via [`createConnectSessionForError()`](/reference/typescript-sdk/connect#createconnectsessionforerror).
+
+### Authorization
+
+- `PolicyViolationError` — backend policy denial.
+- `InsufficientScopeError` — API key lacks the required scope.
+- `TokenRefreshInProgressError` — concurrent refresh in flight; retry shortly.
+
+### Provider
+
+- `ProviderAPIError` — provider returned a 4xx/5xx that is not a scope failure.
+- `ScopeReauthRequiredError` — provider returned 403 `insufficient_scope`, or the backend already knew the grant's scopes are drifted. Exposes `missingScopes` and `providerId`.
+
+### Connect flow
+
+- `ConnectFlowError`
+- `ConnectDeniedError` — user clicked Deny.
+- `ConnectConfigError` — provider configuration issue (invalid redirect URI, unknown client, etc.).
+- `ConnectTimeoutError`
+
+### Approvals
+
+- `ApprovalError` — base class.
+- `ApprovalDeniedError`
+- `ApprovalExpiredError`
+- `ApprovalTimeoutError` — local wait elapsed before any decision. Original transient (when present) is preserved on `.cause`.
+- `ApprovalExecutionFailedError`
+
+### Managed agents
+
+- `AgentError` — base class.
+- `InvalidKeyError`
+- `AgentNotFoundError`
+- `AgentNameExistsError`
+- `AgentInactiveError`
+- `AgentRevokedError`
+- `MeRequiresAgentKeyError` — `agent.me()` was called from an `App` instance.
+- `KeyRevokedError`
+- `KeyAlreadyRevokedError`
+- `KeyNotFoundError`
+- `LastActiveKeyError` — would revoke the agent's only remaining active key. Pass `force: true` to override.
+- `AgentCannotMintSubagentsError`
+- `AgentScopeNarrowingNotSupportedError`
+- `IdempotencyKeyBodyMismatchError`
+- `IdempotencyKeyAgentRevokedError`
+- `IdempotencyKeyAgentInactiveError`
+
+### Network
+
+- `NetworkError` — TCP / DNS / socket failure.
+- `TimeoutError` — extends `NetworkError`. Local or remote timeout.
+
+## Common fields
+
+Every `BackendError` (and subclasses) carries `details: Record<string, unknown>`. Common keys:
+
+| Key | Type | Description |
+|---|---|---|
+| `status_code` | `number` | HTTP status code from the backend or provider. |
+| `grant_id` | `string` | Grant the call resolved to (when applicable). |
+| `provider_id` | `string` | Provider slug (when applicable). |
+| `method`, `url` | `string` | HTTP method and pre-injection URL. |
+| `reason` | `string` | Backend-reported reason code. |
+
+For the typed exception fields and recovery flows for each code, see [Errors](/reference/errors).

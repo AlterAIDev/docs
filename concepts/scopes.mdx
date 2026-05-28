@@ -38,7 +38,7 @@ App-level keys carry a broad default set. Per-agent keys can be minted with narr
 
 ### Attenuation
 
-`with_constraints(scopes=[...])` returns a sibling SDK instance that signs every request with `X-Alter-Scope-Constraints: <scopes>`. The constraint is the **intersection** of the key's scopes and the supplied list — it can only narrow, never broaden. Useful for handing a derived SDK instance to a less-trusted component (a plugin, a tool call) without minting a new key.
+`with_constraints(scopes=[...])` returns a sibling SDK instance whose narrowed scopes are surfaced through the SDK on every request. The constraint is the **intersection** of the key's scopes and the supplied list — it can only narrow, never broaden. Useful for handing a derived SDK instance to a less-trusted component (a plugin, a tool call) without minting a new key.
 
 If the route requires a scope not in the intersection, the backend raises [`InsufficientScopeError`](/reference/errors) with the missing scope listed.
 

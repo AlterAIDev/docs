@@ -1,0 +1,224 @@
+---
+title: 'Grants'
+description: 'List, revoke, and create grants. Manage agent delegations.'
+---
+
+Grants are the records that bind a credential to a principal. The SDK exposes list / revoke / delegation-revoke on both clients, and managed-secret grant creation on `App`.
+
+```python
+page = await app.list_grants()
+await app.revoke_grant(grant_id, reason="rotation")
+result = await app.create_managed_secret_grant(
+    managed_secret_id="...",
+    principal={"type": "user", "user_token": jwt, "label": "Alice"},
+)
+
+# Delegation revoke
+await app.revoke_delegation(grant_id, agent_id)  # operator path
+await agent.revoke_delegation(grant_id)          # agent self-revoke
+```
+
+## list_grants
+
+Paginated list of grants visible to the calling principal. The unified endpoint returns a discriminated-union result — each item is either an [`OAuthGrantItem`](/reference/python-sdk/types#oauthgrantitem) (`grant_kind="oauth"`) or a [`ManagedSecretGrantItem`](/reference/python-sdk/types#managedsecretgrantitem) (`grant_kind="managed_secret"`).
+
+### App.list_grants
+
+```python
+async def list_grants(
+    *,
+    provider_id: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> UnifiedGrantListResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
+| `limit` | `int` | `100` | Page size, 1-1000. |
+| `offset` | `int` | `0` | Page offset. |
+
+When the `App` is constructed with a `user_token_getter`, the JWT is forwarded so the backend scopes the list to the resolving AppUser. Without a getter, the response is app-wide.
+
+```python
+from alter_sdk import App, Provider
+
+app = App(api_key="alter_key_app_…")
+
+page = await app.list_grants(provider_id=Provider.GOOGLE, limit=50)
+for item in page.grants:
+    if item.grant_kind == "oauth":
+        print(item.grant_id, item.account_identifier, item.delegated_agent_ids)
+```
+
+### Agent.list_grants
+
+```python
+async def list_grants(
+    *,
+    limit: int = 100,
+    offset: int = 0,
+) -> UnifiedGrantListResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `limit` | `int` | `100` | Page size, 1-1000. |
+| `offset` | `int` | `0` | Page offset. |
+
+Returns a merged view: delegated OAuth grants the agent can act on AND agent-owned managed-secret grants. The agent surface does not accept `provider_id` or per-user filters — the response is the complete view of grants visible to the calling agent.
+
+```python
+page = await agent.list_grants()
+for item in page.grants:
+    if item.grant_kind == "oauth":
+        print("OAuth grant:", item.provider_id, item.account_identifier)
+    else:
+        print("Managed secret:", item.managed_secret_slug, item.label)
+```
+
+**Raises (both):** `AlterValueError` on bad pagination input, `BackendError` on backend / wire-shape failure, `ReAuthRequiredError` on JWT validation failures.
+
+## revoke_grant
+
+`App` only. Permanently revokes the specified grant. Tokens are deleted from the vault and the grant status flips to `"revoked"` — the user must re-authorize to restore access.
+
+```python
+async def revoke_grant(
+    grant_id: str,
+    *,
+    reason: str | None = None,
+) -> RevokeGrantResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `grant_id` | `str` | — | Grant to revoke. Positional. |
+| `reason` | `str \| None` | `None` | Optional reason recorded in the audit log. |
+
+**Returns:** [`RevokeGrantResult`](/reference/python-sdk/types#revokegrantresult).
+
+**Raises:** `AlterSDKError` (closed), `GrantNotFoundError`, `NetworkError`, `TimeoutError`, `BackendError`.
+
+```python
+result = await app.revoke_grant(grant_id, reason="key_rotation")
+print(result.success, result.revoked_at)
+```
+
+<Note>
+When `user_token_getter` is configured, the caller's JWT is auto-included as `user_token`, and the backend scopes the revoke to that user's grants only — preventing cross-user revocation. When no getter is configured, the call runs as the operator and may target any grant the app principal owns.
+</Note>
+
+## revoke_delegation
+
+Revoke an agent's delegation on an OAuth grant. The OAuth grant itself stays active; only the named agent's access path is removed.
+
+### App.revoke_delegation
+
+Operator path — both `grant_id` and `agent_id` are required.
+
+```python
+async def revoke_delegation(grant_id: str, agent_id: str) -> None
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `grant_id` | `str` | — | OAuth grant whose delegation should be revoked. |
+| `agent_id` | `str` | — | Agent UUID whose delegation should be revoked. |
+
+**Raises:** `AlterValueError` (empty inputs), `BackendError` (`use_self_revoke_path` if the caller is an agent).
+
+```python
+await app.revoke_delegation(grant_id="…", agent_id="…")
+```
+
+### Agent.revoke_delegation
+
+Self-revoke — the agent revokes its own delegation. Idempotent.
+
+```python
+async def revoke_delegation(grant_id: str) -> None
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `grant_id` | `str` | — | OAuth grant whose delegation should be revoked. |
+
+**Raises:** `BackendError` (`agent_key_required`), `NetworkError`, `TimeoutError`.
+
+```python
+await agent.revoke_delegation(grant_id="…")
+```
+
+## create_managed_secret_grant
+
+`App` only. Create a managed-secret grant bound to a user / group / system / agent principal. The discriminator on `principal` decides the binding shape.
+
+```python
+async def create_managed_secret_grant(
+    managed_secret_id: str,
+    *,
+    principal: Principal,
+    grant_policy: dict[str, Any] | None = None,
+) -> CreateGrantResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `managed_secret_id` | `str` | — | Managed-secret template id. Positional. |
+| `principal` | `Principal` | — | Discriminated principal model (see below). |
+| `grant_policy` | `dict \| None` | `None` | Optional grant policy (e.g. `{"expires_at": "2026-12-31T00:00:00Z"}`). Validated against the input keyset. |
+
+**Returns:** [`CreateGrantResult`](/reference/python-sdk/types#creategrantresult).
+
+`Principal` is a discriminated union over four shapes:
+
+| Type | Discriminator (`type`) | Required fields |
+|---|---|---|
+| [`UserPrincipal`](/reference/python-sdk/types#userprincipal) | `"user"` | `user_token`, `label` |
+| [`GroupPrincipal`](/reference/python-sdk/types#groupprincipal) | `"group"` | `external_group_id`, `idp_id`, `label` |
+| [`SystemPrincipal`](/reference/python-sdk/types#systemprincipal) | `"system"` | (label optional) |
+| [`AgentPrincipal`](/reference/python-sdk/types#agentprincipal) | `"agent"` | not accepted by this SDK call — minted via the dev-portal admin route family. The type is part of the wider `Principal` union (used by other code paths), but the backend's SDK-route schema narrows it out: passing `principal=AgentPrincipal(...)` here is rejected at parse time with HTTP 422. |
+
+```python
+from alter_sdk import App
+from alter_sdk.models import UserPrincipal, GroupPrincipal, SystemPrincipal
+
+app = App(api_key="alter_key_app_…")
+
+# User-bound
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_stripe_prod",
+    principal=UserPrincipal(user_token=user_jwt, label="Acme Stripe"),
+)
+
+# Group-bound (Okta / Clerk / Auth0 group)
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_datadog",
+    principal=GroupPrincipal(
+        idp_id="11111111-2222-3333-4444-555555555555",
+        external_group_id="oncall-team",
+        label="On-call rotation",
+    ),
+)
+
+# System (server-to-server)
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_internal_notion",
+    principal=SystemPrincipal(label="weekly_report_cron"),
+)
+
+# Agent-bound principals are not accepted by this SDK call. Mint
+# agent-bound managed-secret grants from the dev-portal admin route
+# family instead.
+```
+
+The dict shorthand also works:
+
+```python
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_openai",
+    principal={"type": "user", "user_token": user_jwt, "label": "Alice"},
+)
+```

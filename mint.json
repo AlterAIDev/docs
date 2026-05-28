@@ -93,9 +93,67 @@
     {
       "group": "Reference",
       "pages": [
-        "reference/python-sdk",
-        "reference/typescript-sdk",
-        "reference/connect-sdk",
+        {
+          "group": "Python SDK",
+          "pages": [
+            "reference/python-sdk/index",
+            "reference/python-sdk/client",
+            "reference/python-sdk/request",
+            "reference/python-sdk/proxy",
+            "reference/python-sdk/aws",
+            "reference/python-sdk/connect",
+            "reference/python-sdk/grants",
+            "reference/python-sdk/agents",
+            "reference/python-sdk/keys",
+            "reference/python-sdk/approvals",
+            "reference/python-sdk/scopes",
+            "reference/python-sdk/types",
+            "reference/python-sdk/errors",
+            {
+              "group": "Frameworks",
+              "pages": [
+                "reference/python-sdk/frameworks/fastapi",
+                "reference/python-sdk/frameworks/langchain",
+                "reference/python-sdk/frameworks/mcp"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "TypeScript SDK",
+          "pages": [
+            "reference/typescript-sdk/index",
+            "reference/typescript-sdk/client",
+            "reference/typescript-sdk/request",
+            "reference/typescript-sdk/proxy",
+            "reference/typescript-sdk/aws",
+            "reference/typescript-sdk/connect",
+            "reference/typescript-sdk/grants",
+            "reference/typescript-sdk/agents",
+            "reference/typescript-sdk/keys",
+            "reference/typescript-sdk/approvals",
+            "reference/typescript-sdk/scopes",
+            "reference/typescript-sdk/types",
+            "reference/typescript-sdk/errors",
+            {
+              "group": "Frameworks",
+              "pages": [
+                "reference/typescript-sdk/frameworks/express",
+                "reference/typescript-sdk/frameworks/nextjs"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "Connect SDK",
+          "pages": [
+            "reference/connect-sdk/index",
+            "reference/connect-sdk/create",
+            "reference/connect-sdk/open",
+            "reference/connect-sdk/events",
+            "reference/connect-sdk/types"
+          ]
+        },
         {
           "group": "CLI",
           "pages": [
@@ -214,28 +272,30 @@
 
     { "source": "/sdks/overview", "destination": "/reference/python-sdk" },
     { "source": "/sdks/python/quickstart", "destination": "/quickstart" },
-    { "source": "/sdks/python/fastapi", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/mcp", "destination": "/guides/integrate-with-claude-code-mcp" },
-    { "source": "/sdks/python/langchain", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/fastapi", "destination": "/reference/python-sdk/frameworks/fastapi" },
+    { "source": "/sdks/python/mcp", "destination": "/reference/python-sdk/frameworks/mcp" },
+    { "source": "/sdks/python/langchain", "destination": "/reference/python-sdk/frameworks/langchain" },
     { "source": "/sdks/python/overview", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/reference/client", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/reference/request", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/reference/grants", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/reference/connect", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/reference/agents", "destination": "/reference/python-sdk" },
-    { "source": "/sdks/python/reference/approvals", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/client", "destination": "/reference/python-sdk/client" },
+    { "source": "/sdks/python/reference/request", "destination": "/reference/python-sdk/request" },
+    { "source": "/sdks/python/reference/grants", "destination": "/reference/python-sdk/grants" },
+    { "source": "/sdks/python/reference/connect", "destination": "/reference/python-sdk/connect" },
+    { "source": "/sdks/python/reference/agents", "destination": "/reference/python-sdk/agents" },
+    { "source": "/sdks/python/reference/approvals", "destination": "/reference/python-sdk/approvals" },
     { "source": "/sdks/python/reference/errors", "destination": "/reference/errors" },
-    { "source": "/sdks/python/reference/types", "destination": "/reference/python-sdk" },
+    { "source": "/sdks/python/reference/types", "destination": "/reference/python-sdk/types" },
     { "source": "/sdks/typescript/quickstart", "destination": "/quickstart" },
     { "source": "/sdks/typescript/overview", "destination": "/reference/typescript-sdk" },
-    { "source": "/sdks/typescript/reference/client", "destination": "/reference/typescript-sdk" },
-    { "source": "/sdks/typescript/reference/request", "destination": "/reference/typescript-sdk" },
-    { "source": "/sdks/typescript/reference/grants", "destination": "/reference/typescript-sdk" },
-    { "source": "/sdks/typescript/reference/connect", "destination": "/reference/typescript-sdk" },
-    { "source": "/sdks/typescript/reference/agents", "destination": "/reference/typescript-sdk" },
-    { "source": "/sdks/typescript/reference/approvals", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/express", "destination": "/reference/typescript-sdk/frameworks/express" },
+    { "source": "/sdks/typescript/nextjs", "destination": "/reference/typescript-sdk/frameworks/nextjs" },
+    { "source": "/sdks/typescript/reference/client", "destination": "/reference/typescript-sdk/client" },
+    { "source": "/sdks/typescript/reference/request", "destination": "/reference/typescript-sdk/request" },
+    { "source": "/sdks/typescript/reference/grants", "destination": "/reference/typescript-sdk/grants" },
+    { "source": "/sdks/typescript/reference/connect", "destination": "/reference/typescript-sdk/connect" },
+    { "source": "/sdks/typescript/reference/agents", "destination": "/reference/typescript-sdk/agents" },
+    { "source": "/sdks/typescript/reference/approvals", "destination": "/reference/typescript-sdk/approvals" },
     { "source": "/sdks/typescript/reference/errors", "destination": "/reference/errors" },
-    { "source": "/sdks/typescript/reference/types", "destination": "/reference/typescript-sdk" },
+    { "source": "/sdks/typescript/reference/types", "destination": "/reference/typescript-sdk/types" },
     { "source": "/sdks/connect-js/quickstart", "destination": "/reference/connect-sdk" },
     { "source": "/sdks/connect-js/reference", "destination": "/reference/connect-sdk" },
     { "source": "/sdks/javascript/quickstart", "destination": "/reference/connect-sdk" },

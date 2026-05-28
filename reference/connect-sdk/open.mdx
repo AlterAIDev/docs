@@ -1,0 +1,117 @@
+---
+title: 'alterConnect.open()'
+description: 'Launch the Connect UI in a popup or mobile redirect.'
+---
+
+`open()` is the single method that drives the Connect flow. It takes a session token minted on the application backend, opens the Alter-hosted UI, and routes the result back through callbacks.
+
+```typescript
+await alterConnect.open({
+  token: sessionToken,
+  onSuccess: (grants) => console.log("connected", grants),
+  onError: (error) => console.error(error),
+  onExit: () => console.log("user cancelled"),
+  onEvent: (eventName, metadata) => console.log(eventName, metadata),
+});
+```
+
+## Signature
+
+```typescript
+alterConnect.open(options: OpenOptions): Promise<void>
+```
+
+The returned promise resolves once the Connect UI has been launched — **not** when the user finishes the flow. Connection results arrive on the `onSuccess` callback. See [`OpenOptions`](/reference/connect-sdk/types#openoptions) for the full type.
+
+## Parameters
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `options.token` | `string` | yes | Session token minted by the application backend with `app.createConnectSession()`. Short-lived (10-minute default). |
+| `options.onSuccess` | `(grants: Grant[]) => void` | yes | Fired once the user finishes the OAuth flow. Receives an array of [`Grant`](/reference/connect-sdk/types#grant) objects — one per provider authorized in this session. |
+| `options.onError` | `(error: AlterError) => void` | no | Fired on any failure (popup blocked, session expired, OAuth denial, provider error). |
+| `options.onExit` | `() => void` | no | Fired when the user closes the popup without finishing. |
+| `options.onEvent` | `(eventName: string, metadata: object) => void` | no | Fired for analytics. See [Events & callbacks](/reference/connect-sdk/events) for the exact event the SDK emits today. |
+
+`onSuccess` is the only required callback. Surfacing `onError` is strongly recommended — popup-blocked and session-expired are common in production.
+
+## Errors thrown synchronously
+
+`open()` throws synchronously (before the promise resolves) if:
+
+| Condition | Error code |
+|---|---|
+| The SDK instance was already `destroy()`-ed. | `sdk_destroyed` |
+| `token` is missing or not a string. | `invalid_options` |
+| `onSuccess` is missing or not a function. | `invalid_options` |
+
+All other failures are routed through `onError`.
+
+## Desktop popup flow
+
+On desktop, `open()` launches a centered 500×700 px popup that loads the Alter Connect UI. The popup communicates back via `postMessage`; the SDK validates the origin against the configured Alter host before accepting any message.
+
+If the browser blocks the popup, `onError` fires with `code: "popup_blocked"`. The most common cause is an `await` between the click handler and `open()` — most browsers only honor `window.open` on the same tick as a user gesture.
+
+```typescript
+// May be blocked — the await between click and open() defers the call.
+button.addEventListener("click", async () => {
+  const token = await fetchToken();
+  alterConnect.open({ token, onSuccess });
+});
+
+// Reliable — fetch resolves and open() runs inside the original gesture.
+button.addEventListener("click", () => {
+  fetchToken().then((token) => alterConnect.open({ token, onSuccess }));
+});
+```
+
+## Mobile redirect flow
+
+<Note>
+On phones (viewport ≤480 px) and tablets in portrait, the SDK auto-switches from popup to a full-page redirect — popups are blocked or rendered poorly on most mobile browsers. The application code does not change; the same `open()` call works on both.
+</Note>
+
+When the SDK detects a mobile device it:
+
+1. Saves the current page URL and a timestamp into `sessionStorage` under the key `alter_oauth_state`.
+2. Navigates the entire page to the Connect UI URL.
+3. After the user finishes at the provider, the backend redirects to the session's `return_url` with the grant data on the query string.
+4. On that page load, `AlterConnect.create()` automatically detects the saved state, validates that less than **5 minutes** have elapsed, parses the grant from the URL, and fires `onSuccess`.
+
+**Three implications for the application:**
+
+- **`return_url` is required when mobile users are in scope.** Set it when minting the session:
+
+  ```typescript
+  // Application backend (Node)
+  const session = await app.createConnectSession({
+    allowedProviders: ["google", "slack"],
+    returnUrl: "https://app.example.com/connected",
+  });
+  ```
+
+- **`AlterConnect.create()` must run on the return page.** The grant arrives on the URL; whatever page handles `return_url` needs to instantiate the SDK so the auto-detection runs. Registering `onSuccess` directly on that instance (rather than relying on the in-flight `open()` call from the previous page) is the simplest path — use the [`on('success', ...)` event-bus method](/reference/connect-sdk/events#on-and-off).
+
+- **Sessions older than 5 minutes are dropped silently.** If the user closes the tab and returns later, the saved state is treated as stale and removed without firing a callback. The application should re-prompt the user to start a new connection.
+
+## Multiple providers in one session
+
+`onSuccess` receives an **array** of grants because a single session can authorize multiple providers in sequence (the Connect UI shows a "connect another" path after each provider finishes). When the session targets a single provider the array has length 1.
+
+```typescript
+await alterConnect.open({
+  token: sessionToken,
+  onSuccess: (grants) => {
+    for (const grant of grants) {
+      console.log(grant.provider, grant.grant_id);
+    }
+  },
+});
+```
+
+See the [`Grant` type reference](/reference/connect-sdk/types#grant) for every field on each object.
+
+## Backend session creation
+
+The session token passed to `open()` is minted on the application backend, never in the browser. See [Embed the Connect widget](/guides/embed-the-connect-widget) for the full backend half and the `allowed_origin` / `return_url` semantics.

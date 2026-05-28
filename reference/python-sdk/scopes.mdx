@@ -1,0 +1,39 @@
+---
+title: 'Scopes'
+description: 'Discover the server scope catalog at the current version.'
+---
+
+The `scopes` namespace exposes the backend's scope-catalog discovery endpoint. The catalog is static metadata for a given backend version — use it to introspect what scopes exist before calling `keys.derive()`, or to render a scope picker in a custom dashboard.
+
+Both `App` and `Agent` expose `scopes`.
+
+```python
+catalog = await app.scopes.list()
+```
+
+## list
+
+Fetch the server's active scope catalog.
+
+```python
+async def list() -> ScopeCatalog
+```
+
+**Returns:** [`ScopeCatalog`](/reference/python-sdk/types#scopecatalog) — `scope_version`, per-resource verb lists, action verb list, deprecated scopes.
+
+**Raises:** `BackendError` on backend reachability or response-shape failure.
+
+```python
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+catalog = await app.scopes.list()
+print("scope_version:", catalog.scope_version)
+for resource, info in catalog.resources.items():
+    print(f"  {resource}: {info.verbs}")
+print("action verbs:", catalog.action_verbs)
+print("deprecated:", catalog.deprecated)
+```
+
+The catalog is not cached by the SDK — callers are expected to call `list()` on demand. No scope is required to read the catalog.

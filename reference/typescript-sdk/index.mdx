@@ -1,0 +1,108 @@
+---
+title: 'TypeScript SDK'
+description: 'Server-side client for OAuth and managed-secret credentials. Tokens never leave the SDK.'
+---
+
+The TypeScript SDK ships as the [`@alter-ai/alter-sdk` package on npm](https://www.npmjs.com/package/@alter-ai/alter-sdk). Node 18+.
+
+This is the **server-side** SDK (Node, Bun, Deno, edge runtimes with `fetch`). It is not for browser code — for the browser-side OAuth widget that opens the consent popup, see the [Connect SDK](/reference/connect-sdk).
+
+```bash
+npm install @alter-ai/alter-sdk
+```
+
+```typescript
+import { App, Agent, HttpMethod } from "@alter-ai/alter-sdk";
+```
+
+## Two clients
+
+The SDK exposes two top-level clients. They share the request surface but differ in principal and identity scoping.
+
+<CardGroup cols={2}>
+  <Card title="App" icon="building" href="/reference/typescript-sdk/client#app">
+    Construct with an `alter_key_app_…` key. Acts as the application — provisions agents, mints Connect sessions, manages grants, and proxies provider calls under stored grants.
+  </Card>
+  <Card title="Agent" icon="robot" href="/reference/typescript-sdk/client#agent">
+    Construct with an `alter_key_agent_…` key. Workload-scoped: can only reach credentials delegated or directly bound to the agent. The right entry point for AI agents and tool-calling workloads.
+  </Card>
+</CardGroup>
+
+Both classes are async. Always close them (`await app.close()`) or use `await using` for automatic disposal (TypeScript 5.2+, Node 18+).
+
+```typescript
+await using app = new App({ apiKey: process.env.ALTER_API_KEY! });
+const page = await app.listGrants();
+```
+
+## Reference
+
+<CardGroup cols={2}>
+  <Card title="Client" icon="code" href="/reference/typescript-sdk/client">
+    `App` and `Agent` constructors, lifecycle, `withConstraints`, `getAgent`.
+  </Card>
+  <Card title="request()" icon="paper-plane" href="/reference/typescript-sdk/request">
+    Token-injected provider calls. Identity mode and direct grant mode.
+  </Card>
+  <Card title="proxyRequest()" icon="shuffle" href="/reference/typescript-sdk/proxy">
+    Backend-mediated provider calls. Use when HITL approval or server-side execution is required.
+  </Card>
+  <Card title="AWS bridge" icon="aws" href="/reference/typescript-sdk/aws">
+    Use `request()` against AWS APIs. SigV4 is computed automatically.
+  </Card>
+  <Card title="connect()" icon="link" href="/reference/typescript-sdk/connect">
+    Headless OAuth flow, Connect sessions, polling, recovery sessions.
+  </Card>
+  <Card title="Grants" icon="key" href="/reference/typescript-sdk/grants">
+    `listGrants`, `revokeGrant`, `createManagedSecretGrant`.
+  </Card>
+  <Card title="Agents namespace" icon="users" href="/reference/typescript-sdk/agents">
+    `app.agents.create / list / get / update / delete`, agent-runtime tracing.
+  </Card>
+  <Card title="Keys namespace" icon="lock" href="/reference/typescript-sdk/keys">
+    `keys.derive / rotate / revoke` — scoped sub-key lifecycle.
+  </Card>
+  <Card title="Approvals" icon="check" href="/reference/typescript-sdk/approvals">
+    `awaitApproval`, `getApprovalStatus`, `PendingApproval`, `ApprovalResult`.
+  </Card>
+  <Card title="Scopes" icon="list" href="/reference/typescript-sdk/scopes">
+    Scope catalog discovery.
+  </Card>
+  <Card title="Types" icon="cube" href="/reference/typescript-sdk/types">
+    Models returned across the SDK surface.
+  </Card>
+  <Card title="Errors" icon="triangle-exclamation" href="/reference/typescript-sdk/errors">
+    Typed exception hierarchy.
+  </Card>
+  <Card title="Express" icon="bolt" href="/reference/typescript-sdk/frameworks/express">
+    `AsyncLocalStorage` + `userTokenGetter` pattern for per-request identity.
+  </Card>
+  <Card title="Next.js" icon="n" href="/reference/typescript-sdk/frameworks/nextjs">
+    Server Actions and Route Handlers with the App Router.
+  </Card>
+</CardGroup>
+
+## Configuration
+
+The constructor accepts an `apiKey` argument; application code is responsible for sourcing it. The convention is to read it from the process environment:
+
+| Variable | Used by | Description |
+|---|---|---|
+| `ALTER_API_KEY` | application code (typical app workload) | Conventional name when the application owns one app-level key. |
+| `AGENT_API_KEY` | application code (agent workload) | Conventional name when the workload runs as a managed agent. |
+
+For agent workloads, the convention is to read `AGENT_API_KEY` in application code:
+
+```typescript
+import { Agent } from "@alter-ai/alter-sdk";
+
+const agent = new Agent({ apiKey: process.env.AGENT_API_KEY! });
+```
+
+## Conventions
+
+- Every method is `async` and returns a `Promise`. Use `await`.
+- Models are frozen objects. Field names are `camelCase` (the wire format is `snake_case`; the SDK maps automatically).
+- Methods that retrieve tokens never return the token plaintext. The SDK injects it into the outbound request.
+- Public exceptions extend `AlterSDKError`. See [Errors](/reference/typescript-sdk/errors).
+- Time-budget parameters are in **milliseconds** (matches `setTimeout`, `Date.now()`). User-selectable durations passed to the Connect UI are in **seconds**.

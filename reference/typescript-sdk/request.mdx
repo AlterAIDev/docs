@@ -1,0 +1,154 @@
+---
+title: 'request()'
+description: 'Token-injected provider calls. Identity mode and direct grant mode.'
+---
+
+```typescript
+async request(
+  method: HttpMethod | string,
+  url: string,
+  options?: RequestOptions,
+): Promise<AlterResponse>
+```
+
+Retrieve a credential from the backend, inject it into the outgoing HTTP request, and call the provider. The token is never returned to application code.
+
+Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent).
+
+```typescript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const app = new App({
+  apiKey: process.env.ALTER_API_KEY!,
+  userTokenGetter: () => getCurrentUserJwt(),
+});
+
+const response = await app.request(
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  {
+    provider: "google",
+    queryParams: { maxResults: "10" },
+    reason: "Render upcoming events",
+  },
+);
+const events = await response.json();
+```
+
+## Resolution modes
+
+The SDK supports two ways to pick which credential to inject. Exactly one must be specified.
+
+### Identity mode — `provider`
+
+Resolve the credential by identity + provider. The backend looks up the active grant for the calling user (resolved from the JWT) or the calling agent (resolved from its delegation rows) on the named provider.
+
+```typescript
+await app.request("GET", url, {
+  provider: "google",
+  userToken: callingUserJwt,
+});
+```
+
+For `App`, identity comes from `userTokenGetter` on the constructor or the per-call `userToken` option. For `Agent`, identity comes from the agent's API key — `userToken` disambiguates between multiple delegations on the same provider.
+
+### Direct mode — `grantId`
+
+Use an explicit grant ID. Bypasses identity resolution.
+
+```typescript
+await app.request("GET", url, { grantId: "grnt_…" });
+```
+
+Use direct mode when an upstream layer has already resolved which grant to use, when the grant has no associated user (system grants, agent-owned managed secrets), or when the caller wants to scope an audit row to a specific grant.
+
+## Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `method` | [`HttpMethod`](/reference/typescript-sdk/types#httpmethod) `\| string` | HTTP method. Case-insensitive. |
+| `url` | `string` | Provider URL. Must start with `https://` or `http://`. Path templates use `{name}` placeholders resolved via `pathParams`. |
+| `options` | `RequestOptions` | See below. |
+
+### `RequestOptions`
+
+| Option | Type | Description |
+|---|---|---|
+| `grantId` | `string` | Explicit grant ID for direct resolution. Mutually exclusive with `provider`. |
+| `provider` | `string` | Provider slug for identity resolution. Mutually exclusive with `grantId`. |
+| `account` | `string` | Account disambiguator. Only valid alongside `provider`. |
+| `userToken` | `string` | Per-call user JWT. Overrides `userTokenGetter` for this call. |
+| `appUserId` | `string` | Per-call AppUser UUID. Equivalent in authority to `userToken` but skips JWT validation when the caller has already resolved the user upstream. |
+| `caller` | `string` | Per-call caller override for audit attribution. |
+| `json` | `Record<string, unknown>` | JSON request body. The SDK serializes and sets `Content-Type: application/json`. Mutually exclusive with `body`. |
+| `body` | `Uint8Array \| ArrayBuffer \| string` | Raw request body. The caller is responsible for `Content-Type` on binary payloads. Mutually exclusive with `json`. |
+| `extraHeaders` | `Record<string, string>` | Additional request headers. The credential-injection header is overwritten if present (the SDK logs a warning). |
+| `queryParams` | `Record<string, string \| number \| boolean>` | Query-string parameters. Values are coerced to strings. |
+| `pathParams` | `Record<string, string>` | Substitutions for `{name}` placeholders in `url`. Each value is URL-encoded. |
+| `reason` | `string` | Free-form reason for the call. Stored on the audit row. |
+| `context` | `Record<string, string>` | Application metadata attached to the audit row (e.g. `runId`, `toolName`). |
+
+## Returns
+
+`AlterResponse` — a standard `Response` with one extra property:
+
+- `retryInfo` (`RetryInfo \| null`) — populated when the backend had to retry the token refresh. `null` when the token was served from cache or refreshed on the first attempt.
+
+The body is consumed exactly once. Use `await response.json()`, `await response.text()`, or `response.body` as you would with `fetch`.
+
+## Throws
+
+- [`AlterSDKError`](/reference/typescript-sdk/errors) — both `grantId` and `provider` set, neither set, both `json` and `body` set, invalid URL scheme, malformed `pathParams`, or the SDK has been closed.
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `userToken` or `appUserId` is an empty string.
+- [`GrantNotFoundError`](/reference/typescript-sdk/errors), [`GrantExpiredError`](/reference/typescript-sdk/errors), [`GrantRevokedError`](/reference/typescript-sdk/errors), [`GrantDeletedError`](/reference/typescript-sdk/errors), [`CredentialRevokedError`](/reference/typescript-sdk/errors) — grant-state failures.
+- [`ReAuthRequiredError`](/reference/typescript-sdk/errors) — user JWT is invalid or expired.
+- [`AmbiguousGrantError`](/reference/typescript-sdk/errors) — multiple grants match the identity + provider tuple. Pass `account` or use `grantId`.
+- [`NoDelegatedGrantError`](/reference/typescript-sdk/errors) — the calling agent has no delegation for the resolved user on this provider.
+- [`PolicyViolationError`](/reference/typescript-sdk/errors), [`InsufficientScopeError`](/reference/typescript-sdk/errors) — backend authorization failures.
+- [`ProviderAPIError`](/reference/typescript-sdk/errors) — provider returned a 4xx/5xx that is not a scope failure.
+- [`ScopeReauthRequiredError`](/reference/typescript-sdk/errors) — provider returned 403 `insufficient_scope`, or the backend already knew the grant's scopes don't cover the configured required set. Re-authorize the grant via [`createConnectSessionForError()`](/reference/typescript-sdk/connect#createconnectsessionforerror).
+- [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors) — transport failures.
+
+## Examples
+
+### Identity mode with per-call JWT
+
+```typescript
+const response = await app.request(
+  HttpMethod.POST,
+  "https://api.github.com/repos/{owner}/{repo}/issues",
+  {
+    provider: "github",
+    userToken: callingUserJwt,
+    pathParams: { owner: "octocat", repo: "hello-world" },
+    json: { title: "Bug report", body: "Steps to reproduce…" },
+    reason: "User-submitted bug report",
+  },
+);
+```
+
+### Direct mode with audit context
+
+```typescript
+await app.request(
+  HttpMethod.GET,
+  "https://api.stripe.com/v1/customers",
+  {
+    grantId,
+    queryParams: { limit: 100 },
+    reason: "Nightly reconciliation",
+    context: { runId, jobId, batch: "customers" },
+  },
+);
+```
+
+### Reading retry metadata
+
+```typescript
+const response = await app.request("GET", url, { grantId });
+if (response.retryInfo !== null) {
+  console.log(
+    `Token refresh succeeded on attempt ${response.retryInfo.successfulAttempt}`,
+  );
+}
+```

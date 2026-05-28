@@ -1,0 +1,144 @@
+---
+title: 'Types'
+description: 'TypeScript types exported by @alter-ai/connect.'
+---
+
+All types are available as named exports.
+
+```typescript
+import AlterConnect, {
+  type AlterConnectConfig,
+  type OpenOptions,
+  type Grant,
+  type AlterError,
+} from "@alter-ai/connect";
+```
+
+<Warning>
+**Every field on `Grant` is `snake_case`.** Field names match the backend wire format verbatim. Accessing `grant.grantId` or `grant.providerName` returns `undefined`. This is deliberate — it keeps the browser-visible payload and the wire format identical, so browser logs, backend logs, and the audit trail all use the same keys.
+</Warning>
+
+## `Grant`
+
+The object passed to `onSuccess` (one entry per provider authorized in the session).
+
+```typescript
+interface Grant {
+  grant_id: string;
+  provider: string;
+  provider_name: string;
+  account_identifier: string;
+  timestamp: string;
+  operation: "creation" | "reauth";
+  scopes: string[];
+  status: "active" | "pending" | "error";
+  metadata?: {
+    account_display_name?: string;
+    account_email?: string;
+    [key: string]: any;
+  };
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `grant_id` | `string` | The Alter Vault identifier for this grant. Persist this when the application stores grants in its own database; the headless SDK methods accept it directly for token retrieval. |
+| `provider` | `string` | Provider technical ID — e.g. `"google"`, `"slack"`, `"github"`. Use this in API calls and database queries. |
+| `provider_name` | `string` | Provider display name — e.g. `"Google"`, `"Slack"`, `"GitHub"`. Use this when rendering to end users. |
+| `account_identifier` | `string` | The identifier for the user account at the provider — typically the user's email or workspace handle (e.g. `"alice@gmail.com"`, `"alice@company.slack.com"`). |
+| `timestamp` | `string` | ISO 8601 timestamp of when the grant was established. |
+| `operation` | `"creation" \| "reauth"` | How the grant was established. `"creation"` is a brand-new grant; `"reauth"` is a re-authorization of an existing grant (e.g. after an expired refresh token). |
+| `scopes` | `string[]` | OAuth scopes granted by the user. Example: `["calendar.readonly", "gmail.send"]`. |
+| `status` | `"active" \| "pending" \| "error"` | Grant status at the moment the flow completed. `"active"` is the normal terminal state. |
+| `metadata` | `object?` | Optional provider-supplied extras. `account_display_name` and `account_email` are populated when the provider exposes them. Additional keys may appear depending on the provider; treat unknown keys as advisory. |
+
+`metadata` is optional — older grants and providers that do not expose extras omit it. Always null-check before reading nested keys.
+
+## `AlterError`
+
+The object passed to `onError` (and emitted on the `error` event).
+
+```typescript
+interface AlterError {
+  code: string;
+  message: string;
+  details?: Record<string, any>;
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `code` | `string` | Stable, machine-readable error code. See the table below for the codes emitted by the Connect SDK. |
+| `message` | `string` | Human-readable summary safe to surface to end users (no internal identifiers, no PII). |
+| `details` | `object?` | Additional context. For provider errors, contains the provider's raw error code and description. For `popup_blocked`, `invalid_token`, and `session_expired`, is typically omitted. |
+
+### Common Connect SDK error codes
+
+| Code | Cause | Resolution |
+|---|---|---|
+| `popup_blocked` | The browser blocked the popup. | Call `open()` synchronously inside the click handler — see the [popup flow notes](/reference/connect-sdk/open#desktop-popup-flow). |
+| `invalid_token` | The session token is malformed or not recognised. | Mint a fresh session on the backend. |
+| `session_expired` | The session token expired (10-minute default) or was already used. | Mint a fresh session per click. |
+| `invalid_options` | `open()` was called without a string `token` or a function `onSuccess`. | Check the call site against the [`OpenOptions`](#openoptions) requirements. |
+| `sdk_destroyed` | A method was called after `destroy()`. | Call `create()` again if a new instance is needed. |
+| `invalid_response` | The backend reported success but the grant payload was incomplete. | Retry; if it persists, capture the trace ID and contact support. |
+| `redirect_error` | The mobile redirect flow could not save state to `sessionStorage`. | Usually caused by private-mode tabs with storage disabled. Surface the error and ask the user to use a normal browsing window. |
+| `invalid_oauth_url` | The OAuth URL could not be parsed for origin validation. | Indicates a misconfigured Alter host; contact support. |
+
+For the cross-SDK error catalog (auth, scope, grant, provider) see the [Errors reference](/reference/errors).
+
+## `OpenOptions`
+
+The argument to `alterConnect.open()`.
+
+```typescript
+interface OpenOptions {
+  token: string;
+  onSuccess: (grants: Grant[]) => void;
+  onExit?: () => void;
+  onError?: (error: AlterError) => void;
+  onEvent?: (eventName: string, metadata: any) => void;
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `token` | `string` | yes | Session token minted on the application backend via `app.createConnectSession()`. Single-use, short-lived (10-minute default). |
+| `onSuccess` | `(grants: Grant[]) => void` | yes | Fires when the user finishes the OAuth flow. Receives an array — one `Grant` per provider authorized in the session. |
+| `onExit` | `() => void` | no | Fires when the user closes the popup without finishing. Does not fire on the mobile redirect flow. |
+| `onError` | `(error: AlterError) => void` | no | Fires on any failure. |
+| `onEvent` | `(eventName: string, metadata: any) => void` | no | Analytics hook. The SDK emits exactly one event today — see [Events & callbacks](/reference/connect-sdk/events#onevent). |
+
+See the full [`open()` reference](/reference/connect-sdk/open) for synchronous error semantics and the mobile redirect flow.
+
+## `AlterConnectConfig`
+
+The optional argument to `AlterConnect.create()`.
+
+```typescript
+interface AlterConnectConfig {
+  debug?: boolean;
+  baseURL?: string;
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `debug` | `boolean` | no | When `true`, the SDK logs lifecycle events to `console.log`. Default `false`. |
+| `baseURL` | `string` | no | **Reserved. Not yet supported — passing any value throws at construction.** Omit the field. The type member exists so a future self-hosted release can populate it without a breaking API change. |
+
+See the [`create()` reference](/reference/connect-sdk/create) for the reserved-field error and the instance lifecycle methods (`close`, `destroy`, `isOpen`, `getVersion`).
+
+## `Provider`
+
+Exported for typing convenience when the application surfaces a provider list it received elsewhere. The Connect SDK itself does not return `Provider` objects to the browser.
+
+```typescript
+interface Provider {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  logo_url: string;
+}
+```

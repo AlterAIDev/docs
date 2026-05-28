@@ -1,0 +1,96 @@
+---
+title: 'LangChain'
+description: '@alter_tool decorator and AlterMCPInterceptor for LangChain / LangGraph.'
+---
+
+The LangChain bridge lets a `vault.request()` call inside a LangChain tool participate in the agent's audit trace automatically: `run_id` and `thread_id` are read from the RunnableConfig and tagged onto every outbound provider call.
+
+Requires the `langchain` extra:
+
+```bash
+pip install 'alter-sdk[langchain]'
+```
+
+```python
+from alter_sdk import App
+from alter_sdk.langchain import alter_tool, AlterMCPInterceptor
+
+alter_app = App(api_key="alter_key_app_…")
+
+@alter_tool(alter_app, provider="google")
+async def list_emails(query: str) -> str:
+    """List emails matching a query."""
+    resp = await alter_app.request(
+        "GET",
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        provider="google",
+        query_params={"q": query},
+    )
+    return resp.text
+```
+
+## @alter_tool
+
+A decorator that produces a real `langchain_core.tools.StructuredTool` from an async function. The returned tool can be passed directly to a LangChain agent or LangGraph node.
+
+```python
+def alter_tool(
+    vault: App | Agent,
+    provider: str,
+    *,
+    scope: list[str] | None = None,
+    constraints: dict[str, Any] | None = None,
+    name: str | None = None,
+    description: str | None = None,
+) -> Callable[[F], StructuredTool]
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `vault` | `App \| Agent` | — | SDK client instance. Positional. |
+| `provider` | `str` | — | OAuth provider id (e.g. `"google"`, `"github"`). Positional. |
+| `scope` | `list[str] \| None` | `None` | Reserved code-level scope declaration. Stored on `tool.metadata["alter_scope"]`. Not yet forwarded to `request()`. |
+| `constraints` | `dict \| None` | `None` | Reserved code-level constraints. Stored on `tool.metadata["alter_constraints"]`. |
+| `name` | `str \| None` | `None` | Tool name. Defaults to the function name. |
+| `description` | `str \| None` | `None` | Tool description. Defaults to the function docstring. |
+
+**Returns:** a decorator that, applied to an async function, returns a `StructuredTool`.
+
+**Raises:**
+
+- `ImportError` — `langchain-core` not installed.
+- `TypeError` — decorated function is not a coroutine, or declares a reserved parameter name (`config`, `callbacks`).
+
+The wrapper:
+
+1. Accepts LangChain's injected `config` kwarg via signature injection — the user's function does NOT need to declare `**kwargs` or `config=`.
+2. Extracts `run_id` (top-level or `metadata.run_id`) and `thread_id` (`configurable.thread_id`).
+3. Sets an ambient audit ContextVar so every `vault.request()` inside the body picks up `{"tool": "<name>", "framework": "langchain", "run_id": ..., "thread_id": ...}` as its default `context=`.
+4. Catches `GrantNotFoundError` and returns a human-readable string containing a fresh Connect URL.
+5. Catches `ScopeReauthRequiredError` and returns a re-auth message.
+6. Catches `BackendError` with `ambiguous_grant` and lists the available accounts so the LLM can ask the user which one to use.
+
+```python
+from langchain.agents import create_react_agent
+
+tools = [list_emails]
+agent = create_react_agent(llm, tools=tools)
+```
+
+## AlterMCPInterceptor
+
+An interceptor for `langchain-mcp-adapters` that injects the calling user's JWT as a bearer header on outbound MCP tool calls. The interceptor takes no arguments and is passed to `MCPToolkit` directly:
+
+```python
+from langchain_mcp_adapters import MCPToolkit
+from alter_sdk.langchain import AlterMCPInterceptor
+
+interceptor = AlterMCPInterceptor()
+
+toolkit = MCPToolkit(
+    server="https://mcp.example.com",
+    interceptor=interceptor,
+)
+```
+
+The interceptor reads `user_token` from the request's runtime context and forwards it to the MCP server as `Authorization: Bearer …`. It enforces an SSRF and scheme allowlist before injecting; requests that fail those checks are forwarded WITHOUT the bearer header so the MCP server can surface a clean authentication failure.

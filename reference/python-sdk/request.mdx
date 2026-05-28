@@ -1,0 +1,170 @@
+---
+title: 'request()'
+description: 'Token-injected provider calls. Identity mode and direct grant mode.'
+---
+
+The single entry point for calling a provider API with an Alter-managed credential. The SDK fetches the token, injects it into the outbound request, calls the provider, logs the call for audit, and returns the raw `httpx.Response`.
+
+The token is never returned to the caller.
+
+```python
+await app.request(method, url, *, grant_id=..., ...)
+await agent.request(method, url, *, provider=..., ...)
+```
+
+## Signature
+
+```python
+async def request(
+    method: HttpMethod | str,
+    url: str,
+    *,
+    grant_id: str | None = None,
+    provider: str | None = None,
+    account: str | None = None,
+    json: dict[str, Any] | None = None,
+    extra_headers: dict[str, str] | None = None,
+    query_params: dict[str, Any] | None = None,
+    path_params: dict[str, str] | None = None,
+    reason: str | None = None,
+    context: dict[str, str] | None = None,
+    body: bytes | None = None,
+    caller: str | None = None,
+    user_token: str | None = None,
+    app_user_id: str | None = None,
+    scope: list[str] | None = None,
+    constraints: dict[str, Any] | None = None,
+) -> httpx.Response
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `method` | `HttpMethod \| str` | — | HTTP method. The [`HttpMethod`](/reference/python-sdk/types#httpmethod) enum is recommended for IDE autocomplete. |
+| `url` | `str` | — | Full provider URL. Must start with `http://` or `https://`. Supports `{name}` placeholders resolved via `path_params`. |
+| `grant_id` | `str \| None` | `None` | Direct-mode grant identifier. Mutually exclusive with `provider`. |
+| `provider` | `str \| None` | `None` | Identity-mode provider id (e.g. `"google"`). Requires `user_token_getter` on the client or `user_token=` per call. Mutually exclusive with `grant_id`. |
+| `account` | `str \| None` | `None` | Disambiguator for identity mode when the resolved user has multiple grants on the same provider (see [`AmbiguousGrantError`](/reference/python-sdk/errors)). |
+| `json` | `dict \| None` | `None` | JSON-serialized request body. Mutually exclusive with `body`. |
+| `body` | `bytes \| None` | `None` | Raw bytes request body. Mutually exclusive with `json`. |
+| `extra_headers` | `dict[str, str] \| None` | `None` | Extra request headers. `Authorization` is injected by the SDK and must not be set here. |
+| `query_params` | `dict[str, Any] \| None` | `None` | Query string parameters. |
+| `path_params` | `dict[str, str] \| None` | `None` | Values substituted into `{name}` placeholders in `url`. URL-encoded. |
+| `reason` | `str \| None` | `None` | Audit reason recorded with the call. |
+| `context` | `dict[str, str] \| None` | `None` | Audit-correlation context. Capped at 4096 bytes, 20 keys, 64-char keys, 512-char values. Falls back to the ambient context from `Agent.trace()` / `@alter_tool` / `@alter.tool()` when omitted. |
+| `caller` | `str \| None` | `None` | Per-call override of the client's caller identifier. |
+| `user_token` | `str \| None` | `None` | Per-call user JWT for identity mode. Wins over `user_token_getter`. |
+| `app_user_id` | `str \| None` | `None` | Per-call user identifier for agent-delegation disambiguation. |
+| `scope` | `list[str] \| None` | `None` | <Warning>Reserved — passing a non-None value raises `AlterValueError`.</Warning> |
+| `constraints` | `dict[str, Any] \| None` | `None` | <Warning>Reserved — passing a non-None value raises `AlterValueError`.</Warning> |
+
+**Returns:** `httpx.Response`. Inspect `response.status_code`, `response.json()`, `response.text`, etc.
+
+**Raises:**
+
+- `AlterSDKError` — missing both `grant_id` and `provider`, supplying both, supplying both `json` and `body`, client closed, URL with disallowed scheme.
+- `AlterValueError` — bad `context` shape, malformed `user_token` / `app_user_id`, reserved `scope` / `constraints` set.
+- `GrantNotFoundError`, `GrantExpiredError`, `GrantRevokedError`, `GrantDeletedError`, `CredentialRevokedError` — grant-state failures (see [Errors](/reference/python-sdk/errors)).
+- `AmbiguousGrantError` — identity-mode resolution matched multiple grants. Inspect `e.account_identifiers` and retry with `account=`.
+- `NoDelegatedGrantError` — agent caller has no access path to the provider.
+- `PolicyViolationError`, `InsufficientScopeError`, `ScopeReauthRequiredError`, `TokenRefreshInProgressError` — policy / scope / refresh failures.
+- `ProviderAPIError` — non-2xx provider response (raised only when the SDK can map it to a typed error).
+- `NetworkError`, `TimeoutError` — connectivity failures.
+
+## Direct grant mode
+
+Pass `grant_id=` when the application has the grant identifier in hand (stored after a Connect flow, returned by `list_grants()`, etc.).
+
+```python
+from alter_sdk import App, HttpMethod
+
+app = App(api_key="alter_key_app_…")
+
+resp = await app.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id="11111111-2222-3333-4444-555555555555",
+    query_params={"maxResults": 10},
+)
+events = resp.json()
+```
+
+## Identity mode
+
+Pass `provider=` when the caller is acting on behalf of a known user. The SDK resolves the user's JWT (from `user_token_getter` or `user_token=`) and looks up the grant.
+
+<CodeGroup>
+```python user_token_getter
+from alter_sdk import App
+
+def jwt_for_current_user() -> str:
+    return request_state.user_jwt
+
+app = App(
+    api_key="alter_key_app_…",
+    user_token_getter=jwt_for_current_user,
+)
+
+resp = await app.request(
+    "GET",
+    "https://api.github.com/user/repos",
+    provider="github",
+)
+```
+
+```python per-call
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+resp = await app.request(
+    "GET",
+    "https://slack.com/api/conversations.list",
+    provider="slack",
+    user_token=user_jwt,
+)
+```
+</CodeGroup>
+
+## Disambiguating with account
+
+When identity mode resolves to multiple grants on the same provider, the backend returns 409 and the SDK raises `AmbiguousGrantError`. Retry with `account=`:
+
+```python
+from alter_sdk import AmbiguousGrantError
+
+try:
+    resp = await app.request("GET", url, provider="google")
+except AmbiguousGrantError as e:
+    chosen = e.account_identifiers[0]
+    resp = await app.request("GET", url, provider="google", account=chosen)
+```
+
+## URL templates with path_params
+
+```python
+resp = await app.request(
+    "GET",
+    "https://api.github.com/repos/{owner}/{repo}/issues/{number}",
+    grant_id=grant_id,
+    path_params={"owner": "anthropic", "repo": "claude-code", "number": "42"},
+)
+```
+
+Values are URL-encoded before substitution.
+
+## Audit context
+
+`context` is propagated to the audit row for every call:
+
+```python
+resp = await agent.request(
+    "POST",
+    "https://api.openai.com/v1/chat/completions",
+    grant_id=grant_id,
+    json=payload,
+    reason="user_initiated_chat",
+    context={"thread_id": "thr_abc", "tool": "summarize"},
+)
+```
+
+When called inside an [`Agent.trace()`](/reference/python-sdk/agents#trace) block or from inside a `@alter_tool` / `@alter.tool()` body, the ambient context is used automatically if `context=` is not passed.

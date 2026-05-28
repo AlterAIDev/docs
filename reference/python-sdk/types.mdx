@@ -1,0 +1,501 @@
+---
+title: 'Types'
+description: 'Pydantic models, enums, and discriminated unions returned across the SDK surface.'
+---
+
+Every model is a frozen Pydantic `BaseModel`. Fields are `snake_case` and match the wire format. Models are exported from `alter_sdk` and `alter_sdk.models`.
+
+```python
+from alter_sdk import (
+    TokenResponse, GrantInfo, ConnectSession, ConnectResult,
+    UnifiedGrantListResult, OAuthGrantItem, ManagedSecretGrantItem,
+    GrantListItem, GrantPolicy,
+    CreateGrantResult, RevokeGrantResult,
+    Principal, UserPrincipal, GroupPrincipal, SystemPrincipal, AgentPrincipal,
+    AgentInfo, AgentCreateResult, AgentListResult,
+    AgentKey, AgentKeyList, AgentKeyMintResult,
+    APIKeyInfo, MintedKey, ScopeCatalog, ResourceScopes,
+    ApprovalResult, ApprovalStatus, ApprovalStatusValue, PendingApproval,
+    AuthResult, APICallAuditLog,
+    RetryInfo, RetryErrorInfo,
+    HttpMethod, CallerType, Provider,
+)
+```
+
+## Enums
+
+### HttpMethod
+
+```python
+HttpMethod.GET     # "GET"
+HttpMethod.POST    # "POST"
+HttpMethod.PUT     # "PUT"
+HttpMethod.PATCH   # "PATCH"
+HttpMethod.DELETE  # "DELETE"
+HttpMethod.HEAD    # "HEAD"
+HttpMethod.OPTIONS # "OPTIONS"
+```
+
+Plain strings are also accepted by every SDK method that takes `method`.
+
+### CallerType
+
+```python
+CallerType.AGENT    # "agent"
+CallerType.SERVICE  # "service"
+```
+
+`App` defaults to `SERVICE`. `Agent` pins `AGENT` internally.
+
+### Provider
+
+Static enum of OAuth provider identifiers. Members include `GOOGLE`, `GITHUB`, `SLACK`, `STRIPE`, `MICROSOFT`, `NOTION`, `HUBSPOT`, `SALESFORCE`, `SHOPIFY`, `ZOOM`, and dozens more (60+ values; see the source for the full list). Plain strings are also accepted for forward compatibility with providers not yet in the enum.
+
+```python
+from alter_sdk import Provider
+
+grants = await app.list_grants(provider_id=Provider.GOOGLE)
+# str(Provider.GOOGLE) == "google"
+```
+
+---
+
+## Token & retry
+
+### TokenResponse
+
+OAuth token response. The plaintext access token is NOT stored as a readable attribute — the SDK injects it into outbound requests but never exposes it.
+
+| Field | Type | Description |
+|---|---|---|
+| `grant_id` | `str` | Grant id that provided this token. |
+| `token_type` | `str` | Token type. Default `"Bearer"`. |
+| `expires_in` | `int \| None` | Seconds until expiry. |
+| `expires_at` | `datetime \| None` | Absolute expiration time. |
+| `scopes` | `list[str]` | OAuth scopes granted. |
+| `provider_id` | `str \| None` | Provider id. |
+| `scope_mismatch` | `bool` | `True` when the backend has flagged this grant as requiring re-authorization. |
+
+Methods: `is_expired(buffer_seconds=0) -> bool`, `needs_refresh(buffer_seconds=300) -> bool`.
+
+### RetryInfo
+
+Attached to `response.retry_info` when the backend refreshed a token after transient failures.
+
+| Field | Type | Description |
+|---|---|---|
+| `total_attempts` | `int` | Total attempts made. |
+| `successful_attempt` | `int` | Which attempt succeeded (0 if none). |
+| `errors` | `tuple[RetryErrorInfo, ...]` | Failed attempts (immutable). |
+
+### RetryErrorInfo
+
+| Field | Type | Description |
+|---|---|---|
+| `attempt` | `int` | 1-based attempt index. |
+| `error` | `str` | Error message, truncated to 500 chars. |
+| `error_type` | `str` | Error classification. |
+| `delay_s` | `float` | Sleep duration before the next attempt. |
+| `permanent` | `bool` | Whether the error is permanent. |
+
+---
+
+## Grants
+
+### GrantInfo
+
+Legacy single-table grant shape. New code should use `OAuthGrantItem` / `ManagedSecretGrantItem` from the unified list.
+
+| Field | Type |
+|---|---|
+| `grant_id` | `str` |
+| `provider_id` | `str` |
+| `scopes` | `list[str]` |
+| `account_identifier` | `str \| None` |
+| `account_display_name` | `str \| None` |
+| `status` | `str` |
+| `scope_mismatch` | `bool` |
+| `expires_at` | `str \| None` |
+| `created_at` | `str` |
+| `last_used_at` | `str \| None` |
+| `principal_type` | `"user" \| "group" \| "system" \| "agent"` |
+
+### UnifiedGrantListResult
+
+Returned by `App.list_grants()` and `Agent.list_grants()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `grants` | `list[GrantListItem]` | Discriminated-union items. |
+| `total` | `int` | Total matching rows. |
+| `limit` | `int` | Page size. |
+| `offset` | `int` | Page offset. |
+| `has_more` | `bool` | Canonical "more pages" signal. Prefer this over computing offsets against `total`. |
+
+### GrantListItem
+
+Discriminated union by `grant_kind`:
+
+```python
+GrantListItem = OAuthGrantItem | ManagedSecretGrantItem
+```
+
+### OAuthGrantItem
+
+`grant_kind="oauth"`.
+
+| Field | Type | Description |
+|---|---|---|
+| `grant_kind` | `"oauth"` | Discriminator. |
+| `grant_id` | `str` | |
+| `provider_id` | `str` | |
+| `scopes` | `list[str]` | |
+| `account_identifier` | `str \| None` | |
+| `account_display_name` | `str \| None` | |
+| `status` | `str` | |
+| `scope_mismatch` | `bool` | |
+| `expires_at` | `str \| None` | |
+| `created_at` | `str` | |
+| `last_used_at` | `str \| None` | |
+| `principal_type` | `"user" \| "system"` | |
+| `delegated_at` | `str \| None` | Agent-branch field: when the calling agent's delegation row was created. |
+| `delegated_agent_ids` | `list[str]` | Operator-branch field: agent UUIDs this grant is currently delegated to. |
+
+### ManagedSecretGrantItem
+
+`grant_kind="managed_secret"`. Agent-branch only.
+
+| Field | Type |
+|---|---|
+| `grant_kind` | `"managed_secret"` |
+| `grant_id` | `str` |
+| `managed_secret_id` | `str` |
+| `managed_secret_slug` | `str` |
+| `managed_secret_name` | `str` |
+| `agent_id` | `str` |
+| `label` | `str \| None` |
+| `status` | `str` |
+| `grant_policy` | `dict \| None` |
+| `created_at` | `str` |
+| `last_used_at` | `str \| None` |
+| `principal_type` | `"agent"` |
+
+### GrantListResult (legacy)
+
+| Field | Type |
+|---|---|
+| `grants` | `list[GrantInfo]` |
+| `total` | `int` |
+| `limit` | `int` |
+| `offset` | `int` |
+| `has_more` | `bool` |
+
+### RevokeGrantResult
+
+| Field | Type |
+|---|---|
+| `success` | `bool` |
+| `message` | `str` |
+| `grant_id` | `str` |
+| `revoked_at` | `str` |
+
+### CreateGrantResult
+
+| Field | Type |
+|---|---|
+| `grant_id` | `str` |
+| `principal_type` | `"user" \| "group" \| "system" \| "agent"` |
+| `label` | `str \| None` |
+| `created_at` | `str` |
+
+### GrantPolicy
+
+| Field | Type | Description |
+|---|---|---|
+| `expires_at` | `str \| None` | Hard expiry timestamp (ISO 8601 UTC). |
+| `created_by` | `str \| None` | `"developer"` or `"end_user"`. |
+| `created_at` | `str \| None` | |
+
+---
+
+## Principals (discriminated union)
+
+```python
+Principal = UserPrincipal | GroupPrincipal | SystemPrincipal | AgentPrincipal
+```
+
+The discriminator is `type`.
+
+### UserPrincipal
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"user"` | Discriminator. |
+| `user_token` | `str` | IDP JWT (1-8192 chars). |
+| `label` | `str` | 1-255 chars. |
+
+### GroupPrincipal
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"group"` | Discriminator. |
+| `external_group_id` | `str` | 1-255 chars. |
+| `idp_id` | `str` | AppIdentityProvider id (UUID), 1-255 chars. |
+| `label` | `str` | 1-255 chars. |
+
+### SystemPrincipal
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"system"` | Discriminator. |
+| `label` | `str \| None` | Optional, max 255 chars. |
+
+### AgentPrincipal
+
+| Field | Type | Description |
+|---|---|---|
+| `type` | `"agent"` | Discriminator. |
+| `label` | `str \| None` | Optional, max 255 chars. |
+
+The agent is resolved from the API-key signature server-side — there is no `agent_id` on the wire.
+
+---
+
+## Connect / Auth
+
+### ConnectSession
+
+| Field | Type |
+|---|---|
+| `session_token` | `str` |
+| `connect_url` | `str` |
+| `expires_in` | `int` |
+| `expires_at` | `str` |
+
+### ManagedSecretConnectSession
+
+Same shape as `ConnectSession`. `__repr__` redacts `connect_url` (it carries the session token in the URL fragment).
+
+### ConnectResult
+
+| Field | Type |
+|---|---|
+| `grant_id` | `str` |
+| `provider_id` | `str` |
+| `account_identifier` | `str \| None` |
+| `scopes` | `list[str]` |
+| `grant_policy` | `GrantPolicy \| None` |
+
+### AuthResult
+
+| Field | Type | Description |
+|---|---|---|
+| `user_token` | `str` | IDP JWT bearer token. |
+| `user_info` | `dict[str, Any]` | User info from IDP (`sub`, `email`, `name`). |
+
+---
+
+## Agents
+
+### AgentInfo
+
+The managed-agent record. PII (HITL approver list) is redacted server-side.
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `UUID` | |
+| `name` | `str` | |
+| `display_name` | `str \| None` | |
+| `type` | `"agent" \| "service"` | |
+| `status` | `"active" \| "inactive" \| "revoked"` | |
+| `scopes` | `dict[str, Any]` | Per-provider scope allowlist. |
+| `scopes_pending` | `dict[str, Any] \| None` | Pending narrowing (Phase G). |
+| `scopes_applies_at` | `datetime \| None` | |
+| `policy` | `dict[str, Any]` | Validated policy block. |
+| `metadata` | `dict[str, Any]` | |
+| `rate_limit_per_minute` | `int \| None` | |
+| `version` | `int` | Monotonic version counter. |
+| `created_at` | `datetime` | |
+| `last_used_at` | `datetime \| None` | |
+| `parent_agent_id` | `UUID \| None` | Reserved; not currently exposed. |
+
+### AgentCreateResult
+
+Extends `AgentInfo`. Adds:
+
+| Field | Type | Description |
+|---|---|---|
+| `api_key` | `str \| None` | Plaintext API key. Shown ONCE. `None` on idempotency replay (branch on `api_key is None`). |
+| `key_id` | `UUID` | The `api_keys` row id backing this agent. |
+
+### AgentListResult
+
+| Field | Type |
+|---|---|
+| `agents` | `list[AgentInfo]` |
+| `total` | `int` |
+| `limit` | `int` |
+| `offset` | `int` |
+| `has_more` | `bool` |
+
+### AgentKey
+
+| Field | Type | Description |
+|---|---|---|
+| `key_id` | `UUID` | |
+| `key_prefix` | `str` | Display-only key prefix. |
+| `name` | `str` | Auto-generated `{agent_name}-{N}` at mint time. |
+| `created_at` | `datetime` | |
+| `deprecated_at` | `datetime \| None` | |
+| `revoked_at` | `datetime \| None` | |
+| `last_used_at` | `datetime \| None` | |
+
+Derived property: `status` — `"active" \| "deprecated" \| "revoked"`.
+
+### AgentKeyMintResult
+
+Extends `AgentKey`. Adds:
+
+| Field | Type | Description |
+|---|---|---|
+| `api_key` | `str \| None` | Plaintext. Shown ONCE. |
+
+### AgentKeyList
+
+| Field | Type |
+|---|---|
+| `items` | `list[AgentKey]` |
+
+---
+
+## Keys & Scopes
+
+### APIKeyInfo
+
+Read-only view of a scoped API key.
+
+| Field | Type |
+|---|---|
+| `id` | `UUID` |
+| `name` | `str` |
+| `key_prefix` | `str` |
+| `key_type` | `"rk" \| "ak" \| "dk" \| "pk"` |
+| `scopes` | `list[str]` |
+| `scope_version` | `int` |
+| `cidr_allowlist` | `list[str] \| None` |
+| `rate_limit_rpm` | `int \| None` |
+| `expires_at` | `datetime \| None` |
+| `deprecated_at` | `datetime \| None` |
+| `revoked_at` | `datetime \| None` |
+| `parent_key_id` | `UUID \| None` |
+| `created_at` | `datetime` |
+| `last_used_at` | `datetime \| None` |
+
+Derived property: `status` — `"active" \| "rotated" \| "revoked"`.
+
+### MintedKey
+
+Extends `APIKeyInfo`. Adds:
+
+| Field | Type | Description |
+|---|---|---|
+| `api_key` | `str` | Plaintext. Shown ONCE. |
+
+### ScopeCatalog
+
+| Field | Type |
+|---|---|
+| `scope_version` | `int` |
+| `resources` | `dict[str, ResourceScopes]` |
+| `action_verbs` | `list[str]` |
+| `deprecated` | `list[str]` |
+
+### ResourceScopes
+
+| Field | Type |
+|---|---|
+| `verbs` | `list[str]` |
+
+---
+
+## Approvals
+
+### PendingApproval
+
+Returned by `proxy_request()` when an HITL grant requires approval.
+
+| Field | Type | Description |
+|---|---|---|
+| `approval_id` | `UUID` | Approval row id. |
+| `status` | `"pending"` | Always `"pending"` on creation. |
+| `expires_at` | `datetime` | When the approval window closes. |
+| `expires_in` | `int` | Seconds until `expires_at`. |
+| `approval_url` | `str` | Deep link to the approver's wallet UI. Primary delivery — surface this in the agent's UI. |
+
+### ApprovalStatus
+
+Snapshot of an approval row.
+
+| Field | Type | Description |
+|---|---|---|
+| `approval_id` | `UUID` | |
+| `status` | `ApprovalStatusValue` | One of the seven status values (see [Approvals](/reference/python-sdk/approvals#status-values)). |
+| `expires_at` | `datetime` | |
+| `decided_at` | `datetime \| None` | |
+| `decision_reason` | `str \| None` | |
+| `executed_at` | `datetime \| None` | |
+| `has_result` | `bool` | `True` when the proxied result is ready to fetch. |
+
+Derived property: `is_terminal` — `True` for `denied`, `expired`, `executed`, `failed`.
+
+### ApprovalStatusValue
+
+```python
+ApprovalStatusValue = Literal[
+    "pending", "approved", "executing",
+    "denied", "expired", "executed", "failed",
+]
+```
+
+### ApprovalResult
+
+Provider response captured during backend-proxy execution. The body is base64-encoded.
+
+| Field | Type | Description |
+|---|---|---|
+| `approval_id` | `UUID \| None` | `None` for synchronous (non-HITL) `proxy_request` responses. |
+| `status_code` | `int` | HTTP status from the provider. |
+| `headers` | `dict[str, str]` | Provider response headers. |
+| `body_b64` | `str` | Base64-encoded response body. Validated at construction. |
+| `body_truncated` | `bool` | |
+
+Methods:
+
+- `body_bytes() -> bytes` — decode to raw bytes.
+- `body_text(encoding: str = "utf-8") -> str` — decode to text.
+- `body_json() -> Any` — decode and parse JSON.
+
+---
+
+## Audit
+
+### APICallAuditLog
+
+Audit row built for a provider call.
+
+| Field | Type |
+|---|---|
+| `grant_id` | `UUID` |
+| `provider_id` | `str` |
+| `method` | `str` |
+| `url` | `str` |
+| `request_headers` | `dict[str, str] \| None` |
+| `request_body` | `Any \| None` |
+| `response_status` | `int` |
+| `response_headers` | `dict[str, str] \| None` |
+| `response_body` | `Any \| None` |
+| `latency_ms` | `int` |
+| `reason` | `str \| None` |
+| `context` | `dict[str, str] \| None` |
+
+Method `sanitize() -> dict[str, Any]` strips sensitive headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-*`, etc.).

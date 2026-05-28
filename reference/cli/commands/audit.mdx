@@ -8,14 +8,14 @@ Every credential-touching call and every admin action produces an [audit row](/c
 ```
 alter audit list           [--since ...] [--start ...] [--end ...] [--action ...] [--policy-decision ...]
 alter audit show           <trace-id>
-alter audit portal-actions [--principal-kind ...] [--resource-type ...]
-alter audit grant-events   [--grant-type ...] [--provider ...]
-alter audit traces         [--actor ...]
+alter audit portal-actions [--start ...] [--end ...] [--principal-kind ...] [--resource-type ...]
+alter audit grant-events   [--start ...] [--end ...] [--grant-type ...] [--provider ...]
+alter audit traces         [--start ...] [--end ...] [--actor ...]
 ```
 
 All commands need `dashboard_audit:read` and accept `--output`. For large pulls, use `--output jsonl` to stream into `jq` / `grep` without buffering. Filters are validated client-side, so a typo fails fast.
 
-Time filters are shared across the list-style commands: `--start <iso>` / `--end <iso>` for absolute bounds, or `--since <duration>` (e.g. `1h`, `7d`) as a relative start. `--start` and `--since` are mutually exclusive.
+Time filters: `--start <iso>` / `--end <iso>` give absolute bounds on every list-style command. The `--since <duration>` shorthand (e.g. `1h`, `7d`) — a relative start — is **only available on `audit list`**; `audit portal-actions`, `audit grant-events`, and `audit traces` accept `--start` / `--end` only. On `audit list`, `--start` and `--since` are mutually exclusive.
 
 ## list
 
@@ -57,7 +57,10 @@ Admin actions taken in the dashboard or via the CLI — app CRUD, key mints, pol
 | `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `100`). |
 
 ```bash
-alter audit portal-actions --principal-kind pat --since 7d
+# BSD/macOS date:
+alter audit portal-actions --principal-kind pat \
+  --start $(date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)
+# GNU date (Linux): --start $(date -u -d "7 days ago" +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 ## grant-events
@@ -71,7 +74,10 @@ Grant-lifecycle events for both OAuth and managed-secret grants.
 | `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `100`). |
 
 ```bash
-alter audit grant-events --grant-type oauth --since 30d
+# BSD/macOS date:
+alter audit grant-events --grant-type oauth \
+  --start $(date -u -v-30d +%Y-%m-%dT%H:%M:%SZ)
+# GNU date (Linux): --start $(date -u -d "30 days ago" +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 ## traces
@@ -84,7 +90,10 @@ Trace summaries — one row per request trace, with event count and status.
 | `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `50`). |
 
 ```bash
-alter audit traces --app <app-id> --since 24h
+# BSD/macOS date:
+alter audit traces --app <app-id> \
+  --start $(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
+# GNU date (Linux): --start $(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 ## Recipes
@@ -95,7 +104,9 @@ alter audit traces --app <app-id> --since 24h
 # Recent denials
 alter audit list --since 24h --policy-decision DENY
 # Find a trace to expand (trace IDs come from `audit traces`), then drill in
-alter audit traces --since 24h --output json | jq -r '.items[].trace_id'
+# (BSD/macOS date; GNU: --start $(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ))
+alter audit traces --start $(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ) \
+  --output json | jq -r '.items[].trace_id'
 alter audit show <trace-id>
 ```
 
@@ -108,7 +119,10 @@ alter audit list --since 24h --output jsonl | jq -c 'select(.action == "token.re
 **Find CLI / PAT-driven admin actions**
 
 ```bash
-alter audit portal-actions --principal-kind pat --since 7d
+# BSD/macOS date:
+alter audit portal-actions --principal-kind pat \
+  --start $(date -u -v-7d +%Y-%m-%dT%H:%M:%SZ)
+# GNU date (Linux): --start $(date -u -d "7 days ago" +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 ## Related

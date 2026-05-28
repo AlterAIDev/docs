@@ -1,0 +1,122 @@
+---
+title: 'Errors'
+description: 'Typed exception hierarchy for the Python SDK.'
+---
+
+Every SDK exception inherits from `AlterSDKError`. Branching on the typed subclasses is the supported way to handle failure modes — never parse error message strings.
+
+```python
+from alter_sdk import (
+    AlterSDKError, AlterValueError,
+    BackendError, ReAuthRequiredError,
+    GrantExpiredError, GrantRevokedError, GrantDeletedError,
+    GrantNotFoundError, CredentialRevokedError,
+    AmbiguousGrantError, NoDelegatedGrantError,
+    PolicyViolationError, InsufficientScopeError,
+    TokenRefreshInProgressError,
+    ConnectFlowError, ConnectDeniedError, ConnectConfigError, ConnectTimeoutError,
+    ProviderAPIError, ScopeReauthRequiredError,
+    NetworkError, TimeoutError,
+    ApprovalError, ApprovalDeniedError, ApprovalExpiredError,
+    ApprovalTimeoutError, ApprovalExecutionFailedError,
+    AgentError, AgentNotFoundError, AgentNameExistsError,
+    AgentInactiveError, AgentRevokedError,
+    InvalidKeyError, KeyRevokedError, KeyAlreadyRevokedError,
+    KeyNotFoundError, LastActiveKeyError,
+    MeRequiresAgentKeyError, AgentCannotMintSubagentsError,
+    AgentScopeNarrowingNotSupportedError,
+    IdempotencyKeyBodyMismatchError,
+    IdempotencyKeyAgentRevokedError,
+    IdempotencyKeyAgentInactiveError,
+)
+```
+
+The full hierarchy and a per-error recovery playbook are documented at [/reference/errors](/reference/errors). This page is a short index of what's exported from `alter_sdk` so you know what to import.
+
+## Catching by category
+
+```python
+from alter_sdk import ReAuthRequiredError, BackendError
+
+try:
+    resp = await app.request("GET", url, provider="google")
+except ReAuthRequiredError:
+    # GrantExpiredError, GrantRevokedError, CredentialRevokedError, GrantDeletedError
+    # — user must re-authorize via Connect
+    ...
+except BackendError:
+    # Any backend-origin failure not in the re-auth bucket
+    ...
+```
+
+## Common attributes
+
+Every typed error carries `.message` and `.details: dict[str, Any]`. Specific subclasses add fields:
+
+| Exception | Extra attributes |
+|---|---|
+| `GrantRevokedError`, `CredentialRevokedError`, `GrantNotFoundError`, `TokenRefreshInProgressError`, `ScopeReauthRequiredError` | `grant_id`, sometimes `provider_id`, `agent_id`, `app_user_id` |
+| `AmbiguousGrantError` | `provider_id`, `account_identifiers`, `account_was_provided`, `app_user_ids`, `grant_ids` |
+| `NoDelegatedGrantError` | `provider_id`, `agent_id`, `app_user_id` |
+| `PolicyViolationError` | `policy_error` |
+| `InsufficientScopeError` | `required`, `granted`, `missing`, `scope_version`, `current_scope_version`, `scope_version_mismatch`, `documentation_url` (aliases: `required_scopes`, `granted_scopes`, `docs_url`) |
+| `ProviderAPIError`, `ScopeReauthRequiredError` | `status_code`, `response_body` |
+| `ScopeReauthRequiredError` | also `missing_scopes` (from `WWW-Authenticate: Bearer error="insufficient_scope"`) |
+| `ApprovalError` (and subclasses) | `approval_id` |
+| `AgentError` (and subclasses) | `code`, `hint` |
+
+## Recovery patterns
+
+**Identity-mode ambiguity** — retry with `account=`:
+
+```python
+from alter_sdk import AmbiguousGrantError
+
+try:
+    resp = await app.request("GET", url, provider="google")
+except AmbiguousGrantError as e:
+    resp = await app.request("GET", url, provider="google", account=e.account_identifiers[0])
+```
+
+**Missing or broken credential** — mint a recovery Connect session:
+
+```python
+from alter_sdk import NoDelegatedGrantError, CredentialRevokedError
+
+try:
+    resp = await agent.request("GET", url, provider="slack")
+except (NoDelegatedGrantError, CredentialRevokedError) as e:
+    session = await agent.create_connect_session_for_error(e)
+    redirect_to(session.connect_url)
+    results = await agent.poll_connect_session(session.session_token)
+```
+
+**Transient refresh conflict** — exponential backoff:
+
+```python
+import asyncio
+from alter_sdk import TokenRefreshInProgressError
+
+for attempt in range(3):
+    try:
+        resp = await app.request(...)
+        break
+    except TokenRefreshInProgressError:
+        await asyncio.sleep(1 * (2 ** attempt))
+```
+
+**Insufficient scope at the version mismatch** — rotate the key:
+
+```python
+from alter_sdk import InsufficientScopeError
+
+try:
+    await app.agents.create(name="bot")
+except InsufficientScopeError as e:
+    if e.scope_version_mismatch:
+        print(f"Key minted at v{e.scope_version}; server at v{e.current_scope_version}. Rotate.")
+    else:
+        print(f"Missing: {e.missing}. See {e.docs_url}")
+```
+
+See [/reference/errors](/reference/errors) for the full hierarchy with descriptions and recovery guidance for every error.

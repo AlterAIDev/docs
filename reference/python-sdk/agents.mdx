@@ -1,0 +1,278 @@
+---
+title: 'Agents'
+description: 'Managed agents — App.agents namespace, Agent.me, Agent.trace, Agent.with_constraints.'
+---
+
+The `agents` namespace on `App` is the operator surface for creating, listing, updating, and revoking managed agents. The `Agent` class adds workload-side primitives — self-introspection via `me()`, audit-scoping via `trace()`, and macaroon-style attenuation via `with_constraints()`.
+
+```python
+# Operator side
+created = await app.agents.create(name="support-bot")
+page = await app.agents.list()
+agent_info = await app.agents.get(agent_id)
+await app.agents.update(agent_id, display_name="Support Bot v2")
+await app.agents.delete(agent_id)
+
+# Workload side
+me = await agent.me()
+async with agent.trace(run_id="run_42"):
+    await agent.request(...)
+narrowed = agent.with_constraints(scopes=["grants:read"])
+```
+
+## app.agents.create
+
+Create a managed agent and its initial API key.
+
+```python
+async def create(
+    *,
+    name: str,
+    display_name: str | None = None,
+    type: str = "agent",
+    scopes: dict[str, list[str]] | None = None,
+    metadata: dict[str, Any] | None = None,
+    policy: dict[str, Any] | None = None,
+    idempotency_key: str | None = None,
+) -> AgentCreateResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `str` | — | Agent name. Lowercase, alphanumeric + dash/underscore. Must be unique among non-revoked agents in the app. |
+| `display_name` | `str \| None` | `None` | Human-readable label. |
+| `type` | `str` | `"agent"` | `"agent"` (default) or `"service"`. |
+| `scopes` | `dict[str, list[str]] \| None` | `None` | Per-provider scope allowlist. |
+| `metadata` | `dict \| None` | `None` | Free-form metadata. |
+| `policy` | `dict \| None` | `None` | Validated policy block (`HitlConfig` + Cerbos attributes). |
+| `idempotency_key` | `str \| None` | `None` | Optional Idempotency-Key header. Same key + same body returns identical metadata; the `api_key` field is `None` on replay (branch on `result.api_key is None`). Different body raises `IdempotencyKeyBodyMismatchError`. |
+
+**Returns:** [`AgentCreateResult`](/reference/python-sdk/types#agentcreateresult). The plaintext `api_key` is returned ONCE — store it immediately.
+
+**Raises:** `AlterValueError`, `AgentNameExistsError`, `IdempotencyKeyBodyMismatchError`, `IdempotencyKeyAgentRevokedError`, `IdempotencyKeyAgentInactiveError`, `AgentCannotMintSubagentsError`, `BackendError`.
+
+```python
+result = await app.agents.create(
+    name="support-bot",
+    display_name="Customer Support Bot",
+    scopes={"slack": ["channels:read", "chat:write"]},
+    metadata={"team": "cs"},
+)
+agent_api_key = result.api_key       # store securely; never recoverable
+agent_id = str(result.id)
+```
+
+## app.agents.list
+
+```python
+async def list(
+    *,
+    include_revoked: bool = False,
+    limit: int = 100,
+    offset: int = 0,
+) -> AgentListResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `include_revoked` | `bool` | `False` | Include tombstoned agents. |
+| `limit` | `int` | `100` | Page size, 1-1000. |
+| `offset` | `int` | `0` | Page offset. |
+
+**Returns:** [`AgentListResult`](/reference/python-sdk/types#agentlistresult).
+
+```python
+page = await app.agents.list(limit=200)
+for a in page.agents:
+    print(a.id, a.name, a.status)
+while page.has_more:
+    page = await app.agents.list(limit=200, offset=page.offset + page.limit)
+    ...
+```
+
+## app.agents.get
+
+Fetch a single agent by id.
+
+```python
+async def get(agent_id: str) -> AgentInfo
+```
+
+**Raises:** `AlterValueError`, `AgentNotFoundError`.
+
+## app.agents.get_by_name
+
+Fetch an agent by exact name. Returns `None` if no active agent matches — cheap "does it exist?" lookup.
+
+```python
+async def get_by_name(name: str) -> AgentInfo | None
+```
+
+```python
+existing = await app.agents.get_by_name("support-bot")
+if existing is None:
+    result = await app.agents.create(name="support-bot")
+```
+
+## app.agents.update
+
+Update mutable fields on an agent.
+
+```python
+async def update(
+    agent_id: str,
+    *,
+    display_name: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    scopes: dict[str, list[str]] | None = None,
+    policy: dict[str, Any] | None = None,
+) -> AgentInfo
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `agent_id` | `str` | — | Agent to update. Positional. |
+| `display_name` | `str \| None` | `None` | New display name. |
+| `metadata` | `dict \| None` | `None` | Replaces the metadata block atomically. |
+| `scopes` | `dict[str, list[str]] \| None` | `None` | **Broadening only.** Pass the FULL desired allowlist. Dropping any provider key or any scope from an existing provider raises `AgentScopeNarrowingNotSupportedError`. |
+| `policy` | `dict \| None` | `None` | Replaces the policy block atomically. |
+
+Passing all parameters as `None` is a no-op round-trip that returns the unchanged agent. Each field is optional independently.
+
+**Raises:** `AlterValueError`, `AgentNotFoundError`, `AgentScopeNarrowingNotSupportedError`.
+
+```python
+updated = await app.agents.update(
+    agent_id,
+    display_name="Customer Support Bot v2",
+    scopes={"slack": ["channels:read", "chat:write", "users:read"]},
+)
+```
+
+## app.agents.delete
+
+<Warning>
+Hard-revoke. Flips status to `"revoked"` (terminal) and cascade-revokes every active API key for the agent in the same transaction. Idempotent on already-revoked agents.
+</Warning>
+
+```python
+async def delete(agent_id: str) -> AgentInfo
+```
+
+**Returns:** the updated [`AgentInfo`](/reference/python-sdk/types#agentinfo) with `status="revoked"`.
+
+**Raises:** `AlterValueError`, `AgentNotFoundError`.
+
+## app.agents.mint_key
+
+Mint a subsequent API key for an existing agent. Plaintext returned ONCE.
+
+```python
+async def mint_key(agent_id: str) -> AgentKeyMintResult
+```
+
+**Returns:** [`AgentKeyMintResult`](/reference/python-sdk/types#agentkeymintresult).
+
+**Raises:** `AlterValueError`, `AgentNotFoundError`, `AgentCannotMintSubagentsError`.
+
+## app.agents.list_keys
+
+Every key for the agent, ordered by `created_at` ascending. Plaintext is never included.
+
+```python
+async def list_keys(agent_id: str) -> AgentKeyList
+```
+
+## app.agents.deprecate_key / undeprecate_key
+
+```python
+async def deprecate_key(agent_id: str, key_id: str) -> AgentKey
+async def undeprecate_key(agent_id: str, key_id: str) -> AgentKey
+```
+
+Mark a key as deprecated (it still authenticates; the SDK surfaces a deprecation warning when a deprecated key is used so operations dashboards can spot "time to roll the workload") or clear the marker. Idempotent.
+
+**Raises:** `AlterValueError`, `AgentNotFoundError`, `KeyNotFoundError`, `KeyAlreadyRevokedError`.
+
+## app.agents.revoke_key
+
+Revoke a single key (terminal). Default-protective: refuses to revoke the last non-revoked key on an agent unless `force=True`.
+
+```python
+async def revoke_key(
+    agent_id: str,
+    key_id: str,
+    *,
+    force: bool = False,
+) -> AgentKey
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `agent_id` | `str` | — | Positional. |
+| `key_id` | `str` | — | Positional. |
+| `force` | `bool` | `False` | Bypass the last-active-key guard. |
+
+**Raises:** `AlterValueError`, `AgentNotFoundError`, `KeyNotFoundError`, `LastActiveKeyError`.
+
+---
+
+## Agent.me
+
+Self-introspection — returns the calling agent's own record. Carved out from the policy pipeline so paused or revoked agents can still call `me()` to self-diagnose (per-key `revoked_at` is still enforced).
+
+```python
+async def me() -> AgentInfo
+```
+
+**Returns:** [`AgentInfo`](/reference/python-sdk/types#agentinfo).
+
+**Raises:** `MeRequiresAgentKeyError` (called with an app key), `KeyRevokedError`.
+
+```python
+from alter_sdk import Agent
+
+agent = Agent(api_key="alter_key_agent_…")
+info = await agent.me()
+print(info.id, info.name, info.status, info.version)
+```
+
+## Agent.trace
+
+Async context manager that scopes audit identity for every nested call. Tags every `request()` made inside the block — on this agent, on the parent `App`, or via framework-bridged code — with this agent's identity, `run_id`, `thread_id`, and arbitrary metadata.
+
+```python
+def trace(
+    *,
+    run_id: str | None = None,
+    thread_id: str | None = None,
+    parent: str | None | object = ...,
+    **metadata: str,
+) -> AbstractAsyncContextManager[None]
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `run_id` | `str \| None` | `None` | Correlation id for the run (e.g. LangGraph run id). Inherited from an outer `trace()` block if omitted. |
+| `thread_id` | `str \| None` | `None` | Conversation thread id. Inherited from an outer block if omitted. |
+| `parent` | `str \| None \| ...` | `...` (sentinel) | `...` (default): ambient detection of an outer `trace()` block from a different agent. `None`: explicit "no parent". `str`: explicit parent agent name. |
+| `**metadata` | `str` values | — | Free-form `str → str` pairs merged into the audit context. Reserved keys (`agent`, `parent_agent`, `run_id`, `thread_id`, `tool`, `tool_call_id`, `framework`) raise `AlterValueError`. |
+
+ContextVar isolation is per asyncio Task — concurrent `trace()` blocks under `asyncio.gather` stay isolated. `asyncio.create_task` inside the block inherits the snapshot; outside the block, child tasks do not.
+
+```python
+async with agent.trace(run_id="run_abc", role="writer"):
+    await agent.request("POST", url, json=payload)
+
+    async with researcher.trace():
+        # parent_agent=<outer agent> via ambient detection
+        await researcher.request("GET", other_url)
+```
+
+## Agent.with_constraints
+
+```python
+def with_constraints(*, scopes: list[str]) -> Agent
+```
+
+See [`App.with_constraints()`](/reference/python-sdk/client#with-constraints) for the full semantics. Returns a sibling `Agent` whose every request carries a permanent scope-constraints assertion narrowing the underlying key to the supplied scope set.

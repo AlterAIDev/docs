@@ -1,0 +1,57 @@
+---
+title: 'Connect SDK'
+description: 'Browser widget for embedding OAuth connection flows.'
+---
+
+`@alter-ai/connect` is a ~3.5 KB gzipped, zero-dependency JavaScript package that opens an Alter-hosted Connect UI in a popup (desktop) or full-page redirect (mobile). It is the frontend half of the [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) flow.
+
+```bash
+npm install @alter-ai/connect
+```
+
+Or via CDN:
+
+```html
+<script src="https://cdn.jsdelivr.net/npm/@alter-ai/connect@latest/dist/alter-connect.umd.js"></script>
+```
+
+Framework-agnostic. Works with React, Vue, Angular, Svelte, or no framework.
+
+For an end-to-end walk-through, see [Embed the Connect widget](/guides/embed-the-connect-widget). This section is API reference.
+
+## When to use Connect
+
+The browser widget is one of two ways an application drives the OAuth flow. Pick based on where the consent UI lives.
+
+| Use the Connect widget when… | Use the headless `connect()` SDK method when… |
+|---|---|
+| The application is a browser app (SPA, MPA, mobile web) and the user authorizes in their own browser. | The application is a server-side or CLI agent that already has a verified user session and can perform the OAuth redirect itself. |
+| The Alter-hosted provider-picker and branding are acceptable. | The application owns the redirect chrome and only needs Alter to return the authorization URL. |
+| Mobile devices are in scope — the SDK auto-switches between popup and full-page redirect. | The application has no browser at all (e.g. a CI job provisioning a service account). |
+
+`connect()` lives in the [TypeScript SDK](/reference/typescript-sdk) and [Python SDK](/reference/python-sdk). Both return an OAuth authorization URL — the application is then responsible for navigating the user to it.
+
+## Pages
+
+<CardGroup cols={2}>
+  <Card title="create()" icon="cube" href="/reference/connect-sdk/create">
+    Construct an `AlterConnect` instance.
+  </Card>
+  <Card title="open()" icon="window" href="/reference/connect-sdk/open">
+    Launch the Connect UI, including the mobile redirect flow.
+  </Card>
+  <Card title="Events & callbacks" icon="bell" href="/reference/connect-sdk/events">
+    `onSuccess`, `onError`, `onExit`, `onEvent`, and the `on`/`off` event bus.
+  </Card>
+  <Card title="Types" icon="brackets-curly" href="/reference/connect-sdk/types">
+    `Grant`, `AlterError`, `OpenOptions`, `AlterConnectConfig`.
+  </Card>
+</CardGroup>
+
+## Browser support
+
+- Chrome / Edge 90+
+- Firefox 88+
+- Safari 14+
+- iOS Safari 14+
+- Chrome Mobile

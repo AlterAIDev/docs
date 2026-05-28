@@ -1,0 +1,515 @@
+---
+title: 'Types'
+description: 'Public models, interfaces, and enums exported from @alter-ai/alter-sdk.'
+---
+
+Every shape on this page is exported from the package root:
+
+```typescript
+import type {
+  AlterResponse,
+  AlterLogger,
+  ApprovalResult,
+  ConnectSession,
+  // …
+} from "@alter-ai/alter-sdk";
+```
+
+Wire format from the backend is `snake_case`. The SDK accepts the wire shape in constructors and exposes `camelCase` properties; `toJSON()` round-trips back to `snake_case` for serialization.
+
+## AlterLogger
+
+Pluggable logger hook. Defaults to the global `console`.
+
+```typescript
+interface AlterLogger {
+  warn: (message: string, ...args: unknown[]) => void;
+  info?: (message: string, ...args: unknown[]) => void;
+  error?: (message: string, ...args: unknown[]) => void;
+  debug?: (message: string, ...args: unknown[]) => void;
+}
+```
+
+Only `warn` is currently called by the SDK. The other methods are part of the contract for future use.
+
+## AlterResponse
+
+The return type of [`request()`](/reference/typescript-sdk/request).
+
+```typescript
+interface AlterResponse extends Response {
+  readonly retryInfo: RetryInfo | null;
+}
+```
+
+Standard `Response` plus `retryInfo` — populated when the backend retried a token refresh; `null` when the token was served from cache or refreshed on the first attempt.
+
+## TokenResponse
+
+OAuth token metadata. The plaintext access token is never exposed on this object; the SDK injects it into outgoing requests at call time.
+
+| Field | Type | Description |
+|---|---|---|
+| `tokenType` | `string` | Usually `"Bearer"`. |
+| `expiresIn` | `number \| null` | Seconds until expiry. |
+| `expiresAt` | `Date \| null` | Absolute expiry. |
+| `scopes` | `string[]` | Scopes granted. |
+| `grantId` | `string` | Grant the token resolves to. |
+| `providerId` | `string \| null` | Provider slug. |
+| `scopeMismatch` | `boolean` | The grant's scopes no longer cover the configured required set. |
+| `injectionHeader` | `string` | HTTP header name used for credential injection. |
+| `injectionFormat` | `string` | Format string with a `{token}` placeholder. |
+| `additionalCredentials` | `Record<string, string> \| null` | Non-secret extras (region, service). |
+| `additionalInjections` | `ReadonlyArray<{ target, key, valueSource }> \| null` | Multi-header or query-param injection rules. |
+
+Helpers:
+
+- `isExpired(bufferSeconds?: number): boolean`
+- `needsRefresh(bufferSeconds?: number): boolean`
+
+## RetryInfo
+
+Metadata about retry attempts during token refresh.
+
+| Field | Type |
+|---|---|
+| `totalAttempts` | `number` |
+| `successfulAttempt` | `number` |
+| `errors` | `ReadonlyArray<RetryErrorInfo>` |
+
+## RetryErrorInfo
+
+One failed attempt.
+
+| Field | Type |
+|---|---|
+| `attempt` | `number` |
+| `error` | `string` |
+| `errorType` | `string` |
+| `delayS` | `number` |
+| `permanent` | `boolean` |
+
+## GrantInfo
+
+A single-grant record.
+
+| Field | Type |
+|---|---|
+| `grantId` | `string` |
+| `providerId` | `string` |
+| `scopes` | `string[]` |
+| `accountIdentifier` | `string \| null` |
+| `accountDisplayName` | `string \| null` |
+| `status` | `string` |
+| `scopeMismatch` | `boolean` |
+| `expiresAt` | `string \| null` |
+| `createdAt` | `string` |
+| `lastUsedAt` | `string \| null` |
+| `principalType` | `"user" \| "group" \| "system" \| "agent"` |
+
+## UnifiedGrantListResult
+
+Returned by [`listGrants()`](/reference/typescript-sdk/grants#listgrants).
+
+| Field | Type |
+|---|---|
+| `grants` | `GrantListItem[]` |
+| `total` | `number` |
+| `limit` | `number` |
+| `offset` | `number` |
+| `hasMore` | `boolean` |
+
+## GrantListItem
+
+Discriminated union over `grantKind`.
+
+```typescript
+type GrantListItem = OAuthGrantItem | ManagedSecretGrantItem;
+```
+
+### OAuthGrantItem
+
+| Field | Type |
+|---|---|
+| `grantKind` | `"oauth"` |
+| `grantId` | `string` |
+| `providerId` | `string` |
+| `scopes` | `string[]` |
+| `accountIdentifier` | `string \| null` |
+| `accountDisplayName` | `string \| null` |
+| `status` | `string` |
+| `scopeMismatch` | `boolean` |
+| `expiresAt` | `string \| null` |
+| `createdAt` | `string` |
+| `lastUsedAt` | `string \| null` |
+| `principalType` | `"user" \| "system"` |
+| `delegatedAt` | `string \| null` |
+| `delegatedAgentIds` | `string[]` |
+
+### ManagedSecretGrantItem
+
+| Field | Type |
+|---|---|
+| `grantKind` | `"managed_secret"` |
+| `grantId` | `string` |
+| `managedSecretId` | `string` |
+| `managedSecretSlug` | `string` |
+| `managedSecretName` | `string` |
+| `agentId` | `string` |
+| `label` | `string \| null` |
+| `status` | `string` |
+| `grantPolicy` | `Record<string, unknown> \| null` |
+| `createdAt` | `string` |
+| `lastUsedAt` | `string \| null` |
+| `principalType` | `"agent"` |
+
+## Principal
+
+Discriminated union passed to [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#createmanagedsecretgrant).
+
+```typescript
+type Principal = UserPrincipal | GroupPrincipal | SystemPrincipal | AgentPrincipal;
+```
+
+### UserPrincipal
+
+| Field | Type |
+|---|---|
+| `type` | `"user"` |
+| `userToken` | `string` |
+| `label` | `string` |
+
+### GroupPrincipal
+
+| Field | Type |
+|---|---|
+| `type` | `"group"` |
+| `externalGroupId` | `string` |
+| `idpId` | `string` |
+| `label` | `string` |
+
+### SystemPrincipal
+
+| Field | Type |
+|---|---|
+| `type` | `"system"` |
+| `label` | `string \| null` |
+
+### AgentPrincipal
+
+| Field | Type |
+|---|---|
+| `type` | `"agent"` |
+| `label` | `string \| null` |
+
+## CreateGrantResult
+
+Returned by [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#createmanagedsecretgrant).
+
+| Field | Type |
+|---|---|
+| `grantId` | `string` |
+| `principalType` | `"user" \| "group" \| "system" \| "agent"` |
+| `label` | `string \| null` |
+| `createdAt` | `string` |
+
+## RevokeGrantResult
+
+Returned by [`revokeGrant()`](/reference/typescript-sdk/grants#revokegrant).
+
+| Field | Type |
+|---|---|
+| `success` | `boolean` |
+| `message` | `string` |
+| `grantId` | `string` |
+| `revokedAt` | `string` |
+
+## GrantPolicy
+
+Per-grant policy.
+
+| Field | Type |
+|---|---|
+| `expiresAt` | `string \| null` |
+| `createdBy` | `string \| null` |
+| `createdAt` | `string \| null` |
+
+## ConnectSession
+
+Returned by [`createConnectSession()`](/reference/typescript-sdk/connect#createconnectsession).
+
+| Field | Type |
+|---|---|
+| `sessionToken` | `string` |
+| `connectUrl` | `string` |
+| `expiresIn` | `number` |
+| `expiresAt` | `string` |
+
+## ManagedSecretConnectSession
+
+Returned by [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect#createmanagedsecretconnectsession). Same shape as `ConnectSession`.
+
+`toString()` redacts `connectUrl` — the URL fragment carries the session token, so logging would be a leak.
+
+## ConnectResult
+
+Returned per provider by [`connect()`](/reference/typescript-sdk/connect#connect) and [`pollConnectSession()`](/reference/typescript-sdk/connect#pollconnectsession).
+
+| Field | Type |
+|---|---|
+| `grantId` | `string` |
+| `providerId` | `string` |
+| `accountIdentifier` | `string \| null` |
+| `scopes` | `string[]` |
+| `grantPolicy` | `GrantPolicy \| null` |
+
+## AuthResult
+
+Returned by [`authenticate()`](/reference/typescript-sdk/connect#authenticate).
+
+| Field | Type |
+|---|---|
+| `userToken` | `string` |
+| `userInfo` | `Record<string, unknown>` |
+
+## PendingApproval
+
+Returned by [`proxyRequest()`](/reference/typescript-sdk/proxy) when an HITL grant requires approval.
+
+| Field | Type |
+|---|---|
+| `approvalId` | `string` |
+| `status` | `"pending"` |
+| `expiresAt` | `Date` |
+| `expiresIn` | `number` |
+| `approvalUrl` | `string` |
+
+Discriminate from `ApprovalResult` with `result instanceof PendingApproval` or `result.status === "pending"`.
+
+## ApprovalStatus
+
+Snapshot returned by [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus).
+
+| Field | Type |
+|---|---|
+| `approvalId` | `string` |
+| `status` | `ApprovalStatusValue` |
+| `expiresAt` | `Date` |
+| `decidedAt` | `Date \| null` |
+| `decisionReason` | `string \| null` |
+| `executedAt` | `Date \| null` |
+| `hasResult` | `boolean` |
+
+Helpers:
+
+- `isTerminal: boolean` — `true` when status is `denied`, `expired`, `executed`, or `failed`.
+
+### ApprovalStatusValue
+
+```typescript
+type ApprovalStatusValue =
+  | "pending"
+  | "approved"
+  | "executing"
+  | "denied"
+  | "expired"
+  | "executed"
+  | "failed";
+```
+
+## ApprovalResult
+
+Returned by [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval) and the synchronous branch of [`proxyRequest()`](/reference/typescript-sdk/proxy).
+
+| Field | Type |
+|---|---|
+| `approvalId` | `string \| null` |
+| `statusCode` | `number` |
+| `headers` | `Record<string, string>` |
+| `bodyB64` | `string` |
+| `bodyTruncated` | `boolean` |
+
+`approvalId` is `null` for the synchronous (non-HITL) branch of `proxyRequest()` — there was no approval row.
+
+Helpers:
+
+- `bodyBytes(): Uint8Array`
+- `bodyText(encoding?: BufferEncoding | "utf-8"): string`
+- `bodyJson(): unknown`
+
+## AgentInfo
+
+A managed agent record. Returned by `app.agents.get`, `app.agents.update`, `agent.me`, and others.
+
+| Field | Type |
+|---|---|
+| `id` | `string` |
+| `name` | `string` |
+| `displayName` | `string \| null` |
+| `type` | `AgentType` |
+| `status` | `AgentStatus` |
+| `scopes` | `Record<string, unknown>` |
+| `scopesPending` | `Record<string, unknown> \| null` |
+| `scopesAppliesAt` | `Date \| null` |
+| `policy` | `Record<string, unknown>` |
+| `metadata` | `Record<string, unknown>` |
+| `rateLimitPerMinute` | `number \| null` |
+| `version` | `number` |
+| `createdAt` | `Date` |
+| `lastUsedAt` | `Date \| null` |
+| `parentAgentId` | `string \| null` |
+
+### AgentType
+
+```typescript
+type AgentType = "agent" | "service";
+```
+
+### AgentStatus
+
+```typescript
+type AgentStatus = "active" | "inactive" | "revoked";
+```
+
+## AgentCreateResult
+
+Extends [`AgentInfo`](#agentinfo) with the freshly-minted plaintext API key.
+
+| Field | Type |
+|---|---|
+| `apiKey` | `string \| null` |
+| `keyId` | `string` |
+
+`apiKey` is `null` on an idempotency-replay — the plaintext is not server-side recoverable. Branch on `result.apiKey === null` rather than treating any returned value as a usable key.
+
+## AgentListResult
+
+| Field | Type |
+|---|---|
+| `agents` | `AgentInfo[]` |
+| `total` | `number` |
+| `limit` | `number` |
+| `offset` | `number` |
+| `hasMore` | `boolean` |
+
+## AgentKey
+
+A single API key bound to a managed agent.
+
+| Field | Type |
+|---|---|
+| `keyId` | `string` |
+| `keyPrefix` | `string` |
+| `name` | `string` |
+| `createdAt` | `Date` |
+| `deprecatedAt` | `Date \| null` |
+| `revokedAt` | `Date \| null` |
+| `lastUsedAt` | `Date \| null` |
+
+Computed property:
+
+- `status: AgentKeyStatus` — `"revoked"` when `revokedAt` is set, `"deprecated"` when `deprecatedAt` is set, `"active"` otherwise.
+
+### AgentKeyStatus
+
+```typescript
+type AgentKeyStatus = "active" | "deprecated" | "revoked";
+```
+
+## AgentKeyMintResult
+
+Extends [`AgentKey`](#agentkey) with the plaintext `apiKey` (returned exactly once).
+
+| Field | Type |
+|---|---|
+| `apiKey` | `string \| null` |
+
+## AgentKeyList
+
+```typescript
+class AgentKeyList { readonly items: AgentKey[] }
+```
+
+## APIKeyInfo
+
+A scoped API key (not bound to a managed agent).
+
+| Field | Type |
+|---|---|
+| `id` | `string` |
+| `name` | `string` |
+| `keyPrefix` | `string` |
+| `keyType` | `"rk" \| "ak" \| "dk" \| "pk"` |
+| `scopes` | `readonly string[]` |
+| `scopeVersion` | `number` |
+| `cidrAllowlist` | `readonly string[] \| null` |
+| `rateLimitRpm` | `number \| null` |
+| `expiresAt` | `string \| null` |
+| `deprecatedAt` | `string \| null` |
+| `revokedAt` | `string \| null` |
+| `parentKeyId` | `string \| null` |
+| `createdAt` | `string` |
+| `lastUsedAt` | `string \| null` |
+| `status` | `"active" \| "rotated" \| "revoked"` |
+
+## MintedKey
+
+Extends [`APIKeyInfo`](#apikeyinfo) with the plaintext.
+
+| Field | Type |
+|---|---|
+| `apiKey` | `string` |
+
+## ScopeCatalog
+
+Returned by [`scopes.list()`](/reference/typescript-sdk/scopes#list).
+
+| Field | Type |
+|---|---|
+| `scopeVersion` | `number` |
+| `resources` | `Readonly<Record<string, ResourceScopes>>` |
+| `actionVerbs` | `readonly string[]` |
+| `deprecated` | `readonly string[]` |
+
+### ResourceScopes
+
+```typescript
+interface ResourceScopes {
+  readonly verbs: readonly string[];
+}
+```
+
+## APICallAuditLog
+
+Reserved — represents an audit row that the SDK schedules in the background. Application code does not construct or read this directly; the type is exported for callers that want to mock the audit submission pipeline in tests.
+
+## Enums
+
+### HttpMethod
+
+```typescript
+enum HttpMethod {
+  GET = "GET",
+  POST = "POST",
+  PUT = "PUT",
+  PATCH = "PATCH",
+  DELETE = "DELETE",
+  HEAD = "HEAD",
+  OPTIONS = "OPTIONS",
+}
+```
+
+### CallerType
+
+```typescript
+enum CallerType {
+  SERVICE = "service",
+  AGENT = "agent",
+}
+```
+
+Distinguishes backend services from AI agents at the audit layer. Set via the `callerType` constructor option.
+
+### Provider
+
+Slug enum for the OAuth provider catalog. Use the string slug (`"google"`, `"github"`, etc.) directly in `request()` and `createConnectSession()` — the enum is provided for IDE autocomplete.

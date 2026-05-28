@@ -22,23 +22,36 @@ The flow:
 
 ### 1. Mint a Connect session on the backend
 
-When the user clicks **Connect Google** in the frontend, the frontend asks the backend for a short-lived session token. The backend mints it via the SDK:
+When the user clicks **Connect Google** in the frontend, the frontend asks the backend for a short-lived session token. The backend mints it via the SDK. The examples below construct the SDK client once at module scope and mount the routes on a framework router:
 
 <CodeGroup>
 ```python Python
-@app.post("/api/connect-session")
+import os
+from fastapi import APIRouter, Depends
+from alter_sdk import App
+
+app = App(api_key=os.environ["ALTER_API_KEY"])  # SDK client
+router = APIRouter()
+
+@router.post("/api/connect-session")
 async def create_session(user = Depends(authenticated_user)):
-    session = await alter.create_connect_session(
+    session = await app.create_connect_session(
         allowed_providers=["google"],
         allowed_origin="https://app.example.com",
         user_token=user.jwt,  # binds the grant to this user
     )
-    return {"session_token": session.session_token}
+    return {"sessionToken": session.session_token}
 ```
 
 ```typescript TypeScript
-app.post("/api/connect-session", authenticated, async (req, res) => {
-  const session = await alter.createConnectSession({
+import express from "express";
+import { App } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey: process.env.ALTER_API_KEY! }); // SDK client
+const router = express.Router();
+
+router.post("/api/connect-session", authenticated, async (req, res) => {
+  const session = await app.createConnectSession({
     allowedProviders: ["google"],
     allowedOrigin: "https://app.example.com",
     userToken: req.user.jwt,
@@ -64,7 +77,7 @@ await alterConnect.open({
   onSuccess: (connection) => {
     // Connection is created. No need to store grant_id — the backend
     // resolves it from the user's JWT on every subsequent call.
-    console.log("Connected", connection.provider, connection.accountIdentifier);
+    console.log("Connected", connection.provider, connection.account_identifier);
   },
 });
 ```
@@ -82,15 +95,15 @@ from contextvars import ContextVar
 
 current_jwt: ContextVar[str] = ContextVar("current_jwt")
 
-alter = App(
+app = App(
     api_key=os.environ["ALTER_API_KEY"],
     user_token_getter=lambda: current_jwt.get(),
 )
 
-@app.get("/api/calendar/events")
+@router.get("/api/calendar/events")
 async def list_events(user = Depends(authenticated_user)):
     current_jwt.set(user.jwt)
-    response = await alter.request(
+    response = await app.request(
         HttpMethod.GET,
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
         provider="google",
@@ -104,14 +117,14 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 const jwtStore = new AsyncLocalStorage<string>();
 
-const alter = new App({
+const app = new App({
   apiKey: process.env.ALTER_API_KEY!,
   userTokenGetter: () => jwtStore.getStore()!,
 });
 
-app.get("/api/calendar/events", authenticated, async (req, res) => {
+router.get("/api/calendar/events", authenticated, async (req, res) => {
   await jwtStore.run(req.user.jwt, async () => {
-    const response = await alter.request(
+    const response = await app.request(
       HttpMethod.GET,
       "https://www.googleapis.com/calendar/v3/calendars/primary/events",
       { provider: "google" },
@@ -133,21 +146,21 @@ A user can have more than one Google account connected. When `app.request(provid
 <CodeGroup>
 ```python Python
 try:
-    response = await alter.request(HttpMethod.GET, url, provider="google")
+    response = await app.request(HttpMethod.GET, url, provider="google")
 except AmbiguousGrantError as e:
     chosen = await prompt_user_to_pick(e.account_identifiers)
-    response = await alter.request(
+    response = await app.request(
         HttpMethod.GET, url, provider="google", account=chosen,
     )
 ```
 
 ```typescript TypeScript
 try {
-  response = await alter.request(HttpMethod.GET, url, { provider: "google" });
+  response = await app.request(HttpMethod.GET, url, { provider: "google" });
 } catch (e) {
   if (e instanceof AmbiguousGrantError) {
     const chosen = await promptUserToPick(e.accountIdentifiers);
-    response = await alter.request(
+    response = await app.request(
       HttpMethod.GET, url, { provider: "google", account: chosen },
     );
   } else { throw e; }
@@ -161,10 +174,10 @@ For an in-app "Connected accounts" page, list grants visible to the calling user
 
 <CodeGroup>
 ```python Python
-@app.get("/api/connections")
+@router.get("/api/connections")
 async def list_connections(user = Depends(authenticated_user)):
     current_jwt.set(user.jwt)
-    page = await alter.list_grants()
+    page = await app.list_grants()
     return [
         {"provider": g.provider_id, "account": g.account_identifier, "grant_id": g.grant_id}
         for g in page.grants
@@ -172,9 +185,9 @@ async def list_connections(user = Depends(authenticated_user)):
 ```
 
 ```typescript TypeScript
-app.get("/api/connections", authenticated, async (req, res) => {
+router.get("/api/connections", authenticated, async (req, res) => {
   await jwtStore.run(req.user.jwt, async () => {
-    const page = await alter.listGrants();
+    const page = await app.listGrants();
     res.json(page.grants.map(g => ({
       provider: g.providerId, account: g.accountIdentifier, grantId: g.grantId,
     })));
@@ -188,7 +201,7 @@ The Wallet dashboard at [wallet.alterauth.com](https://wallet.alterauth.com) giv
 ### Revoking a grant from the backend
 
 ```python
-await alter.revoke_grant(grant_id)
+await app.revoke_grant(grant_id)
 ```
 
 The user is also free to revoke from the Wallet at any time.

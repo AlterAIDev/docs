@@ -131,6 +131,16 @@ Recovery: mint a replacement first, deploy it, then retry the revoke. Or pass `f
 
 All inherit from `BackendError`. Each carries a stable `code` attribute (`agent_not_found`, `agent_inactive`, `key_revoked`, …). Switch on `err.code` (not on the message) when handling multiple agent error types.
 
+### Agent codes without typed SDK wrappers
+
+A few backend agent codes surface as a plain `BackendError` rather than a dedicated subclass. They are still stable contracts — branch on `err.details['error']` (Python) / `err.details.error` (TypeScript) when handling them.
+
+| `details['error']` | HTTP | Meaning |
+|---|---|---|
+| `agent_cannot_read_peer_agents` | 403 | An agent key tried to read another agent's record. The canonical self-introspection path is `agent.me()`. |
+| `agent_scope_not_allowed` | 403 | The agent key called a route whose target provider / OAuth scope / managed-secret name is not in the agent's scope allowlist. Widen the allowlist on the agent. |
+| `idempotency_record_corrupted` | 500 | An idempotency replay pointed at an agent or key that no longer exists. Retry with a fresh idempotency key; the underlying corruption is operator-investigable. |
+
 ## Approval errors
 
 | Error | Meaning | Recovery |
@@ -162,19 +172,19 @@ When a request fails because the user hasn't authorized the provider yet, the SD
 from alter_sdk import NoDelegatedGrantError
 
 try:
-    await vault.request(provider="slack", user_token=jwt, url=..., method=...)
+    await app.request(provider="slack", user_token=jwt, url=..., method=...)
 except NoDelegatedGrantError as e:
     # 1. Mint a recovery Connect session using the error's context.
-    session = await vault.create_connect_session_for_error(
+    session = await app.create_connect_session_for_error(
         e,
         allowed_origin="https://app.example.com",
     )
     # 2. Surface the URL to the user.
     redirect_user(session.connect_url)
     # 3. Poll until consent completes.
-    results = await vault.poll_connect_session(session.session_token)
+    results = await app.poll_connect_session(session.session_token)
     # 4. Retry with the freshly-minted grant_id.
-    response = await vault.request(grant_id=results[0].grant_id, url=..., method=...)
+    response = await app.request(grant_id=results[0].grant_id, url=..., method=...)
 ```
 
 **TypeScript**
@@ -183,19 +193,19 @@ except NoDelegatedGrantError as e:
 import { NoDelegatedGrantError } from "@alter-ai/alter-sdk";
 
 try {
-  await vault.request(HttpMethod.GET, "...", { provider: "slack", userToken: jwt });
+  await app.request(HttpMethod.GET, "...", { provider: "slack", userToken: jwt });
 } catch (e) {
   if (e instanceof NoDelegatedGrantError) {
     // 1. Mint a recovery Connect session.
-    const session = await vault.createConnectSessionForError(e, {
+    const session = await app.createConnectSessionForError(e, {
       allowedOrigin: "https://app.example.com",
     });
     // 2. Surface the URL.
     redirectUser(session.connectUrl);
     // 3. Poll until consent completes.
-    const results = await vault.pollConnectSession(session.sessionToken);
+    const results = await app.pollConnectSession(session.sessionToken);
     // 4. Retry.
-    const response = await vault.request(HttpMethod.GET, "...", {
+    const response = await app.request(HttpMethod.GET, "...", {
       grantId: results[0].grantId,
     });
   } else {

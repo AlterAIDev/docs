@@ -1,0 +1,122 @@
+---
+title: 'Approvals'
+description: 'Human-in-the-loop approval polling and result fetching.'
+---
+
+When a grant has `requires_approval` configured, [`proxy_request()`](/reference/python-sdk/proxy) returns a [`PendingApproval`](/reference/python-sdk/types#pendingapproval) instead of executing the call. The approvals surface lets the SDK block until the approver decides and fetch the proxied response.
+
+```python
+result = await app.proxy_request("POST", url, grant_id=..., json_body=payload)
+
+if isinstance(result, PendingApproval):
+    notify_approver(result.approval_url)
+    final = await app.await_approval(str(result.approval_id), timeout=600.0)
+    # final is an ApprovalResult — read the proxied provider response
+```
+
+Both `App` and `Agent` expose `await_approval()` and `get_approval_status()`.
+
+## await_approval
+
+Poll until the approval reaches a terminal state, then return the proxied result.
+
+```python
+async def await_approval(
+    approval_id: str,
+    *,
+    timeout: float = 300.0,
+    poll_interval: float = 2.0,
+) -> ApprovalResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `approval_id` | `str` | — | The approval row id (from `PendingApproval.approval_id`). Positional. |
+| `timeout` | `float` | `300.0` | Local wait timeout in seconds. The approval row may still be pending on the backend after this elapses — the SDK simply gives up waiting. |
+| `poll_interval` | `float` | `2.0` | Seconds between polls. |
+
+**Returns:** [`ApprovalResult`](/reference/python-sdk/types#approvalresult) on the `executed` terminal (the proxied provider response).
+
+**Raises:**
+
+- `ApprovalDeniedError` — approver explicitly denied.
+- `ApprovalExpiredError` — approval window elapsed before any decision.
+- `ApprovalExecutionFailedError` — approved but backend's proxy execution failed (e.g. grant revoked between approval and execution).
+- `ApprovalTimeoutError` — local wait elapsed before any decision. Re-poll later if the row is still pending.
+
+Transient gateway errors (502, 503, 504) and network failures during the wait are retried silently until the deadline elapses — the approval row is fine on the backend and the next poll typically succeeds.
+
+```python
+from alter_sdk.exceptions import ApprovalDeniedError, ApprovalTimeoutError
+from alter_sdk.models import PendingApproval
+
+result = await app.proxy_request(
+    "POST",
+    "https://api.stripe.com/v1/refunds",
+    grant_id=grant_id,
+    json_body={"charge": "ch_abc"},
+)
+
+if isinstance(result, PendingApproval):
+    try:
+        final = await app.await_approval(
+            str(result.approval_id),
+            timeout=600.0,
+            poll_interval=3.0,
+        )
+        print("Approved:", final.status_code, final.body_json())
+    except ApprovalDeniedError as e:
+        print("Denied:", e.message)
+    except ApprovalTimeoutError:
+        # row may still be pending — re-poll later
+        ...
+```
+
+## get_approval_status
+
+Single-shot poll of an approval row. Returns the current status snapshot without blocking.
+
+```python
+async def get_approval_status(approval_id: str) -> ApprovalStatus
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `approval_id` | `str` | — | The approval row id. |
+
+**Returns:** [`ApprovalStatus`](/reference/python-sdk/types#approvalstatus). Branch on `.status` or `.is_terminal`.
+
+```python
+status = await app.get_approval_status(approval_id)
+if status.is_terminal:
+    print("Decided:", status.status, "at", status.decided_at)
+else:
+    print("Still", status.status)
+```
+
+## Status values
+
+`ApprovalStatus.status` is one of:
+
+| Value | Terminal | Meaning |
+|---|---|---|
+| `"pending"` | no | Approver has not decided. |
+| `"approved"` | no | Decision made; backend is about to execute the proxied call. |
+| `"executing"` | no | Backend is currently running the proxied call. |
+| `"denied"` | yes | Approver declined. |
+| `"expired"` | yes | Approval window elapsed. |
+| `"executed"` | yes | Proxied call completed; `has_result=True` once the result is ready to fetch. |
+| `"failed"` | yes | Execution failed after approval. |
+
+`await_approval()` handles every terminal automatically and raises the matching typed exception (or returns `ApprovalResult` for `executed`).
+
+## Reading the result
+
+`ApprovalResult.body_b64` is base64-encoded. Use the helpers:
+
+- `body_bytes() -> bytes`
+- `body_text(encoding: str = "utf-8") -> str`
+- `body_json() -> Any`
+- `.status_code` — HTTP status from the provider
+- `.headers` — provider response headers (dict)
+- `.approval_id` — the approval row id (`None` for synchronous, non-HITL `proxy_request` results)

@@ -5,7 +5,7 @@ description: 'Run the OAuth flow in a popup or redirect, from a frontend, with o
 
 By the end of this guide, a frontend launches an OAuth flow from a button click. The user authorizes, the popup closes, and a callback fires with the new connection's metadata. Works in React, Vue, Angular, and plain HTML; popup on desktop, full-page redirect on mobile.
 
-The Connect widget is `@alter-ai/connect` — a 3.5 KB gzipped, zero-dependency package that opens a backend-served Connect UI in a popup or redirect.
+The Connect widget is `@alter-ai/connect` — a 3.5 KB gzipped, zero-dependency package that opens the Alter-hosted Connect UI in a popup or redirect.
 
 ## Prerequisites
 
@@ -45,7 +45,7 @@ button.addEventListener("click", () => {
       alterConnect.open({
         token: sessionToken,
         onSuccess: (connection) => {
-          console.log("Connected", connection.provider, connection.accountIdentifier);
+          console.log("Connected", connection.provider, connection.account_identifier);
           // Optionally persist the connection metadata for the in-app "Connected accounts" view
         },
         onError: (error) => {
@@ -134,7 +134,7 @@ When a stored grant's connection breaks (refresh token revoked, user changed pas
 Pass several providers in `allowed_providers` when minting the session. The widget shows the user a provider picker before launching the OAuth flow:
 
 ```python
-session = await alter.create_connect_session(
+session = await app.create_connect_session(
     allowed_providers=["google", "github", "slack"],
     user_token=user.jwt,
 )

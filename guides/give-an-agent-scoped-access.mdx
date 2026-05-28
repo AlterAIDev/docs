@@ -27,13 +27,13 @@ Equivalent SDK call:
 
 <CodeGroup>
 ```python Python
-result = await alter.agents.create(name="research-bot")
+result = await app.agents.create(name="research-bot")
 print("agent id:", result.id)
 print("agent key:", result.api_key)  # shown ONCE
 ```
 
 ```typescript TypeScript
-const result = await alter.agents.create({ name: "research-bot" });
+const result = await app.agents.create({ name: "research-bot" });
 console.log("agent id:", result.id);
 console.log("agent key:", result.apiKey);  // shown ONCE
 ```
@@ -49,7 +49,7 @@ Two paths, depending on whether the credential belongs to a user or the operator
 
 <CodeGroup>
 ```python Python
-session = await alter.create_connect_session(
+session = await app.create_connect_session(
     allowed_providers=["google"],
     user_token=user.jwt,
     agent=agent_id,  # consent screen will show "research-bot is requesting access"
@@ -57,7 +57,7 @@ session = await alter.create_connect_session(
 ```
 
 ```typescript TypeScript
-const session = await alter.createConnectSession({
+const session = await app.createConnectSession({
   allowedProviders: ["google"],
   userToken: user.jwt,
   agent: agentId,
@@ -67,31 +67,7 @@ const session = await alter.createConnectSession({
 
 On Approve, Alter writes both the connection and a [delegation](/concepts/delegation) row binding it to the named agent.
 
-**Path B — operator issues a managed secret to the agent.** From the portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot**. Or via SDK:
-
-<CodeGroup>
-```python Python
-from alter_sdk.models import AgentPrincipal
-
-# ⚠ This call must be signed by the agent's own key, since
-# AgentPrincipal binds the grant to the calling agent's identity.
-agent = Agent(api_key=AGENT_KEY)
-
-await agent.create_managed_secret_grant(
-    managed_secret_id="ms_anthropic_abc",
-    principal=AgentPrincipal(label="claude-key"),
-)
-```
-
-```typescript TypeScript
-// ⚠ This call must be signed by the agent's own key.
-const agent = new Agent({ apiKey: AGENT_KEY });
-
-await agent.createManagedSecretGrant("ms_anthropic_abc", {
-  principal: { type: "agent", label: "claude-key" },
-});
-```
-</CodeGroup>
+**Path B — operator issues a managed secret to the agent.** From the Developer Portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot**. Agent-bound managed-secret grants are minted from the dev-portal admin route family — the SDK's `create_managed_secret_grant` / `createManagedSecretGrant` consumes a narrower principal union and rejects `{ "type": "agent" }` at the backend boundary. The resulting `grant_id` is what the agent process uses in `request(grant_id=...)`.
 
 ### 3. Call providers from the agent
 

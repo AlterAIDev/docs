@@ -1,0 +1,92 @@
+---
+title: 'AlterConnect.create()'
+description: 'Construct an AlterConnect instance.'
+---
+
+`AlterConnect.create(config?)` is the entry point. It returns a singleton-style instance that can be reused across multiple `open()` calls.
+
+```typescript
+import AlterConnect from "@alter-ai/connect";
+
+const alterConnect = AlterConnect.create({ debug: true });
+```
+
+## Signature
+
+```typescript
+AlterConnect.create(config?: AlterConnectConfig): AlterConnect
+```
+
+## Parameters
+
+| Name | Type | Default | Description |
+|---|---|---|---|
+| `config.debug` | `boolean` | `false` | When `true`, the SDK logs lifecycle events to `console.log` under the `[Alter Connect]` prefix. Useful while integrating; leave off in production. |
+| `config.baseURL` | `string` | — | **Reserved. Not yet supported.** Passing any value throws at construction time. Omit the field. See the note below. |
+
+## Returns
+
+An `AlterConnect` instance. See [`open()`](/reference/connect-sdk/open), [events](/reference/connect-sdk/events), and the [type reference](/reference/connect-sdk/types#alterconnectconfig) for `AlterConnectConfig`.
+
+## Reusing the instance
+
+Calling `create()` once per application is the intended pattern. The instance keeps a single popup at a time; calling `open()` while a flow is already in progress is a no-op (the existing popup stays focused). Use [`isOpen()`](#isopen) to check.
+
+```typescript
+const alterConnect = AlterConnect.create();
+
+button.addEventListener("click", () => {
+  fetchSessionToken().then((token) => alterConnect.open({ token, onSuccess }));
+});
+```
+
+## Instance lifecycle methods
+
+These are housekeeping methods returned by `create()`. The interactive method, `open()`, has [its own page](/reference/connect-sdk/open).
+
+### `close()`
+
+Close the popup if one is currently open. No-op on the mobile redirect flow (the page has already navigated away).
+
+```typescript
+alterConnect.close();
+```
+
+### `destroy()`
+
+Tear down the instance. Removes every registered event listener, clears state, and rejects subsequent method calls with an `sdk_destroyed` error. Use this on framework unmount.
+
+```typescript
+alterConnect.destroy();
+```
+
+### `isOpen()`
+
+Returns `true` while the Connect UI is open.
+
+```typescript
+if (alterConnect.isOpen()) {
+  // ...
+}
+```
+
+### `getVersion()`
+
+Returns the installed SDK version string (e.g. `"0.2.0"`).
+
+```typescript
+alterConnect.getVersion();
+```
+
+## The reserved `baseURL` field
+
+<Warning>
+`AlterConnectConfig.baseURL` is reserved for a future self-hosted release. Setting it today throws:
+
+```
+AlterConnectConfig.baseURL is reserved and not yet supported.
+Omit the field to use the production Alter host.
+```
+
+There is no workaround — omit the field. When self-hosted support ships, the field will accept a full URL with an `http://` or `https://` scheme and no userinfo, query, or fragment.
+</Warning>

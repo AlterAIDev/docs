@@ -125,10 +125,10 @@ Every boto3 call routes through Alter — credential retrieval, SigV4 signing, [
 |---|---|---|---|
 | `service_name` | `str` | — | AWS service (`s3`, `dynamodb`, `bedrock-runtime`, …). |
 | `grant_id` | `str` | — | The AWS grant. |
-| `region_name` | `str` | `us-east-1` | AWS region. |
-| `timeout` | `float` | client timeout | Per-request timeout (seconds). |
-| `reason` | `str` | — | Audit reason applied to every call from this client. |
-| `context` | `dict` | — | Per-client audit context. |
+| `region_name` | `str \| None` | `None` — boto3 default (`us-east-1`) | AWS region. |
+| `timeout` | `float \| None` | `None` — client timeout + 5s buffer | Total wall-clock timeout per call (seconds), covering token retrieval and the HTTP request. |
+| `reason` | `str \| None` | `None` | Audit reason applied to every call from this client. |
+| `context` | `dict[str, str] \| None` | `None` | Per-client audit context. |
 
 Error handling matches native boto3 (`botocore.exceptions.ClientError` for AWS errors like `NoSuchBucket`, `AccessDenied`; `AlterSDKError` for Alter-side issues).
 

@@ -1,0 +1,208 @@
+---
+title: 'Client'
+description: 'App and Agent — constructors, properties, lifecycle, withConstraints, getAgent.'
+---
+
+```typescript
+import { App, Agent } from "@alter-ai/alter-sdk";
+```
+
+The SDK exposes two top-level client classes. They share most of the request surface but model two different principal kinds on the wire. Pick the right class for the workload:
+
+- **`App`** — application-side. Holds the application's API key (`alter_key_app_…`). Provisions agents, mints Connect sessions, calls provider APIs under any stored grant.
+- **`Agent`** — workload-side. Holds an agent's API key (`alter_key_agent_…`). Can only reach credentials delegated or directly bound to the agent.
+
+Methods that do not apply to a principal kind are intentionally absent from that class — TypeScript flags the missing methods at compile time.
+
+## App
+
+The application-side client.
+
+```typescript
+import { App, CallerType } from "@alter-ai/alter-sdk";
+
+const app = new App({
+  apiKey: process.env.ALTER_API_KEY!,
+  timeout: 30_000,
+  caller: "customer-portal",
+  callerType: CallerType.SERVICE,
+  userTokenGetter: () => getCurrentUserJwt(),
+});
+```
+
+### Constructor
+
+```typescript
+new App(options: AppOptions)
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `apiKey` | `string` | — | Application API key (`alter_key_app_…`). Required. |
+| `timeout` | `number` | `30000` | HTTP timeout in **milliseconds**. |
+| `caller` | `string` | — | Caller identifier for audit attribution. |
+| `callerType` | `CallerType \| "agent" \| "service"` | `SERVICE` | Distinguishes backend services from AI agents. Only effective when `caller` is set. |
+| `userTokenGetter` | `() => string \| Promise<string>` | — | Resolves the current end-user JWT. Required for identity-mode `request()`. |
+| `logger` | `AlterLogger` | global `console` | Pluggable logger. See [`AlterLogger`](/reference/typescript-sdk/types#alterlogger). |
+
+Throws [`AlterValueError`](/reference/typescript-sdk/errors) if `apiKey` is missing or empty.
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `actorId` | `string \| null` | Backend-resolved actor UUID. Populated after the first authenticated call. |
+| `lastRetryInfo` | `RetryInfo \| null` | Token-refresh retry metadata from the most recent `request()` call. |
+| `baseUrl` | `string` | Backend the client is pinned to. Diagnostic accessor. |
+| `agents` | [`AgentsNamespace`](/reference/typescript-sdk/agents) | Managed agent CRUD. |
+| `keys` | [`KeysNamespace`](/reference/typescript-sdk/keys) | Scoped sub-key lifecycle. |
+| `scopes` | [`ScopesNamespace`](/reference/typescript-sdk/scopes) | Scope catalog discovery. |
+
+### Methods
+
+The `App` class exposes:
+
+- [`request()`](/reference/typescript-sdk/request), [`proxyRequest()`](/reference/typescript-sdk/proxy)
+- [`listGrants()`](/reference/typescript-sdk/grants#listgrants), [`revokeGrant()`](/reference/typescript-sdk/grants#revokegrant), [`revokeDelegation()`](/reference/typescript-sdk/grants#revokedelegation), [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#createmanagedsecretgrant)
+- [`createConnectSession()`](/reference/typescript-sdk/connect#createconnectsession), [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect#createmanagedsecretconnectsession), [`pollConnectSession()`](/reference/typescript-sdk/connect#pollconnectsession), [`createConnectSessionForError()`](/reference/typescript-sdk/connect#createconnectsessionforerror), [`connect()`](/reference/typescript-sdk/connect#connect)
+- [`authenticate()`](/reference/typescript-sdk/connect#authenticate), `verifyUserToken()`
+- [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval)
+- [`withConstraints()`](#withconstraints), [`getAgent()`](#getagent), [`close()`](#close)
+
+## Agent
+
+The workload-side client.
+
+```typescript
+import { Agent } from "@alter-ai/alter-sdk";
+
+const agent = new Agent({
+  apiKey: process.env.AGENT_API_KEY!,
+  caller: "research-agent",
+  userTokenGetter: () => getCallingUserJwt(),
+});
+```
+
+### Constructor
+
+```typescript
+new Agent(options: AgentOptions)
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `apiKey` | `string` | — | Agent API key (`alter_key_agent_…`). Required. |
+| `timeout` | `number` | `30000` | HTTP timeout in **milliseconds**. |
+| `caller` | `string` | — | Caller identifier for audit attribution. |
+| `userTokenGetter` | `() => string \| Promise<string>` | — | Resolves the calling end-user JWT. Used for delegation disambiguation when the agent holds delegations from multiple users on the same provider. |
+| `logger` | `AlterLogger` | global `console` | Pluggable logger. |
+
+`callerType` is forced to `AGENT` on this class. Throws [`AlterValueError`](/reference/typescript-sdk/errors) if `apiKey` is missing or empty.
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `actorId` | `string \| null` | Backend-resolved actor UUID. |
+| `lastRetryInfo` | `RetryInfo \| null` | Token-refresh retry metadata. |
+| `baseUrl` | `string` | Backend the client is pinned to. |
+| `keys` | [`KeysNamespace`](/reference/typescript-sdk/keys) | Scoped sub-key lifecycle. |
+| `scopes` | [`ScopesNamespace`](/reference/typescript-sdk/scopes) | Scope catalog discovery. |
+
+`Agent` has no `agents` namespace — agent CRUD is application-scoped.
+
+### Methods
+
+The `Agent` class exposes:
+
+- [`me()`](/reference/typescript-sdk/agents#agent-me) — return the calling agent's own record.
+- [`request()`](/reference/typescript-sdk/request), [`proxyRequest()`](/reference/typescript-sdk/proxy)
+- [`trace()`](/reference/typescript-sdk/agents#agent-trace), [`withConstraints()`](#withconstraints)
+- [`listGrants()`](/reference/typescript-sdk/grants#listgrants), [`revokeDelegation()`](/reference/typescript-sdk/grants#revokedelegation)
+- [`createConnectSession()`](/reference/typescript-sdk/connect#createconnectsession), [`connect()`](/reference/typescript-sdk/connect#connect)
+- [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval)
+- [`close()`](#close)
+
+## withConstraints
+
+Return a constrained sibling client with a narrowed scope set.
+
+```typescript
+withConstraints(options: { scopes: readonly string[] }): App
+withConstraints(options: { scopes: readonly string[] }): Agent
+```
+
+Macaroon-style attenuation: the returned client signs every request with an additional scope-constraints assertion. The scopes argument must be a subset of the parent client's effective scope set; the backend enforces the narrowing on every authenticated call.
+
+Both the parent and the constrained sibling share the same underlying HTTP pool. Closing the parent also makes the sibling unusable; closing the sibling alone leaves the parent untouched.
+
+`withConstraints()` cannot be chained — calling it on an already-constrained client throws [`AlterValueError`](/reference/typescript-sdk/errors).
+
+```typescript
+const readonly = app.withConstraints({ scopes: ["grants:read"] });
+const page = await readonly.listGrants();
+```
+
+## getAgent
+
+Return an [`Agent`](#agent) instance that impersonates a named managed agent for audit attribution.
+
+```typescript
+getAgent(agentId: string): Agent
+```
+
+| Parameter | Type | Description |
+|---|---|---|
+| `agentId` | `string` | UUID of the managed agent to impersonate. |
+
+Throws [`AlterValueError`](/reference/typescript-sdk/errors) if `agentId` is not a valid UUID, or if the `App` has been closed.
+
+<Warning>
+**Impersonation, not delegation-scoped access.** `getAgent()` stamps subsequent API calls so they appear in the audit trail as having been made by `agentId`. It does NOT restrict the resulting `Agent` to that agent's delegations. The returned client reuses the application's API key, so paths that bypass the delegation lookup (such as `request({ grantId })` with a user-owned grant ID) remain reachable.
+
+For genuine delegation-scoped access, mint a dedicated agent key and construct `new Agent({ apiKey: "alter_key_agent_…" })` directly.
+
+The SDK emits a one-time `console.warn` the first time `request({ grantId })` is called on an impersonating `Agent` to surface this distinction at runtime.
+</Warning>
+
+```typescript
+const research = app.getAgent("d3f4e5a6-7b8c-9d0e-1f2a-3b4c5d6e7f80");
+await research.request("GET", url, { provider: "google", userToken });
+```
+
+## close
+
+Drain pending audit and background tasks, then release HTTP resources.
+
+```typescript
+async close(): Promise<void>
+```
+
+Both `App` and `Agent` expose `close()`. The SDK does not auto-close on process exit; call it explicitly or use the `await using` pattern below.
+
+```typescript
+const app = new App({ apiKey });
+try {
+  // ...
+} finally {
+  await app.close();
+}
+```
+
+`close()` is idempotent. Subsequent calls on a closed client throw [`AlterSDKError`](/reference/typescript-sdk/errors).
+
+## await using
+
+Both classes implement `Symbol.asyncDispose`, so `await using` releases resources automatically at the end of the block (TypeScript 5.2+, Node 18+).
+
+```typescript
+async function listForUser(userToken: string) {
+  await using app = new App({
+    apiKey: process.env.ALTER_API_KEY!,
+    userTokenGetter: () => userToken,
+  });
+  return await app.listGrants();
+}
+```
+
+The `[Symbol.asyncDispose]()` method delegates to `close()`.

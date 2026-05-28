@@ -1,0 +1,161 @@
+---
+title: 'MCP'
+description: 'AlterMCP, AlterAuthProvider, AlterContext — FastMCP integration.'
+---
+
+The `alter_sdk.mcp` module integrates with [FastMCP](https://github.com/jlowin/fastmcp) so any MCP server can ship as a full OAuth 2.0 Authorization Server backed by Alter's hosted IDP flow.
+
+Requires the `mcp` extra:
+
+```bash
+pip install 'alter-sdk[mcp]'
+```
+
+```python
+from fastmcp import FastMCP
+from alter_sdk import App
+from alter_sdk.mcp import AlterMCP, AlterAuthProvider, AlterContext
+
+mcp = FastMCP("my-server")
+alter_app = App(api_key="alter_key_app_…")
+alter = AlterMCP(alter_app)
+
+@mcp.tool()
+@alter.tool(provider="google")
+async def list_emails(ctx: AlterContext, query: str) -> list[dict]:
+    resp = await ctx.request(
+        "GET",
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+        query_params={"q": query},
+    )
+    return resp.json()
+
+if __name__ == "__main__":
+    mcp.run()
+```
+
+## AlterMCP
+
+```python
+AlterMCP(vault: App | Agent)
+```
+
+Wrapper around an SDK client that exposes the `@alter.tool()` decorator.
+
+### tool
+
+```python
+def tool(
+    provider: str,
+    *,
+    scope: list[str] | None = None,
+    constraints: dict[str, Any] | None = None,
+    agent: Agent | None = None,
+) -> Callable[[F], F]
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider` | `str` | — | OAuth provider id (e.g. `"google"`, `"github"`, `"slack"`). |
+| `scope` | `list[str] \| None` | `None` | Reserved code-level scope declaration. Stored on `AlterContext.scope` for introspection. Not yet forwarded. |
+| `constraints` | `dict \| None` | `None` | Reserved. Stored on `AlterContext.constraints`. |
+| `agent` | `Agent \| None` | `None` | Optional `Agent` whose identity should drive this tool's requests. Same-Task nesting records the outer agent as `parent_agent`. |
+
+The decorator:
+
+1. Creates an [`AlterContext`](#altercontext) pre-configured with the provider and any code-level scope / constraints.
+2. Sets an ambient audit ContextVar so `vault.request()` calls inside the tool body pick up the tool name automatically.
+3. Hides the `AlterContext` parameter from FastMCP's generated tool schema.
+4. Catches `GrantNotFoundError` and returns an MCP error with a fresh Connect URL.
+5. Catches `ScopeReauthRequiredError` and returns an MCP error with a re-auth hint.
+
+```python
+from fastmcp import FastMCP
+
+mcp = FastMCP("my-server")
+
+@mcp.tool()
+@alter.tool(provider="github")
+async def list_repos(ctx: AlterContext) -> list[dict]:
+    resp = await ctx.request("GET", "https://api.github.com/user/repos")
+    return resp.json()
+```
+
+## AlterContext
+
+Per-tool-call request context injected by `@alter.tool()`. Not constructed directly.
+
+```python
+AlterContext(
+    vault: App | Agent,
+    *,
+    provider: str,
+    scope: list[str] | None = None,
+    constraints: dict[str, Any] | None = None,
+    context: dict[str, str] | None = None,
+)
+```
+
+### Properties
+
+| Property | Type | Description |
+|---|---|---|
+| `provider` | `str` | The OAuth provider id declared on the decorator. |
+| `scope` | `tuple[str, ...] \| None` | Reserved scope declaration. |
+| `constraints` | `Mapping[str, Any] \| None` | Reserved constraints declaration (immutable view). |
+
+### request
+
+Forwards to the underlying `vault.request()` with `provider=` and `context=` pre-filled. Tool implementations only specify method + URL.
+
+```python
+resp = await ctx.request(
+    "GET",
+    "https://gmail.googleapis.com/gmail/v1/users/me/messages",
+    query_params={"q": "from:alice"},
+)
+```
+
+## AlterAuthProvider
+
+A FastMCP `OAuthProvider` that turns any MCP server into a full OAuth 2.0 Authorization Server backed by Alter's IDP flow. Spec-compliant MCP clients can discover, register, authorize, and obtain tokens without `mcp-remote` or any other shim.
+
+```python
+AlterAuthProvider(
+    vault: App | Agent,
+    *,
+    base_url: str,
+    providers: dict[str, list[str]] | None = None,
+)
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `vault` | `App \| Agent` | — | SDK client to back the OAuth flow. |
+| `base_url` | `str` | — | Public URL where the MCP server is mounted (e.g. `"http://localhost:8000/mcp"`). Required for OAuth metadata discovery. |
+| `providers` | `dict[str, list[str]] \| None` | `None` | Map of `provider_id → required scopes` for the Connect flow. |
+
+```python
+from fastmcp import FastMCP
+from alter_sdk import App
+from alter_sdk.mcp import AlterAuthProvider
+
+vault = App(api_key="alter_key_app_…")
+auth = AlterAuthProvider(
+    vault,
+    base_url="http://localhost:8000/mcp",
+    providers={"google": ["gmail.readonly"]},
+)
+
+mcp = FastMCP("Gmail", auth=auth)
+```
+
+Pair with [`AlterFastAPI.auth_provider()`](/reference/python-sdk/frameworks/fastapi#mcp-integration) when the same vault should serve both FastAPI and MCP traffic.
+
+## AccessToken
+
+Re-exported by `alter_sdk.mcp` so subclass authors can annotate `load_access_token` / `verify_token` overrides on `AlterAuthProvider` subclasses without reaching into FastMCP's namespace directly.
+
+```python
+from alter_sdk.mcp import AccessToken
+```

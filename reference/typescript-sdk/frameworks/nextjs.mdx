@@ -1,0 +1,156 @@
+---
+title: 'Next.js'
+description: 'App Router patterns: Server Actions, Route Handlers, per-request identity.'
+---
+
+The SDK does not ship a Next.js plugin. The recommended pattern uses the App Router's request-scoped helpers — `cookies()`, `headers()`, or whatever the application uses to extract the calling user's JWT — and passes the JWT to the SDK through a per-request constructor or the per-call `userToken` option.
+
+This page assumes the App Router. The same patterns apply to the Pages Router, but per-request identity is more awkward there because there is no async context primitive built into the framework.
+
+## A single App per process
+
+Construct the `App` once per process. Reading `process.env.ALTER_API_KEY` at module scope is fine — Next.js evaluates server modules in a long-lived runtime.
+
+```typescript
+// app/lib/alter.ts
+import { App } from "@alter-ai/alter-sdk";
+import "server-only";
+
+export const alter = new App({ apiKey: process.env.ALTER_API_KEY! });
+```
+
+The `"server-only"` import prevents the module from being bundled into client code. Without it, a stray client-side import would 1) leak the API key reference into the browser bundle and 2) fail at runtime because the SDK uses Node-only APIs.
+
+## Per-request identity
+
+For identity-mode `request()` calls, resolve the calling user's JWT inside the request handler and pass it as a per-call option:
+
+```typescript
+// app/api/events/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { HttpMethod } from "@alter-ai/alter-sdk";
+import { alter } from "@/app/lib/alter";
+import { getUserJwt } from "@/app/lib/auth";
+
+export async function GET(req: NextRequest) {
+  const userJwt = await getUserJwt();
+  if (!userJwt) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const response = await alter.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    {
+      provider: "google",
+      userToken: userJwt,
+      reason: `Calendar fetch for ${req.nextUrl.searchParams.get("date")}`,
+    },
+  );
+  return NextResponse.json(await response.json(), { status: response.status });
+}
+```
+
+`userToken` on the per-call options overrides any constructor `userTokenGetter`. The constructor pattern works too — wire `userTokenGetter` to `cookies()` / `headers()` and let the SDK pull the JWT on demand — but the per-call form makes the data flow explicit at every call site.
+
+## Server Actions
+
+```typescript
+// app/calendar/actions.ts
+"use server";
+
+import { HttpMethod } from "@alter-ai/alter-sdk";
+import { alter } from "@/app/lib/alter";
+import { getUserJwt } from "@/app/lib/auth";
+
+export async function listEvents() {
+  const userJwt = await getUserJwt();
+  if (!userJwt) throw new Error("unauthorized");
+
+  const response = await alter.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    { provider: "google", userToken: userJwt },
+  );
+  return await response.json();
+}
+```
+
+Server Actions run on every form post or `useTransition` callback. Treat them exactly like a Route Handler — resolve the JWT first, pass it to the SDK.
+
+## Per-request Agent
+
+When a request maps to one agent run (an LLM call, a tool invocation), construct the `Agent` inside the handler and dispose with `await using`:
+
+```typescript
+import { Agent } from "@alter-ai/alter-sdk";
+
+export async function POST(req: NextRequest) {
+  const userJwt = await getUserJwt();
+  if (!userJwt) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  await using agent = new Agent({
+    apiKey: process.env.AGENT_API_KEY!,
+    userTokenGetter: () => userJwt,
+  });
+
+  return await agent.trace({ runId: crypto.randomUUID() }, async () => {
+    const response = await agent.request(/* … */);
+    return NextResponse.json(await response.json());
+  });
+}
+```
+
+The `await using` declaration calls `agent.close()` when the block exits, even on thrown errors.
+
+## Connect flow
+
+Mint a Connect session in a Server Action or Route Handler, redirect the user's browser to `connectUrl`, then poll on the callback. The session token is short-lived; thread it through the redirect URL or a server-side store.
+
+```typescript
+// app/connect/start/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { alter } from "@/app/lib/alter";
+import { getUserJwt } from "@/app/lib/auth";
+
+export async function GET(req: NextRequest) {
+  const userJwt = await getUserJwt();
+  if (!userJwt) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const session = await alter.createConnectSession({
+    allowedProviders: [req.nextUrl.searchParams.get("provider")!],
+    returnUrl: `${req.nextUrl.origin}/connect/callback`,
+    userToken: userJwt,
+  });
+  return NextResponse.redirect(session.connectUrl);
+}
+```
+
+```typescript
+// app/connect/callback/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { alter } from "@/app/lib/alter";
+
+export async function GET(req: NextRequest) {
+  const sessionToken = req.nextUrl.searchParams.get("session");
+  if (!sessionToken) return NextResponse.json({ error: "missing_session" }, { status: 400 });
+
+  const results = await alter.pollConnectSession(sessionToken, { timeoutMs: 2_000 });
+  return NextResponse.json({ grants: results.map((r) => r.grantId) });
+}
+```
+
+In production, drive the callback through a `postMessage` from a popup, or use Next.js streaming + `Server-Sent Events` to push the completion event back to the client. Polling on every callback request is fine for small deployments but wastes a round-trip when the user finishes consent quickly.
+
+## Edge runtime
+
+Both `App` and `Agent` use the global `fetch` API and have no Node-only dependencies in the request path, so they run on the Edge runtime. The `Symbol.asyncDispose` lifecycle helper requires a runtime that implements it (Node 18+ with `--experimental-vm-modules`, or any runtime advertising TC39 explicit-resource-management support). Set `export const runtime = "edge"` on the route to opt in.
+
+```typescript
+export const runtime = "edge";
+
+export async function GET() {
+  const response = await alter.request(/* … */);
+  return new Response(response.body, { status: response.status });
+}
+```
+
+`response.body` is a `ReadableStream` — pass it straight through to the Edge `Response` to stream the provider response back to the client without buffering.

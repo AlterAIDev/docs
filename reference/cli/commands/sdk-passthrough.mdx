@@ -25,7 +25,7 @@ Make a single authenticated call against a grant. The grant must be active and o
 | `--method <method>` | no | HTTP method (default `GET`). One of `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, `OPTIONS`. |
 | `--body <json>` | no | JSON request body, passed verbatim to the provider. |
 | `--header <kv>` | no | Extra header in `Name: value` form. Repeatable. Reserved headers (the `Authorization` header and Alter's own request headers) are rejected — Alter injects the credential for you. |
-| `--api-key <key>` | no | Runtime API key (`alter_rk_…` / `alter_ak_…`), if not using `ALTER_API_KEY`. Inline values print a shell-history warning. |
+| `--api-key <key>` | no | Runtime API key, if not using `ALTER_API_KEY`. Accepts any runtime key minted from the dashboard or CLI — `alter_rk_…`, `alter_ak_…`, `alter_dk_…`, `alter_pk_…`, or the legacy `alter_key_…`. PAT plaintext (`alter_pat_…`) is rejected — use `alter auth login` for that. Inline values print a shell-history warning. |
 
 The response body goes to **stdout** (pipe it into `jq`); the status line and response headers go to **stderr**, so the body stays clean for downstream tools.
 

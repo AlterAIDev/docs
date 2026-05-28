@@ -1,0 +1,106 @@
+---
+title: 'proxyRequest()'
+description: 'Backend-mediated provider calls. Required for HITL grants and server-side credential isolation.'
+---
+
+```typescript
+async proxyRequest(args: {
+  method: HttpMethod | string;
+  url: string;
+  grantId: string;
+  jsonBody?: unknown;
+  headers?: Record<string, string>;
+  queryParams?: Record<string, unknown>;
+  reason?: string;
+}): Promise<PendingApproval | ApprovalResult>
+```
+
+Send the full request to the Alter backend, which retrieves the credential, calls the provider, and returns the response. The token never reaches the SDK process.
+
+Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent).
+
+`proxyRequest()` takes a **single options object** — there are no positional `method` / `url` arguments.
+
+```typescript
+const result = await app.proxyRequest({
+  method: "POST",
+  url: "https://api.example.com/transfer",
+  grantId,
+  jsonBody: { amount: 1000, currency: "usd" },
+  reason: "Quarterly payout",
+});
+```
+
+## When to use it
+
+- **HITL grants.** Grants with `requires_approval` configured can only be exercised through `proxyRequest()` — `request()` rejects them with `hitl_grant_requires_proxy`.
+- **Server-side credential isolation.** The token never crosses the SDK boundary. The backend is the only system that observes the plaintext.
+- **Wire-level audit.** The backend records the full request/response on the audit row, including bytes and headers.
+- **Tight policy enforcement.** The backend re-evaluates policy at execution time.
+
+For everything else, [`request()`](/reference/typescript-sdk/request) avoids the extra hop.
+
+## Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `method` | [`HttpMethod`](/reference/typescript-sdk/types#httpmethod) `\| string` | HTTP method. Case-insensitive. |
+| `url` | `string` | Provider URL. Must be a non-empty string. |
+| `grantId` | `string` | Grant ID. Required — `proxyRequest()` has no identity-mode resolution. |
+| `jsonBody` | `unknown` | JSON-serializable body. Accepts plain objects, arrays, strings, numbers, booleans, and `null`. Class instances, `Date`, `Map`, and `Set` are rejected at the SDK boundary (they serialize to `{}` via `JSON.stringify`). |
+| `headers` | `Record<string, string>` | Additional headers. Authorization-bearing headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) are rejected — the backend injects credentials at execution time. |
+| `queryParams` | `Record<string, unknown>` | Query-string parameters. |
+| `reason` | `string` | Free-form reason. Stored on the audit row and shown to the approver when HITL is configured. |
+
+## Returns
+
+The return type is a discriminated union. Use `instanceof` or the `status` field to branch.
+
+- [`ApprovalResult`](/reference/typescript-sdk/types#approvalresult) — the call ran synchronously and the provider response is on this object. Typical when the grant has no HITL requirement, or when the approval was pre-granted.
+- [`PendingApproval`](/reference/typescript-sdk/types#pendingapproval) — the backend created an approval row and is waiting for an approver. The call has NOT executed yet. Pass `approvalId` to [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval) or poll with [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus).
+
+```typescript
+import { PendingApproval } from "@alter-ai/alter-sdk";
+
+const result = await app.proxyRequest({
+  method: "POST",
+  url: "https://api.example.com/transfer",
+  grantId,
+  jsonBody: { amount: 1000 },
+  reason: "Quarterly payout",
+});
+
+if (result instanceof PendingApproval) {
+  // Surface result.approvalUrl to the approver, then poll.
+  const final = await app.awaitApproval(result.approvalId, {
+    timeoutMs: 5 * 60_000,
+  });
+  console.log(final.statusCode, final.bodyText());
+} else {
+  // Synchronous response.
+  console.log(result.statusCode, result.bodyJson());
+}
+```
+
+The `status` field is `"pending"` on `PendingApproval`. `ApprovalResult` has no `status` field.
+
+## Throws
+
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `grantId` is missing or empty, `url` is missing, `jsonBody` has an unsupported shape, an authorization-bearing header was supplied, or the SDK has been closed.
+- [`ApprovalDeniedError`](/reference/typescript-sdk/errors) — backend rejected the call (policy denial that does not require human review).
+- [`ApprovalExpiredError`](/reference/typescript-sdk/errors) — the approval window elapsed before a decision was recorded.
+- [`ApprovalExecutionFailedError`](/reference/typescript-sdk/errors) — backend failed to execute the proxied call after the approval was granted.
+- [`BackendError`](/reference/typescript-sdk/errors) — other backend failure.
+- [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors) — transport failures to the Alter backend.
+
+## Reading the response body
+
+[`ApprovalResult`](/reference/typescript-sdk/types#approvalresult) carries the provider response body as base64. Three helpers decode on demand:
+
+```typescript
+result.bodyBytes();   // Uint8Array
+result.bodyText();    // string (utf-8 default)
+result.bodyJson();    // parsed JSON
+```
+
+`result.bodyTruncated` is `true` if the backend truncated the body (very large responses).

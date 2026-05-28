@@ -27,45 +27,54 @@ In the developer portal, create a new agent named `claude-code-mcp`. Mint a per-
 - For user-owned data, have the user run a Connect session with `agent=<this_agent_id>` to delegate access.
 - For operator-owned credentials, issue managed-secret grants to the agent.
 
-### 2. Write the MCP server
+### 2. Install the SDK with MCP extras
+
+```bash
+pip install 'alter-sdk[mcp]'
+```
+
+### 3. Write the MCP server
 
 ```python
 # server.py
 import os
+from fastmcp import FastMCP
 from alter_sdk import Agent
-from alter_sdk.mcp import build_server, tool
+from alter_sdk.mcp import AlterContext, AlterMCP
 
-agent = Agent(api_key=os.environ["ALTER_MCP_AGENT_KEY"])
+mcp = FastMCP("alter-tools")
+agent = Agent(api_key=os.environ["AGENT_API_KEY"])
+alter = AlterMCP(agent)
 
-@tool
-async def list_events(query: str) -> dict:
+@mcp.tool()
+@alter.tool(provider="google")
+async def list_events(ctx: AlterContext, query: str) -> dict:
     """List the user's Google Calendar events matching a query."""
-    response = await agent.request(
+    response = await ctx.request(
         "GET",
         "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-        provider="google",
         query_params={"q": query, "maxResults": "10"},
     )
     return response.json()
 
-@tool
-async def send_slack(channel: str, text: str) -> dict:
+@mcp.tool()
+@alter.tool(provider="slack")
+async def send_slack(ctx: AlterContext, channel: str, text: str) -> dict:
     """Post a message to a Slack channel."""
-    response = await agent.request(
+    response = await ctx.request(
         "POST",
         "https://slack.com/api/chat.postMessage",
-        provider="slack",
         json={"channel": channel, "text": text},
     )
     return response.json()
 
 if __name__ == "__main__":
-    build_server(name="alter-mcp").run()
+    mcp.run()
 ```
 
-`@tool` registers each function as an MCP tool. `build_server` returns a configured MCP server that handles the protocol; the agent's identity flows through `request()` automatically.
+`AlterMCP(agent)` wraps an SDK client and exposes the `@alter.tool(...)` decorator. Stack it under FastMCP's own `@mcp.tool()` to register the function as an MCP tool. The `@alter.tool` decorator injects an `AlterContext` parameter (hidden from the generated MCP tool schema); tool bodies call `ctx.request(...)` and the provider, audit context, and agent attribution are forwarded automatically. Missing-grant and insufficient-scope errors are translated into MCP-friendly responses (with a Connect URL when re-authorization is required).
 
-### 3. Register the server with Claude Code
+### 4. Register the server with Claude Code
 
 In `~/.claude/claude_config.json` (or the equivalent for the platform):
 
@@ -76,7 +85,7 @@ In `~/.claude/claude_config.json` (or the equivalent for the platform):
       "command": "python",
       "args": ["/absolute/path/to/server.py"],
       "env": {
-        "ALTER_MCP_AGENT_KEY": "alter_key_agent_..."
+        "AGENT_API_KEY": "alter_key_agent_..."
       }
     }
   }
@@ -85,7 +94,7 @@ In `~/.claude/claude_config.json` (or the equivalent for the platform):
 
 Restart Claude Code. The tools appear in the conversation.
 
-### 4. Try it
+### 5. Try it
 
 In Claude Code, ask the model to use the tools:
 
@@ -103,11 +112,18 @@ For multi-tenant MCP deployments (one server, many users), wire `user_token_gett
 
 ### Distinguishing tool calls in audit
 
-The MCP integration automatically records the tool name in the audit context. To add more (run ID, conversation ID, custom tags), wrap each tool call in a trace block:
+The `@alter.tool()` decorator automatically records the tool name in the audit context. To add more (run ID, conversation ID, custom tags), wrap the tool body in an `agent.trace()` block:
 
 ```python
-async with agent.trace(run_id=conversation_id, tool="list_events"):
-    response = await agent.request(...)
+@alter.tool(provider="google")
+async def list_events(ctx: AlterContext, query: str) -> dict:
+    async with agent.trace(run_id=conversation_id):
+        response = await ctx.request(
+            "GET",
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            query_params={"q": query},
+        )
+        return response.json()
 ```
 
 ### Human-in-the-loop for destructive tools
@@ -121,7 +137,7 @@ For tools that mutate state (sending email, posting to Slack, refunding a charge
 | Tools don't appear in Claude Code | MCP server failed to start. | Check Claude Code's MCP logs; run `python server.py` directly to surface errors. |
 | `NoDelegatedGrantError` on a tool call | The agent has no delegation for the provider. | Run a Connect session with `agent=<this_agent_id>` to delegate. |
 | `AgentRevokedError` | Operator revoked the agent. | Provision a new agent and update the MCP env var. |
-| Conversation context not in audit | `agent.trace()` not used inside tool bodies. | Wrap tool bodies in a `trace()` block. |
+| Conversation context not in audit | `agent.trace()` not used inside tool bodies. | Wrap tool bodies in an `agent.trace()` block. |
 
 ## What's next
 

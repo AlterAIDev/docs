@@ -1,0 +1,140 @@
+---
+title: 'Express'
+description: 'Per-request identity using AsyncLocalStorage + userTokenGetter.'
+---
+
+The SDK does not ship an Express plugin. The recommended pattern is to combine the SDK's `userTokenGetter` with Node's built-in `AsyncLocalStorage` so every request runs inside a scope that resolves the calling user's JWT.
+
+```typescript
+import express, { Request, Response, NextFunction } from "express";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const jwtStore = new AsyncLocalStorage<string>();
+
+const alter = new App({
+  apiKey: process.env.ALTER_API_KEY!,
+  userTokenGetter: () => {
+    const jwt = jwtStore.getStore();
+    if (!jwt) throw new Error("No JWT in current async context");
+    return jwt;
+  },
+});
+
+const app = express();
+
+// Bearer extraction. Replace with the application's existing auth middleware.
+function authenticate(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.header("authorization") ?? "";
+  const match = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (!match) {
+    res.status(401).json({ error: "missing_bearer" });
+    return;
+  }
+  jwtStore.run(match[1]!, () => next());
+}
+
+app.get("/events", authenticate, async (req, res, next) => {
+  try {
+    const response = await alter.request(
+      HttpMethod.GET,
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      { provider: "google" },
+    );
+    res.status(response.status).json(await response.json());
+  } catch (error) {
+    next(error);
+  }
+});
+
+const server = app.listen(3000);
+
+// Drain Alter resources on shutdown.
+process.on("SIGTERM", async () => {
+  server.close();
+  await alter.close();
+});
+```
+
+## Why AsyncLocalStorage
+
+`userTokenGetter` is called from inside the SDK whenever it needs the calling user's identity. The implementation has to resolve the JWT for the *current* HTTP request, not a global. `AsyncLocalStorage` propagates the JWT through every `await` boundary the request handler crosses, including third-party libraries the handler calls into, without threading the JWT through every function signature.
+
+The constructor pattern below — single shared `App` instance, `AsyncLocalStorage`-backed getter — is correct for the typical multi-tenant Express deployment.
+
+## Error handling
+
+[`request()`](/reference/typescript-sdk/request) throws typed exceptions. Map them to HTTP responses in an error middleware:
+
+```typescript
+import {
+  AlterSDKError,
+  NoDelegatedGrantError,
+  ScopeReauthRequiredError,
+  PolicyViolationError,
+} from "@alter-ai/alter-sdk";
+
+app.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof NoDelegatedGrantError || err instanceof ScopeReauthRequiredError) {
+    res.status(409).json({
+      error: "reauthorization_required",
+      providerId: (err as ScopeReauthRequiredError).providerId,
+    });
+    return;
+  }
+  if (err instanceof PolicyViolationError) {
+    res.status(403).json({ error: "forbidden" });
+    return;
+  }
+  if (err instanceof AlterSDKError) {
+    res.status(502).json({ error: "credential_unavailable" });
+    return;
+  }
+  next(err);
+});
+```
+
+## Per-call overrides
+
+`request()` accepts a per-call `userToken` that overrides whatever `userTokenGetter` returns. `userToken` must be a JWT issued by the application's configured IDP — passing a user ID is not valid. Use this when the request handler already has another user's JWT in hand:
+
+```typescript
+app.get("/admin/users/:id/calendar", authenticate, async (req, res, next) => {
+  try {
+    // To act on another user's behalf, the admin endpoint must obtain a JWT
+    // for that user (for example via an IDP exchange / impersonation token
+    // your IDP supports). `userToken` takes the JWT, not a user ID.
+    const targetUserJwt = await issueImpersonationToken(req.params.id);
+    const response = await alter.request(
+      HttpMethod.GET,
+      "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+      {
+        provider: "google",
+        userToken: targetUserJwt,
+        reason: `Admin impersonation by ${req.adminId}`,
+      },
+    );
+    res.json(await response.json());
+  } catch (error) {
+    next(error);
+  }
+});
+```
+
+## Single agent per request
+
+For per-request `Agent` clients (rare — typically the agent client is process-singleton too), construct inside the AsyncLocalStorage scope so the constructor closure captures the JWT-bound getter:
+
+```typescript
+app.post("/agent/run", authenticate, async (req, res, next) => {
+  await using agent = new Agent({
+    apiKey: process.env.AGENT_API_KEY!,
+    userTokenGetter: () => jwtStore.getStore()!,
+  });
+  await agent.trace({ runId: req.body.runId }, async () => {
+    // …
+  });
+});
+```
+
+`await using` ensures `agent.close()` runs when the handler returns, regardless of success or thrown error.

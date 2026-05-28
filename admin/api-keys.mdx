@@ -11,7 +11,7 @@ Alter has three key shapes, each minted and managed in the developer portal.
 | `alter_key_agent_…` | AI agents using the `Agent` SDK class | App → **Agents → \<agent\> → Keys** |
 | Derived sub-keys | Short-lived, scope-narrowed keys for plugins or tool calls | Programmatic only via `app.keys.derive()` |
 
-Every key authenticates the same way: HMAC-signed requests, the key value in `x-api-key`. The wire protocol is identical; the difference is which principal the backend resolves the call to.
+Every key authenticates the same way — the SDK handles signing and presentation transparently. The wire protocol is identical; the difference is which principal the backend resolves the call to.
 
 ## App keys
 
@@ -56,7 +56,7 @@ Each key has a `key_prefix` (the first N characters of the plaintext) shown in t
 
 ### Deprecate (soft-revoke)
 
-Before hard-revoking a key, deprecate it first. A deprecated key still authenticates, but every response from Alter carries `X-Alter-Key-Deprecated: true`. Watch logs for lingering callers, fix them, then revoke.
+Before hard-revoking a key, deprecate it first. A deprecated key still authenticates, but the SDK surfaces a deprecation warning every time the key is used. Watch logs for lingering callers, fix them, then revoke.
 
 ### Revoke
 
@@ -89,7 +89,7 @@ limited = app.with_constraints(scopes=["grants:read"])
 await limited.list_grants()
 ```
 
-The returned SDK instance signs every request with `X-Alter-Scope-Constraints`. No key is minted; the constraint is in-process and disappears with the instance. See [Scopes](/concepts/scopes).
+The returned SDK instance carries the narrowed scopes through to every request automatically. No key is minted; the constraint is in-process and disappears with the instance. See [Scopes](/concepts/scopes).
 
 ## Audit
 
