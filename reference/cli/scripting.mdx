@@ -47,7 +47,7 @@ The CLI returns a structured exit code so scripts can branch on the failure mode
 | `4` | NOT_FOUND | Resource not found (404), or a referenced local file is missing. |
 | `5` | CONFLICT | A 409 — most often a type-to-confirm mismatch or a dependent-resource block. |
 | `6` | RATE_LIMIT | A 429 — retry with backoff. |
-| `7` | FORBIDDEN | The PAT is valid but lacks the required scope. **Fix:** re-mint the PAT with broader [scopes](/cli/authentication#scopes). |
+| `7` | FORBIDDEN | The PAT is valid but lacks the required scope. **Fix:** re-mint the PAT with broader [scopes](/reference/cli/authentication#scopes). |
 | `8` | CANCELLED | You declined an interactive prompt (a type-to-confirm mismatch, or "no" at a `y/N` gate). The CLI did nothing wrong. Pass `--yes` or `--confirm <name>` to skip the prompt in CI. |
 
 Example — probe whether an app exists without erroring on the not-found case:
@@ -74,7 +74,7 @@ Capture `$?` into a variable immediately — every command clobbers it.
 |---|---|---|
 | `ALTER_PAT` | All commands | The PAT to authenticate with. Highest-precedence credential source. |
 | `ALTER_APP_ID` | App-scoped commands | Default app ID when `--app` is omitted. |
-| `ALTER_API_KEY` | [`sdk-passthrough`](/cli/commands/sdk-passthrough) | Runtime API key for the one-off request escape hatch (not a PAT). |
+| `ALTER_API_KEY` | [`sdk-passthrough`](/reference/cli/commands/sdk-passthrough) | Runtime API key for the one-off request escape hatch (not a PAT). |
 
 ## Workspace linking
 

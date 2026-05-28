@@ -14,7 +14,7 @@ alter keys revoke --key <key-id> [--force] [--yes]
 alter keys rename --key <key-id> --name <name>
 ```
 
-All commands are app-scoped — pass `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. `list` / `show` need `dashboard_keys:read`; `mint` / `rotate` / `rename` need `dashboard_keys:write`; `revoke` needs `dashboard_keys:admin`.
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. `list` / `show` need `dashboard_keys:read`; `mint` / `rotate` / `rename` need `dashboard_keys:write`; `revoke` needs `dashboard_keys:admin`.
 
 <Warning>
 Plaintext keys are shown **once** — on `mint` and `rotate`. The CLI never caches them; re-running a command shows metadata only, not the secret. Capture the value when it's printed.
@@ -105,5 +105,5 @@ alter keys mint --name ci-deploy --scopes grants:read,agents:read --expires-in 1
 
 ## Related
 
-- [`alter agents`](/cli/commands/agents) — managed-agent identities and their own keys
+- [`alter agents`](/reference/cli/commands/agents) — managed-agent identities and their own keys
 - [API keys](/admin/api-keys), [Scopes](/concepts/scopes)

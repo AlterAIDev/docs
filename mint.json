@@ -91,32 +91,32 @@
       ]
     },
     {
-      "group": "CLI",
-      "pages": [
-        "cli/index",
-        "cli/authentication",
-        "cli/scripting",
-        {
-          "group": "Command reference",
-          "pages": [
-            "cli/commands/apps",
-            "cli/commands/keys",
-            "cli/commands/agents",
-            "cli/commands/providers",
-            "cli/commands/managed-secrets",
-            "cli/commands/policy",
-            "cli/commands/audit",
-            "cli/commands/sdk-passthrough"
-          ]
-        }
-      ]
-    },
-    {
       "group": "Reference",
       "pages": [
         "reference/python-sdk",
         "reference/typescript-sdk",
         "reference/connect-sdk",
+        {
+          "group": "CLI",
+          "pages": [
+            "reference/cli/index",
+            "reference/cli/authentication",
+            "reference/cli/scripting",
+            {
+              "group": "Commands",
+              "pages": [
+                "reference/cli/commands/apps",
+                "reference/cli/commands/keys",
+                "reference/cli/commands/agents",
+                "reference/cli/commands/providers",
+                "reference/cli/commands/managed-secrets",
+                "reference/cli/commands/policy",
+                "reference/cli/commands/audit",
+                "reference/cli/commands/sdk-passthrough"
+              ]
+            }
+          ]
+        },
         "reference/oauth-providers",
         "reference/managed-secret-providers",
         "reference/managed-secret-providers/aws",
@@ -127,6 +127,19 @@
   ],
   "redirects": [
     { "source": "/first-5-minutes", "destination": "/quickstart" },
+
+    { "source": "/cli", "destination": "/reference/cli" },
+    { "source": "/cli/index", "destination": "/reference/cli" },
+    { "source": "/cli/authentication", "destination": "/reference/cli/authentication" },
+    { "source": "/cli/scripting", "destination": "/reference/cli/scripting" },
+    { "source": "/cli/commands/apps", "destination": "/reference/cli/commands/apps" },
+    { "source": "/cli/commands/keys", "destination": "/reference/cli/commands/keys" },
+    { "source": "/cli/commands/agents", "destination": "/reference/cli/commands/agents" },
+    { "source": "/cli/commands/providers", "destination": "/reference/cli/commands/providers" },
+    { "source": "/cli/commands/managed-secrets", "destination": "/reference/cli/commands/managed-secrets" },
+    { "source": "/cli/commands/policy", "destination": "/reference/cli/commands/policy" },
+    { "source": "/cli/commands/audit", "destination": "/reference/cli/commands/audit" },
+    { "source": "/cli/commands/sdk-passthrough", "destination": "/reference/cli/commands/sdk-passthrough" },
 
     { "source": "/concepts/what-is-alter-vault", "destination": "/how-it-works" },
     { "source": "/concepts/principals-and-grants", "destination": "/concepts/grants" },

@@ -14,7 +14,7 @@ alter providers update  --provider <id> [--scopes ...] [--status ...] [...]
 alter providers delete  --provider <id> [--force] [--yes]
 ```
 
-App-scoped commands take `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show`) need `dashboard_providers:read`; `create` / `update` need `dashboard_providers:write`; `delete` needs `dashboard_providers:admin` (`list-catalog` is unauthenticated). `create` also accepts the alias `configure`.
+App-scoped commands take `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show`) need `dashboard_providers:read`; `create` / `update` need `dashboard_providers:write`; `delete` needs `dashboard_providers:admin` (`list-catalog` is unauthenticated). `create` also accepts the alias `configure`.
 
 ## list-catalog
 
@@ -116,5 +116,5 @@ alter providers update --provider google --status active
 
 ## Related
 
-- [`alter managed-secrets`](/cli/commands/managed-secrets) — non-OAuth backend credentials
+- [`alter managed-secrets`](/reference/cli/commands/managed-secrets) — non-OAuth backend credentials
 - [Providers](/concepts/providers), [Connections](/concepts/connections)

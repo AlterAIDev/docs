@@ -89,7 +89,7 @@ alter apps delete <app-id>
 alter apps delete <app-id> --confirm "Acme Production"
 ```
 
-A wrong `--confirm` value exits [2 (`USAGE`)](/cli/scripting#exit-codes); declining the interactive prompt exits 8 (`CANCELLED`).
+A wrong `--confirm` value exits [2 (`USAGE`)](/reference/cli/scripting#exit-codes); declining the interactive prompt exits 8 (`CANCELLED`).
 
 ## Recipes
 
@@ -112,6 +112,6 @@ alter apps delete "$APP_ID" --confirm "ci-staging"
 
 ## Related
 
-- [`alter keys`](/cli/commands/keys), [`alter providers`](/cli/commands/providers), [`alter agents`](/cli/commands/agents) — the resources an app owns
-- [Workspace linking](/cli/scripting#workspace-linking) — pin a default app so commands skip `--app`
+- [`alter keys`](/reference/cli/commands/keys), [`alter providers`](/reference/cli/commands/providers), [`alter agents`](/reference/cli/commands/agents) — the resources an app owns
+- [Workspace linking](/reference/cli/scripting#workspace-linking) — pin a default app so commands skip `--app`
 - [Apps](/concepts/apps) — the underlying concept

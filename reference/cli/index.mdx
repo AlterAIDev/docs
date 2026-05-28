@@ -8,7 +8,7 @@ description: 'Manage apps, keys, agents, providers, secrets, and audit logs from
 It's built for two audiences: operators who'd rather stay in the terminal than click through the dashboard, and CI pipelines that need to provision Alter resources as part of a deploy.
 
 <Note>
-The CLI manages the **dashboard surface** (apps, keys, configuration). It is not the runtime SDK — application code that calls third-party APIs uses the [Python](/reference/python-sdk) or [TypeScript](/reference/typescript-sdk) SDK. The one bridge between them is [`alter sdk-passthrough`](/cli/commands/sdk-passthrough), an escape hatch for one-off runtime requests while debugging.
+The CLI manages the **dashboard surface** (apps, keys, configuration). It is not the runtime SDK — application code that calls third-party APIs uses the [Python](/reference/python-sdk) or [TypeScript](/reference/typescript-sdk) SDK. The one bridge between them is [`alter sdk-passthrough`](/reference/cli/commands/sdk-passthrough), an escape hatch for one-off runtime requests while debugging.
 </Note>
 
 ## Install
@@ -30,7 +30,7 @@ Requires Node 20+. The binary is named `alter`.
     alter auth login
     ```
 
-    For CI and headless hosts, [pass a pre-minted PAT instead](/cli/authentication#headless-and-ci).
+    For CI and headless hosts, [pass a pre-minted PAT instead](/reference/cli/authentication#headless-and-ci).
   </Step>
 
   <Step title="Pin a default app">
@@ -40,7 +40,7 @@ Requires Node 20+. The binary is named `alter`.
     alter link <app-id>
     ```
 
-    From anywhere in that directory tree, `--app` becomes optional. See [workspace linking](/cli/scripting#workspace-linking).
+    From anywhere in that directory tree, `--app` becomes optional. See [workspace linking](/reference/cli/scripting#workspace-linking).
   </Step>
 
   <Step title="Run a command">
@@ -58,15 +58,15 @@ The CLI mirrors the dashboard's resource model. Each namespace maps to a concept
 
 | Namespace | Manages | Concept |
 |---|---|---|
-| [`auth`](/cli/authentication) | Sign in / out, inspect the active PAT | — |
-| [`apps`](/cli/commands/apps) | Applications | [Apps](/concepts/apps) |
-| [`keys`](/cli/commands/keys) | Runtime API keys | [API keys](/admin/api-keys) |
-| [`agents`](/cli/commands/agents) | Managed-agent identities + their keys | [Agents](/concepts/agents) |
-| [`providers`](/cli/commands/providers) | OAuth provider configuration | [Providers](/concepts/providers) |
-| [`managed-secrets`](/cli/commands/managed-secrets) | Backend credentials, grants, and access | [Managed secrets](/concepts/managed-secrets) |
-| [`policy`](/cli/commands/policy) | App-level policy (read-only) | [Policies](/concepts/policies) |
-| [`audit`](/cli/commands/audit) | The audit log | [Audit logs](/concepts/audit-logs) |
-| [`sdk-passthrough`](/cli/commands/sdk-passthrough) | One-off authenticated provider requests | — |
+| [`auth`](/reference/cli/authentication) | Sign in / out, inspect the active PAT | — |
+| [`apps`](/reference/cli/commands/apps) | Applications | [Apps](/concepts/apps) |
+| [`keys`](/reference/cli/commands/keys) | Runtime API keys | [API keys](/admin/api-keys) |
+| [`agents`](/reference/cli/commands/agents) | Managed-agent identities + their keys | [Agents](/concepts/agents) |
+| [`providers`](/reference/cli/commands/providers) | OAuth provider configuration | [Providers](/concepts/providers) |
+| [`managed-secrets`](/reference/cli/commands/managed-secrets) | Backend credentials, grants, and access | [Managed secrets](/concepts/managed-secrets) |
+| [`policy`](/reference/cli/commands/policy) | App-level policy (read-only) | [Policies](/concepts/policies) |
+| [`audit`](/reference/cli/commands/audit) | The audit log | [Audit logs](/concepts/audit-logs) |
+| [`sdk-passthrough`](/reference/cli/commands/sdk-passthrough) | One-off authenticated provider requests | — |
 
 Every namespace follows the same shape: `alter <namespace> <verb> [arguments] [flags]`. Run any command with `--help` for its full option list.
 
@@ -81,7 +81,7 @@ These apply to every command:
 | `--help` | Show help for the command or subcommand. |
 | `--version` | Print the CLI version. |
 
-See [output & scripting](/cli/scripting) for how to combine these in pipelines, plus the [exit-code contract](/cli/scripting#exit-codes).
+See [output & scripting](/reference/cli/scripting) for how to combine these in pipelines, plus the [exit-code contract](/reference/cli/scripting#exit-codes).
 
 ## What's not in the CLI
 
@@ -89,7 +89,7 @@ A few dashboard operations are intentionally **dashboard-only**, because a singl
 
 - **Minting or revoking PATs** — a PAT can't manage another PAT, including itself.
 - **Org-wide key policy** and **identity-provider configuration** — these affect every key and every grant in the org.
-- **App-level policy edits** — the CLI can [read](/cli/commands/policy) app policy but not change it.
+- **App-level policy edits** — the CLI can [read](/reference/cli/commands/policy) app policy but not change it.
 
 This mirrors how GitHub keeps org-security settings web-only. The boundary is deliberate, not a missing feature.
 

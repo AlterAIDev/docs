@@ -10,7 +10,7 @@ alter sdk-passthrough request <grant-id> --url <url> [--method ...] [--body ...]
 ```
 
 <Note>
-This is the one CLI command that does **not** use the PAT. It signs the request with a **runtime API key** — pass it via the `ALTER_API_KEY` environment variable (preferred) or `--api-key`. The PAT from `alter auth login` does not work here. Mint a runtime key with [`alter keys mint`](/cli/commands/keys#mint).
+This is the one CLI command that does **not** use the PAT. It signs the request with a **runtime API key** — pass it via the `ALTER_API_KEY` environment variable (preferred) or `--api-key`. The PAT from `alter auth login` does not work here. Mint a runtime key with [`alter keys mint`](/reference/cli/commands/keys#mint).
 
 For anything beyond one-off debugging, use the [Python](/reference/python-sdk) or [TypeScript](/reference/typescript-sdk) SDK in application code.
 </Note>
@@ -57,5 +57,5 @@ alter sdk-passthrough request <grant-id> --url https://www.googleapis.com/oauth2
 
 ## Related
 
-- [`alter keys mint`](/cli/commands/keys#mint) — create the runtime key this command uses
+- [`alter keys mint`](/reference/cli/commands/keys#mint) — create the runtime key this command uses
 - [Python SDK](/reference/python-sdk) / [TypeScript SDK](/reference/typescript-sdk) — the supported way to make requests from application code

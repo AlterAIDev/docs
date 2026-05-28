@@ -9,7 +9,7 @@ Read the app-level [policy](/concepts/policies) configuration for an app.
 alter policy show-app
 ```
 
-This command is app-scoped — pass `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. It needs `dashboard_app_policy:read` and accepts `--output`.
+This command is app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. It needs `dashboard_app_policy:read` and accepts `--output`.
 
 ```bash
 alter policy show-app
@@ -33,4 +33,4 @@ alter policy show-app --output json > app-policy.json
 ## Related
 
 - [Policies](/concepts/policies) — the policy model
-- [`alter audit`](/cli/commands/audit) — see policy decisions on real calls (`alter audit list --policy-decision DENY`)
+- [`alter audit`](/reference/cli/commands/audit) — see policy decisions on real calls (`alter audit list --policy-decision DENY`)

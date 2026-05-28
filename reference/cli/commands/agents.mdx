@@ -16,7 +16,7 @@ alter agents list-keys  --agent <agent-id>
 alter agents revoke-key --agent <agent-id> --key <key-id> [--force] [--yes]
 ```
 
-All commands are app-scoped — pass `--app <id>`, or [link a workspace](/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show` / `list-keys`) need `dashboard_agents:read`; `create` / `update` / `mint-key` need `dashboard_agents:write`; `revoke` and `revoke-key` need `dashboard_agents:admin`.
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show` / `list-keys`) need `dashboard_agents:read`; `create` / `update` / `mint-key` need `dashboard_agents:write`; `revoke` and `revoke-key` need `dashboard_agents:admin`.
 
 <Note>
 Both `agents create` and `agents mint-key` return an API key that is shown **once**. Capture it when printed.
@@ -107,6 +107,6 @@ alter agents revoke-key --agent <agent-id> --key <old-key-id>
 
 ## Related
 
-- [`alter keys`](/cli/commands/keys) — app-level runtime keys
-- [`alter managed-secrets grants`](/cli/commands/managed-secrets#grants) — give an agent a backend credential
+- [`alter keys`](/reference/cli/commands/keys) — app-level runtime keys
+- [`alter managed-secrets grants`](/reference/cli/commands/managed-secrets#grants) — give an agent a backend credential
 - [Agents](/concepts/agents)
