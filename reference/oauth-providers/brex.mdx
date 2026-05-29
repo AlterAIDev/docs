@@ -1,0 +1,89 @@
+---
+title: 'Brex'
+description: 'Set up Brex OAuth for corporate card and expense management'
+---
+
+## Overview
+
+Connect your users to Brex for corporate card management, expense tracking, and financial data access.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `brex` |
+| **Category** | Finance |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Get Brex OAuth credentials
+
+Brex OAuth (3LO) is partner-gated — there is no self-serve developer console for creating OAuth apps. Credentials must be issued by Brex's developer support team after the partner application is approved.
+
+<Steps>
+  <Step title="Apply to be a Brex developer partner">
+    Submit an application at [brex.com/partners](https://www.brex.com/partners).
+  </Step>
+
+  <Step title="Request OAuth credentials">
+    Once approved, contact the Brex developer support team to request OAuth client credentials. Provide the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) — Brex configures the redirect URI on its side, there is no self-serve UI for it.
+  </Step>
+
+  <Step title="Receive credentials">
+    Brex issues a **Client ID**, **Client Secret**, and the list of approved scopes.
+  </Step>
+</Steps>
+
+<Note>
+  For internal automations against a single Brex account (not user-facing OAuth), use a User Token generated under **Developer → Settings** at [dashboard.brex.com](https://dashboard.brex.com/) instead — that flow uses a static bearer token, not OAuth, and does not work with this provider.
+</Note>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Brex provider">
+    Go to **OAuth Providers** > **Add Provider** > **Brex**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Brex Client ID
+    - **Client Secret**: Paste your Brex Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `openid` | OpenID Connect authentication |
+| `offline_access` | Request a refresh token for long-lived access |
+| `transactions.card.readonly` | Read-only access to card transactions |
+| `accounts.card.readonly` | Read-only access to card accounts |
+| `users.readonly` | Read-only access to user information |
+| `expenses.card` | Access to card expense data |
+| `budgets.readonly` | Read-only access to budgets |
+| `vendors.readonly` | Read-only access to vendor information |
+
+<Tip>
+  Include both `openid` and `offline_access` scopes to enable automatic token refresh.
+</Tip>
+
+## Notes
+
+- The `openid` and `offline_access` scopes are included by default.
+- Brex scopes configured in your OAuth application must match the scopes you request during authorization.

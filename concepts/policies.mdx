@@ -5,7 +5,7 @@ description: 'Rules that decide whether a credential access is allowed.'
 
 **A policy is a rule that decides whether a credential access is allowed.** Every `app.request()` is evaluated against the relevant policies before the token is injected; if the policy denies, the call raises [`PolicyViolationError`](/reference/errors) and the provider is never reached.
 
-Policies sit between *who can call* (the [principal](/concepts/grants#principals) on the grant) and *what they're allowed to call right now*. The principal binding answers "is Alice's grant?"; the policy answers "is now a valid time, from a valid place, within rate?"
+Policies sit between *who can call* (the [principal](/concepts/credentials#principals) on the grant) and *what they're allowed to call right now*. The principal binding answers "is Alice's grant?"; the policy answers "is now a valid time, from a valid place, within rate?"
 
 ## Where a policy lives
 

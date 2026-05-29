@@ -8,7 +8,7 @@ By the end of this guide, an AI agent has its own API key, can call third-party 
 The flow:
 
 1. The operator provisions a managed [agent](/concepts/agents).
-2. The operator binds credentials to the agent (a managed-secret grant directly, or a user [delegates](/concepts/delegation) an OAuth connection to the agent).
+2. The operator binds credentials to the agent (a managed-secret grant directly, or a user [delegates](/concepts/credentials#delegation) an OAuth connection to the agent).
 3. The agent process loads its own API key and calls `agent.request()`.
 
 ## Prerequisites
@@ -65,9 +65,9 @@ const session = await app.createConnectSession({
 ```
 </CodeGroup>
 
-On Approve, Alter writes both the connection and a [delegation](/concepts/delegation) row binding it to the named agent.
+On Approve, Alter writes both the connection and a [delegation](/concepts/credentials#delegation) row binding it to the named agent.
 
-**Path B — operator issues a managed secret to the agent.** From the Developer Portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot**. Agent-bound managed-secret grants are minted from the dev-portal admin route family — the SDK's `create_managed_secret_grant` / `createManagedSecretGrant` consumes a narrower principal union and rejects `{ "type": "agent" }` at the backend boundary. The resulting `grant_id` is what the agent process uses in `request(grant_id=...)`.
+**Path B — operator issues a managed secret to the agent.** From the Developer Portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot**. Agent-bound managed-secret grants are created from the Developer Portal flow; the SDK's `create_managed_secret_grant` / `createManagedSecretGrant` methods do not accept `AgentPrincipal`. The resulting `grant_id` is what the agent process uses in `request(grant_id=...)`.
 
 ### 3. Call providers from the agent
 
@@ -166,7 +166,7 @@ Both shapes produce the same backend identity. The decision is purely a blast-ra
 ## What's next
 
 <CardGroup cols={3}>
-  <Card title="Delegation" icon="user-shield" href="/concepts/delegation">
+  <Card title="Delegation" icon="user-shield" href="/concepts/credentials#delegation">
     The user → agent consent model in depth.
   </Card>
   <Card title="Add human-in-the-loop approvals" icon="circle-check" href="/guides/add-human-in-the-loop-approvals">

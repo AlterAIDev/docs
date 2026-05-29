@@ -1,0 +1,87 @@
+---
+title: 'DocuSign'
+description: 'Set up DocuSign OAuth for electronic signatures and agreement management'
+---
+
+## Overview
+
+Connect your users to DocuSign for electronic signature workflows, document management, and agreement automation.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `docusign` |
+| **Category** | Business |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create a DocuSign OAuth App
+
+<Steps>
+  <Step title="Open Apps and Keys">
+    Sign in to DocuSign as an administrator and go to **Settings** > **Apps and Keys** — or open [apps.docusign.com/admin/apps-and-keys](https://apps.docusign.com/admin/apps-and-keys) directly. For developer accounts, use [apps-d.docusign.com/admin/apps-and-keys](https://apps-d.docusign.com/admin/apps-and-keys).
+  </Step>
+
+  <Step title="Create a new application">
+    Click **ADD APP / INTEGRATION KEY**, enter the App Name, and save.
+  </Step>
+
+  <Step title="Generate a secret key">
+    Under **Authentication**, click **Add Secret Key** and copy the secret immediately — it is only displayed once.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Under **Additional Settings**, add a **Redirect URI** using the Alter callback URL from the [Developer Portal](https://portal.alterauth.com). Match the trailing slash exactly — DocuSign requires an exact string match.
+  </Step>
+
+  <Step title="Get credentials">
+    Copy the **Integration Key** (Client ID) shown on the app details page.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Secret Key publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add DocuSign provider">
+    Go to **OAuth Providers** > **Add Provider** > **DocuSign**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your DocuSign Integration Key
+    - **Client Secret**: Paste your DocuSign Secret Key
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `signature` | Send and sign documents |
+| `extended` | Extended access for additional API endpoints |
+| `impersonation` | Act on behalf of another user |
+| `click.manage` | Manage ClickWrap agreements |
+| `click.send` | Send ClickWrap agreements |
+| `organization_read` | Read organization data |
+| `permission_read` | Read permission profile data |
+
+## Notes
+
+- DocuSign requires separate sandbox and production environments. Use the sandbox (`account-d.docusign.com`) for development.
+- The `signature` scope is required for most eSignature operations.
+- See the [DocuSign OAuth documentation](https://developers.docusign.com/platform/auth/authcode/) for more details.

@@ -78,7 +78,7 @@ Server Actions run on every form post or `useTransition` callback. Treat them ex
 
 ## Per-request Agent
 
-When a request maps to one agent run (an LLM call, a tool invocation), construct the `Agent` inside the handler and dispose with `await using`:
+When a request maps to one agent run (an LLM call, a tool invocation), construct the `Agent` inside the handler and close it in `finally`:
 
 ```typescript
 import { Agent } from "@alter-ai/alter-sdk";
@@ -87,19 +87,23 @@ export async function POST(req: NextRequest) {
   const userJwt = await getUserJwt();
   if (!userJwt) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  await using agent = new Agent({
+  const agent = new Agent({
     apiKey: process.env.AGENT_API_KEY!,
     userTokenGetter: () => userJwt,
   });
 
-  return await agent.trace({ runId: crypto.randomUUID() }, async () => {
-    const response = await agent.request(/* … */);
-    return NextResponse.json(await response.json());
-  });
+  try {
+    return await agent.trace({ runId: crypto.randomUUID() }, async () => {
+      const response = await agent.request(/* … */);
+      return NextResponse.json(await response.json());
+    });
+  } finally {
+    await agent.close();
+  }
 }
 ```
 
-The `await using` declaration calls `agent.close()` when the block exits, even on thrown errors.
+The `try`/`finally` ensures `agent.close()` runs when the block exits, even on thrown errors.
 
 ## Connect flow
 
@@ -142,7 +146,7 @@ In production, drive the callback through a `postMessage` from a popup, or use N
 
 ## Edge runtime
 
-Both `App` and `Agent` use the global `fetch` API and have no Node-only dependencies in the request path, so they run on the Edge runtime. The `Symbol.asyncDispose` lifecycle helper requires a runtime that implements it (Node 18+ with `--experimental-vm-modules`, or any runtime advertising TC39 explicit-resource-management support). Set `export const runtime = "edge"` on the route to opt in.
+Both `App` and `Agent` use the global `fetch` API and have no Node-only dependencies in the request path, so they run on the Edge runtime. Set `export const runtime = "edge"` on the route to opt in.
 
 ```typescript
 export const runtime = "edge";

@@ -1,0 +1,88 @@
+---
+title: 'Pinterest'
+description: 'Set up Pinterest OAuth for boards, pins, and visual content management'
+---
+
+## Overview
+
+Connect your users to Pinterest for board management, pin creation, audience insights, and advertising data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `pinterest` |
+| **Category** | Social |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create a Pinterest OAuth App
+
+<Steps>
+  <Step title="Sign in to the Pinterest Developer Portal">
+    Navigate to [developers.pinterest.com/apps](https://developers.pinterest.com/apps/) and sign in with a Pinterest business account. Personal accounts cannot register apps.
+  </Step>
+
+  <Step title="Accept the Developer Terms of Service">
+    Open **My apps** and accept the Developer Terms of Service.
+  </Step>
+
+  <Step title="Connect a new app">
+    Click **Connect app**, complete the request form with the app information, and submit for trial access. Pinterest reviews requests each business day.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Once approved, open **My apps**, click **Manage** on the app, and on the **Configure** tab add the Alter callback URL from the Developer Portal to the **Redirect URIs** section. The redirect URI must match exactly during OAuth authorization.
+  </Step>
+
+  <Step title="Get credentials">
+    Copy the **App ID** (Client ID) and **App secret key** (Client Secret) from the app details page.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share the application Secret Key publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Pinterest provider">
+    Go to **OAuth Providers** > **Add Provider** > **Pinterest**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Pinterest App ID
+    - **Client Secret**: Paste your Pinterest App Secret Key
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `boards:read` | Read board data |
+| `boards:write` | Create and manage boards |
+| `pins:read` | Read pin data |
+| `pins:write` | Create and manage pins |
+| `user_accounts:read` | Read user account data |
+| `ads:read` | Read advertising data |
+| `ads:write` | Create and manage ads |
+| `catalogs:read` | Read product catalogs |
+| `catalogs:write` | Manage product catalogs |
+
+## Notes
+
+- Some scopes (e.g., `ads:read`) require the application to be approved for advertising access.
+- See the [Pinterest OAuth documentation](https://developers.pinterest.com/docs/getting-started/authentication-and-scopes/) for more details.

@@ -12,7 +12,7 @@ An organization groups apps that belong to the same company or team. Most worksp
 - **API keys** — `alter_key_app_…` (operator keys) and `alter_key_agent_…` (per-agent keys). See [API keys](/admin/api-keys).
 - **Provider configurations** — OAuth client IDs and secrets per provider, managed-secret credentials, scope allowlists. See [Providers](/concepts/providers).
 - **Identity provider settings** — the IDP that authenticates the app's end users (Auth0, Clerk, Okta, custom OIDC). See [Connecting an identity provider](/admin/identity-provider).
-- **Grants** — every OAuth authorization a user has completed and every managed secret an operator has provisioned. See [Grants](/concepts/grants).
+- **Grants** — every OAuth authorization a user has completed and every managed secret an operator has provisioned. See [Grants](/concepts/credentials).
 - **Managed agents** — workload identities for AI agents and background services. See [Agents](/concepts/agents).
 - **Audit logs** — every API call routed through this app. See [Audit logs](/concepts/audit-logs).
 
@@ -24,7 +24,7 @@ This makes apps the right primitive for separating:
 
 - **Production from staging** — distinct apps means distinct keys, distinct grants, and no chance of a staging credential reaching a production grant.
 - **Distinct products in the same organization** — a calendar product and a billing product can coexist in one org without sharing grants.
-- **Multi-tenant isolation** *(usually unnecessary)* — most apps multiplex many end users through the same app via [identity resolution](/concepts/identity-resolution), not separate apps per tenant.
+- **Multi-tenant isolation** *(usually unnecessary)* — most apps multiplex many end users through the same app via [identity resolution](/concepts/identity#identity-resolution), not separate apps per tenant.
 
 ## Lifecycle
 

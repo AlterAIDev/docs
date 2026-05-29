@@ -1,0 +1,85 @@
+---
+title: 'Apollo.io'
+description: 'Set up Apollo.io OAuth for sales intelligence and engagement'
+---
+
+## Overview
+
+Connect your users to Apollo.io for sales intelligence, lead enrichment, and engagement sequences.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `apollo` |
+| **Category** | CRM & Sales |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Register an OAuth App in Apollo
+
+<Steps>
+  <Step title="Go to Apollo Integrations">
+    In Apollo, go to **Settings** > **Integrations** at [app.apollo.io/#/settings/integrations](https://app.apollo.io/#/settings/integrations).
+  </Step>
+
+  <Step title="Connect the API integration">
+    Find the **API** option and click **Connect**, then choose **OAuth registration**.
+  </Step>
+
+  <Step title="Configure the application">
+    Fill in:
+    - **App Name**: A name shown to users when they authorize
+    - **App Logo**: Optional logo
+    - **OAuth Redirect URL**: Copy the **Redirect URI** from the [Developer Portal](https://portal.alterauth.com). Must use HTTPS. You can register up to 4 URLs (comma-separated).
+    - **Scopes**: Select the scopes the application needs. `read_user_profile` and `app_scopes` are added by default.
+  </Step>
+
+  <Step title="Get credentials">
+    Submit the form, then copy the **Client ID** and **Client Secret**. The secret is only displayed once.
+  </Step>
+</Steps>
+
+<Note>
+  Apollo's OAuth registration lives inside the Apollo app at **Settings → Integrations**, not at a separate developer portal. The end user registering the app must have the "Can authorize third-party apps/integrations via OAuth" permission, or the Admin or Billing and Seat Manager role. Changing scopes later requires re-running the entire OAuth registration flow.
+</Note>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Apollo.io provider">
+    Go to **OAuth Providers** > **Add Provider** > **Apollo.io**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Apollo.io Client ID
+    - **Client Secret**: Paste your Apollo.io Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `api:default` | Standard access to Apollo.io API for contacts, accounts, and sequences |
+
+## Notes
+
+- Apollo.io uses a single `api:default` scope that provides standard access to the API, including contacts, accounts, and sequences.
+- See the [Apollo OAuth 2.0 (Partners) guide](https://docs.apollo.io/docs/use-oauth-20-authorization-flow-to-access-apollo-user-information-partners) for the official authorization flow documentation.
+- Apollo access tokens expire after 30 days; Alter Vault refreshes them automatically using the refresh token.

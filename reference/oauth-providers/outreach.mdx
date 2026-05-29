@@ -1,0 +1,79 @@
+---
+title: 'Outreach'
+description: 'Set up Outreach OAuth for sales engagement and outreach automation'
+---
+
+## Overview
+
+Connect your users to Outreach for sales engagement, sequence management, prospect tracking, and account data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `outreach` |
+| **Category** | CRM & Sales |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create an Outreach OAuth App
+
+<Steps>
+  <Step title="Go to the Outreach Developer Portal">
+    Sign in to [developers.outreach.io/apps/new](https://developers.outreach.io/apps/new) and click **Create app**. Enter the App name; the App identifier auto-populates.
+  </Step>
+
+  <Step title="Configure API access">
+    In the new app's left menu, open **API access**. Add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) under **Redirect URIs** and select the OAuth data scopes the application needs.
+  </Step>
+
+  <Step title="Get credentials">
+    Copy the development **Client ID** and **Client Secret**. The secret is displayed only once — use **Regenerate** if it's lost.
+  </Step>
+</Steps>
+
+<Note>
+  Outreach apps have separate development and production credentials. Development credentials are provisioned immediately for testing; production credentials are issued only after the app goes through Outreach's publishing review. Development grants expire weekly for users outside the owning org and after 10 users in the owning org, so use development credentials for testing only.
+</Note>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Outreach provider">
+    Go to **OAuth Providers** > **Add Provider** > **Outreach**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Outreach Client ID
+    - **Client Secret**: Paste your Outreach Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `prospects.read` | Read prospect records |
+| `prospects.write` | Create and update prospects |
+| `sequences.read` | Read sequence data |
+| `sequences.write` | Create and manage sequences |
+| `accounts.read` | Read account records |
+
+## Notes
+
+- See the [Outreach OAuth documentation](https://developers.outreach.io/api/oauth/) for more details on available endpoints and scopes.

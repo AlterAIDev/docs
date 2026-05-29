@@ -1,0 +1,553 @@
+---
+title: 'Connect & Grants'
+description: 'Connect sessions, grant lifecycle, delegation revoke, managed-secret grants, HITL approvals.'
+---
+
+This page covers every surface for getting a credential into the system and managing its lifecycle: Connect sessions (user-consent flows), grant CRUD, agent-delegation revoke, managed-secret grant creation, and human-in-the-loop approvals.
+
+```python
+# Connect flows
+results = await app.connect(providers=["google"])
+session = await app.create_connect_session(allowed_providers=["github"])
+results = await app.poll_connect_session(session.session_token)
+session = await app.create_connect_session_for_error(caught_error)
+session = await app.create_managed_secret_connect_session(...)
+auth   = await app.authenticate()
+
+# Grants
+page   = await app.list_grants()
+await app.revoke_grant(grant_id, reason="rotation")
+result = await app.create_managed_secret_grant(...)
+
+# Delegations
+await app.revoke_delegation(grant_id, agent_id)  # operator
+await agent.revoke_delegation(grant_id)          # agent self-revoke
+
+# Approvals
+final  = await app.await_approval(approval_id, timeout=600.0)
+status = await app.get_approval_status(approval_id)
+```
+
+## connect()
+
+Headless OAuth flow for CLI tools, notebooks, and backend scripts. Mints a session, opens the browser, polls until the user completes consent.
+
+```python
+async def connect(
+    *,
+    providers: list[str] | None = None,
+    timeout: int = 300,
+    poll_interval: float = 2.0,
+    open_browser: bool = True,
+    grant_policy: dict[str, Any] | None = None,
+) -> list[ConnectResult]
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `providers` | `list[str] \| None` | `None` | Restrict to specific providers. `None` allows any provider configured on the app. |
+| `timeout` | `int` | `300` | Max seconds to wait for completion. |
+| `poll_interval` | `float` | `2.0` | Seconds between poll requests. |
+| `open_browser` | `bool` | `True` | `True` opens the URL in the default browser; `False` prints the URL for the user to open manually (headless servers). |
+| `grant_policy` | `dict \| None` | `None` | TTL bounds: `max_ttl_seconds` (ceiling), `default_ttl_seconds` (pre-selected). |
+
+**Returns:** list of [`ConnectResult`](/reference/python-sdk/types#connectresult) — one per provider the user authorized.
+
+**Raises:** `ConnectTimeoutError`, `ConnectDeniedError`, `ConnectConfigError`, `ConnectFlowError`, `AlterSDKError`, `NetworkError`.
+
+```python
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+results = await app.connect(providers=["google"], timeout=180)
+for r in results:
+    print(r.grant_id, r.provider_id, r.account_identifier)
+```
+
+## create_connect_session()
+
+Mint a Connect session and receive the `connect_url`. Use when the UI hosts its own redirect / popup / mobile flow rather than the headless [`connect()`](#connect) browser bridge.
+
+```python
+async def create_connect_session(
+    *,
+    allowed_providers: list[str] | None = None,
+    return_url: str | None = None,
+    allowed_origin: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    grant_policy: dict[str, Any] | None = None,
+    required_scopes: dict[str, list[str]] | None = None,
+    agent: str | None = None,
+    user_token: str | None = None,
+) -> ConnectSession
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `allowed_providers` | `list[str] \| None` | `None` | Restrict to specific providers. |
+| `return_url` | `str \| None` | `None` | URL to redirect after completion. |
+| `allowed_origin` | `str \| None` | `None` | Allowed origin for postMessage communication in popup flows. |
+| `metadata` | `dict \| None` | `None` | Request metadata (ip_address, user_agent) recorded with the session. |
+| `grant_policy` | `dict \| None` | `None` | TTL bounds. Validated against the input keyset — a typo (`maxTtlSeconds` instead of `max_ttl_seconds`) raises `AlterValueError`. |
+| `required_scopes` | `dict[str, list[str]] \| None` | `None` | Per-provider scope ceiling. Each scope must be in the app's configured allowlist; the backend rejects attempts to widen with `scope_not_allowed`. |
+| `agent` | `str \| None` | `None` | Managed-agent UUID or name. When set, the resulting grant is delegated to this agent. |
+| `user_token` | `str \| None` | `None` | Explicit user JWT for identity binding. Wins over `user_token_getter`. |
+
+**Returns:** [`ConnectSession`](/reference/python-sdk/types#connectsession).
+
+```python
+session = await app.create_connect_session(
+    allowed_providers=["github"],
+    allowed_origin="https://app.example.com",
+    grant_policy={"max_ttl_seconds": 86400, "default_ttl_seconds": 3600},
+)
+return {"connect_url": session.connect_url, "session_token": session.session_token}
+```
+
+## poll_connect_session()
+
+Poll a Connect session token to completion. Used when the application minted the session itself and needs to block until the user finishes consent.
+
+```python
+async def poll_connect_session(
+    session_token: str,
+    *,
+    timeout: int = 300,
+    poll_interval: float = 2.0,
+) -> list[ConnectResult]
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `session_token` | `str` | — | Token from [`create_connect_session()`](#create_connect_session) or [`create_connect_session_for_error()`](#create_connect_session_for_error). Positional. |
+| `timeout` | `int` | `300` | Max seconds to wait. |
+| `poll_interval` | `float` | `2.0` | Seconds between polls. |
+
+**Returns:** list of [`ConnectResult`](/reference/python-sdk/types#connectresult).
+
+**Raises:** `ConnectTimeoutError`, `ConnectDeniedError`, `ConnectConfigError`, `ConnectFlowError`, `AlterSDKError`.
+
+```python
+session = await app.create_connect_session(allowed_providers=["slack"])
+# … hand connect_url to the user …
+results = await app.poll_connect_session(session.session_token, timeout=600)
+```
+
+## create_connect_session_for_error()
+
+Mint a recovery Connect session directly from a caught error. The method threads `provider_id` from the error into `allowed_providers=[...]`, and `agent_id` (when present) into `agent=`, so the recovery session re-binds the same delegation target.
+
+```python
+async def create_connect_session_for_error(
+    error: NoDelegatedGrantError | GrantNotFoundError | CredentialRevokedError,
+    *,
+    allowed_origin: str | None = None,
+    return_url: str | None = None,
+    metadata: dict[str, Any] | None = None,
+    grant_policy: dict[str, Any] | None = None,
+    required_scopes: dict[str, list[str]] | None = None,
+    user_token: str | None = None,
+) -> ConnectSession
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `error` | typed exception | — | The caught exception. Must carry `provider_id`. |
+| `allowed_origin` / `return_url` / `metadata` / `grant_policy` / `required_scopes` | | | Standard [`create_connect_session`](#create_connect_session) parameters. Not inferred from the error. |
+| `user_token` | `str \| None` | `None` | Explicit user JWT. Falls back to `user_token_getter`. |
+
+**Raises:** `AlterValueError` if `error.provider_id` is `None` (no recovery context), or if a `NoDelegatedGrantError` has no `agent_id` set.
+
+```python
+from alter_sdk import NoDelegatedGrantError
+
+try:
+    resp = await agent.request("GET", url, provider="google")
+except NoDelegatedGrantError as e:
+    session = await agent.create_connect_session_for_error(
+        e,
+        allowed_origin="https://app.example.com",
+    )
+    redirect_user_to(session.connect_url)
+    results = await agent.poll_connect_session(session.session_token)
+    # Retry with results[0].grant_id
+```
+
+`app_user_id` is intentionally not threaded through — [`create_connect_session`](#create_connect_session) binds the session to a user via `user_token`, not `app_user_id`. Pass `user_token=` explicitly when user binding is required.
+
+## create_managed_secret_connect_session()
+
+Mint a Connect session for the user→agent delegation flow on a managed secret. Symmetric to [`create_connect_session()`](#create_connect_session) but targets the `managed_secret_agent_delegations` primitive.
+
+```python
+async def create_managed_secret_connect_session(
+    *,
+    template_slug: str,
+    delegated_agent_id: str,
+    user_token: str,
+    requested_ttl_seconds: int | None = None,
+    delegated_agent_name: str | None = None,
+    allowed_origin: str | None = None,
+    return_url: str | None = None,
+) -> ManagedSecretConnectSession
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `template_slug` | `str` | — | Canonical template slug (e.g. `"stripe-api-key"`). Kebab-case required. |
+| `delegated_agent_id` | `str` | — | Agent UUID the user is being asked to authorize. Must belong to the calling app and be active. |
+| `user_token` | `str` | — | IDP JWT identifying the consenting user. Required — managed-secret delegation has no system-principal fallback. |
+| `requested_ttl_seconds` | `int \| None` | `None` | Caller-suggested TTL. Effective TTL is the minimum of requested, template max, source expiry, and 90 days. |
+| `delegated_agent_name` | `str \| None` | `None` | Display name shown on consent screen. Defaults to the agent's stored `display_name`. |
+| `allowed_origin` | `str \| None` | `None` | Popup-flow postMessage origin. |
+| `return_url` | `str \| None` | `None` | Mobile-redirect return URL. |
+
+**Returns:** [`ManagedSecretConnectSession`](/reference/python-sdk/types#managedsecretconnectsession). The user opens `connect_url`; on Approve the backend returns a `delegation_id` (in the postMessage payload or `return_url` query) which the agent then passes as `grant_id` to [`request()`](/reference/python-sdk/calling-apis#request).
+
+```python
+session = await app.create_managed_secret_connect_session(
+    template_slug="stripe-api-key",
+    delegated_agent_id=agent.id,
+    user_token=user_jwt,
+    requested_ttl_seconds=7 * 24 * 3600,
+)
+return {"connect_url": session.connect_url}
+```
+
+## authenticate()
+
+Trigger IDP login for an end user via the browser. Opens the app's configured IDP login page, polls for completion, and returns the user's JWT.
+
+```python
+async def authenticate(*, timeout: float = 300.0) -> AuthResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `timeout` | `float` | `300.0` | Max seconds to wait for the user to complete login. |
+
+**Returns:** [`AuthResult`](/reference/python-sdk/types#authresult) with `user_token` (JWT) and `user_info`.
+
+**Raises:** `AlterSDKError` (no IDP configured), `ConnectTimeoutError` (user didn't complete in time).
+
+`authenticate()` is on `App` only — agents do not initiate user logins.
+
+```python
+result = await app.authenticate(timeout=180.0)
+# `result.user_token` is a JWT — keep it in memory; never log or print it.
+email = result.user_info.get("email")
+```
+
+---
+
+## list_grants()
+
+Paginated list of grants visible to the calling principal. The unified endpoint returns a discriminated-union result — each item is either an [`OAuthGrantItem`](/reference/python-sdk/types#oauthgrantitem) (`grant_kind="oauth"`) or a [`ManagedSecretGrantItem`](/reference/python-sdk/types#managedsecretgrantitem) (`grant_kind="managed_secret"`).
+
+### App.list_grants
+
+```python
+async def list_grants(
+    *,
+    provider_id: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
+) -> UnifiedGrantListResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
+| `limit` | `int` | `100` | Page size, 1-1000. |
+| `offset` | `int` | `0` | Page offset. |
+
+When the `App` is constructed with a `user_token_getter`, the JWT is forwarded so the backend scopes the list to the resolving AppUser. Without a getter, the response is app-wide.
+
+```python
+from alter_sdk import App, Provider
+
+app = App(api_key="alter_key_app_…")
+
+page = await app.list_grants(provider_id=Provider.GOOGLE, limit=50)
+for item in page.grants:
+    if item.grant_kind == "oauth":
+        print(item.grant_id, item.account_identifier, item.delegated_agent_ids)
+```
+
+### Agent.list_grants
+
+```python
+async def list_grants(
+    *,
+    limit: int = 100,
+    offset: int = 0,
+) -> UnifiedGrantListResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `limit` | `int` | `100` | Page size, 1-1000. |
+| `offset` | `int` | `0` | Page offset. |
+
+Returns a merged view: delegated OAuth grants the agent can act on AND agent-owned managed-secret grants. The agent surface does not accept `provider_id` or per-user filters — the response is the complete view of grants visible to the calling agent.
+
+```python
+page = await agent.list_grants()
+for item in page.grants:
+    if item.grant_kind == "oauth":
+        print("OAuth grant:", item.provider_id, item.account_identifier)
+    else:
+        print("Managed secret:", item.managed_secret_slug, item.label)
+```
+
+**Raises (both):** `AlterValueError` on bad pagination input, `BackendError` on backend / wire-shape failure, `ReAuthRequiredError` on JWT validation failures.
+
+## revoke_grant()
+
+`App` only. Permanently revokes the specified grant. Tokens are deleted from the vault and the grant status flips to `"revoked"` — the user must re-authorize to restore access.
+
+```python
+async def revoke_grant(
+    grant_id: str,
+    *,
+    reason: str | None = None,
+) -> RevokeGrantResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `grant_id` | `str` | — | Grant to revoke. Positional. |
+| `reason` | `str \| None` | `None` | Optional reason recorded in the audit log. |
+
+**Returns:** [`RevokeGrantResult`](/reference/python-sdk/types#revokegrantresult).
+
+**Raises:** `AlterSDKError` (closed), `GrantNotFoundError`, `NetworkError`, `TimeoutError`, `BackendError`.
+
+```python
+result = await app.revoke_grant(grant_id, reason="key_rotation")
+print(result.success, result.revoked_at)
+```
+
+<Note>
+When `user_token_getter` is configured, the caller's JWT is auto-included as `user_token`, and the backend scopes the revoke to that user's grants only — preventing cross-user revocation. When no getter is configured, the call runs as the operator and may target any grant the app principal owns.
+</Note>
+
+## revoke_delegation()
+
+Revoke an agent's delegation on an OAuth grant. The OAuth grant itself stays active; only the named agent's access path is removed.
+
+### App.revoke_delegation
+
+Operator path — both `grant_id` and `agent_id` are required.
+
+```python
+async def revoke_delegation(grant_id: str, agent_id: str) -> None
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `grant_id` | `str` | — | OAuth grant whose delegation should be revoked. |
+| `agent_id` | `str` | — | Agent UUID whose delegation should be revoked. |
+
+**Raises:** `AlterValueError` (empty inputs), `BackendError` (`use_self_revoke_path` if the caller is an agent).
+
+```python
+await app.revoke_delegation(grant_id="…", agent_id="…")
+```
+
+### Agent.revoke_delegation
+
+Self-revoke — the agent revokes its own delegation. Idempotent.
+
+```python
+async def revoke_delegation(grant_id: str) -> None
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `grant_id` | `str` | — | OAuth grant whose delegation should be revoked. |
+
+**Raises:** `BackendError` (`agent_key_required`), `NetworkError`, `TimeoutError`.
+
+```python
+await agent.revoke_delegation(grant_id="…")
+```
+
+## create_managed_secret_grant()
+
+`App` only. Create a managed-secret grant bound to a user / group / system / agent principal. The discriminator on `principal` decides the binding shape.
+
+```python
+async def create_managed_secret_grant(
+    managed_secret_id: str,
+    *,
+    principal: Principal,
+    grant_policy: dict[str, Any] | None = None,
+) -> CreateGrantResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `managed_secret_id` | `str` | — | Managed-secret template id. Positional. |
+| `principal` | `Principal` | — | Discriminated principal model (see below). |
+| `grant_policy` | `dict \| None` | `None` | Optional grant policy (e.g. `{"expires_at": "2026-12-31T00:00:00Z"}`). Validated against the input keyset. |
+
+**Returns:** [`CreateGrantResult`](/reference/python-sdk/types#creategrantresult).
+
+`Principal` is a discriminated union over four shapes:
+
+| Type | Discriminator (`type`) | Required fields |
+|---|---|---|
+| [`UserPrincipal`](/reference/python-sdk/types#userprincipal) | `"user"` | `user_token`, `label` |
+| [`GroupPrincipal`](/reference/python-sdk/types#groupprincipal) | `"group"` | `external_group_id`, `idp_id`, `label` |
+| [`SystemPrincipal`](/reference/python-sdk/types#systemprincipal) | `"system"` | (label optional) |
+| [`AgentPrincipal`](/reference/python-sdk/types#agentprincipal) | `"agent"` | Not accepted by this SDK method. Create agent-bound managed-secret grants via the Developer Portal flow instead. |
+
+```python
+from alter_sdk import App
+from alter_sdk.models import UserPrincipal, GroupPrincipal, SystemPrincipal
+
+app = App(api_key="alter_key_app_…")
+
+# User-bound
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_stripe_prod",
+    principal=UserPrincipal(user_token=user_jwt, label="Acme Stripe"),
+)
+
+# Group-bound (Okta / Clerk / Auth0 group)
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_datadog",
+    principal=GroupPrincipal(
+        idp_id="11111111-2222-3333-4444-555555555555",
+        external_group_id="oncall-team",
+        label="On-call rotation",
+    ),
+)
+
+# System (server-to-server)
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_internal_notion",
+    principal=SystemPrincipal(label="weekly_report_cron"),
+)
+
+# Agent-bound principals are not accepted by this SDK call.
+# Create agent-bound managed-secret grants via the Developer Portal.
+```
+
+The dict shorthand also works:
+
+```python
+result = await app.create_managed_secret_grant(
+    managed_secret_id="ms_openai",
+    principal={"type": "user", "user_token": user_jwt, "label": "Alice"},
+)
+```
+
+---
+
+## await_approval()
+
+When a grant has `requires_approval` configured, [`proxy_request()`](/reference/python-sdk/calling-apis#proxy_request) returns a [`PendingApproval`](/reference/python-sdk/types#pendingapproval) instead of executing the call. `await_approval()` blocks until the approval reaches a terminal state, then returns the proxied result.
+
+```python
+async def await_approval(
+    approval_id: str,
+    *,
+    timeout: float = 300.0,
+    poll_interval: float = 2.0,
+) -> ApprovalResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `approval_id` | `str` | — | The approval row id (from `PendingApproval.approval_id`). Positional. |
+| `timeout` | `float` | `300.0` | Local wait timeout in seconds. The approval row may still be pending on the backend after this elapses — the SDK simply gives up waiting. |
+| `poll_interval` | `float` | `2.0` | Seconds between polls. |
+
+**Returns:** [`ApprovalResult`](/reference/python-sdk/types#approvalresult) on the `executed` terminal (the proxied provider response).
+
+**Raises:**
+
+- `ApprovalDeniedError` — approver explicitly denied.
+- `ApprovalExpiredError` — approval window elapsed before any decision.
+- `ApprovalExecutionFailedError` — approved but backend's proxy execution failed (e.g. grant revoked between approval and execution).
+- `ApprovalTimeoutError` — local wait elapsed before any decision. Re-poll later if the row is still pending.
+
+Transient gateway errors (502, 503, 504) and network failures during the wait are retried silently until the deadline elapses — the approval row is fine on the backend and the next poll typically succeeds.
+
+```python
+from alter_sdk.exceptions import ApprovalDeniedError, ApprovalTimeoutError
+from alter_sdk.models import PendingApproval
+
+result = await app.proxy_request(
+    "POST",
+    "https://api.stripe.com/v1/refunds",
+    grant_id=grant_id,
+    json_body={"charge": "ch_abc"},
+)
+
+if isinstance(result, PendingApproval):
+    try:
+        final = await app.await_approval(
+            str(result.approval_id),
+            timeout=600.0,
+            poll_interval=3.0,
+        )
+        print("Approved:", final.status_code, final.body_json())
+    except ApprovalDeniedError as e:
+        print("Denied:", e.message)
+    except ApprovalTimeoutError:
+        # row may still be pending — re-poll later
+        ...
+```
+
+## get_approval_status()
+
+Single-shot poll of an approval row. Returns the current status snapshot without blocking.
+
+```python
+async def get_approval_status(approval_id: str) -> ApprovalStatus
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `approval_id` | `str` | — | The approval row id. |
+
+**Returns:** [`ApprovalStatus`](/reference/python-sdk/types#approvalstatus). Branch on `.status` or `.is_terminal`.
+
+```python
+status = await app.get_approval_status(approval_id)
+if status.is_terminal:
+    print("Decided:", status.status, "at", status.decided_at)
+else:
+    print("Still", status.status)
+```
+
+### Status values
+
+`ApprovalStatus.status` is one of:
+
+| Value | Terminal | Meaning |
+|---|---|---|
+| `"pending"` | no | Approver has not decided. |
+| `"approved"` | no | Decision made; backend is about to execute the proxied call. |
+| `"executing"` | no | Backend is currently running the proxied call. |
+| `"denied"` | yes | Approver declined. |
+| `"expired"` | yes | Approval window elapsed. |
+| `"executed"` | yes | Proxied call completed; `has_result=True` once the result is ready to fetch. |
+| `"failed"` | yes | Execution failed after approval. |
+
+[`await_approval()`](#await_approval) handles every terminal automatically and raises the matching typed exception (or returns `ApprovalResult` for `executed`).
+
+### Reading the result
+
+`ApprovalResult.body_b64` is base64-encoded. Use the helpers:
+
+- `body_bytes() -> bytes`
+- `body_text(encoding: str = "utf-8") -> str`
+- `body_json() -> Any`
+- `.status_code` — HTTP status from the provider
+- `.headers` — provider response headers (dict)
+- `.approval_id` — the approval row id (`None` for synchronous, non-HITL [`proxy_request`](/reference/python-sdk/calling-apis#proxy_request) results)

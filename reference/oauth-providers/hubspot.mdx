@@ -1,0 +1,84 @@
+---
+title: 'HubSpot'
+description: 'Set up HubSpot OAuth for CRM and marketing automation'
+---
+
+## Overview
+
+Connect your users to HubSpot for CRM data, contact management, deal tracking, and marketing automation.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `hubspot` |
+| **Category** | Popular |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create a HubSpot OAuth App
+
+<Steps>
+  <Step title="Install and authenticate the HubSpot CLI">
+    Install the HubSpot CLI (v7.6.0 or later) and authenticate with `hs init` or `hs account auth`. Apps are now created via the CLI from any standard HubSpot account — the legacy developer-account model was retired in March 2026.
+  </Step>
+
+  <Step title="Create a new project">
+    Run `hs project create` and choose:
+    - **Distribution**: Marketplace or restricted installation
+    - **Authentication**: OAuth (for installation in multiple HubSpot accounts)
+  </Step>
+
+  <Step title="Configure OAuth settings">
+    Edit the app's top-level `app-hsmeta.json` file and add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) to the `redirectUrls` array. Add the required scopes under `auth.requiredScopes`. Then run `hs project upload` to deploy the app to HubSpot.
+  </Step>
+
+  <Step title="Get credentials">
+    In the HubSpot account, go to **Development** > **Projects**, open the project, click the app name, and open the **Auth** tab. Copy the **Client ID** and **Client secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add HubSpot provider">
+    Go to **OAuth Providers** > **Add Provider** > **HubSpot**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your HubSpot Client ID
+    - **Client Secret**: Paste your HubSpot Client secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `crm.objects.contacts.read` | Read contact records |
+| `crm.objects.contacts.write` | Create, update, and delete contacts |
+| `crm.objects.companies.read` | Read company records |
+| `crm.objects.companies.write` | Create, update, and delete companies |
+| `crm.objects.deals.read` | Read deal records |
+| `crm.objects.deals.write` | Create, update, and delete deals |
+
+## Notes
+
+- HubSpot enforces granular scopes — request only what the application needs.
+- Access tokens are short-lived (~30 minutes). Alter Vault handles automatic refresh using the refresh token.
+- See the [HubSpot OAuth documentation](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth) for more details.

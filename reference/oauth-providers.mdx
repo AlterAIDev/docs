@@ -1,141 +1,139 @@
 ---
-title: 'OAuth Providers'
-description: 'Catalog of 66+ OAuth providers pre-configured for Alter.'
+title: 'OAuth providers'
+description: 'Connect end-user accounts on supported OAuth providers.'
 ---
 
-Alter ships with pre-configured OAuth integrations for the providers below. Adding any of them is the same flow: pick the provider in **Developer Portal → OAuth Providers → Add Provider**, register an OAuth client at the provider, and paste back the client ID and secret.
+Alter ships with 66 pre-configured OAuth providers covering productivity, communication, CRM, finance, design, and developer tools. Each provider has a setup guide with the property table, OAuth-credential creation flow, and SDK code example.
 
 For step-by-step setup, see [Setting up an app](/admin/setting-up-your-app#configuring-providers). For the runtime flow, see [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users).
 
 For any provider not listed here that supports OAuth 2.0, use the **Custom OAuth** template — point Alter at the authorize / token / revoke URLs and Alter handles the rest.
 
-The **PKCE** and **Token refresh** columns reflect the runtime behavior Alter applies for each provider. These columns are part of the runtime contract and are validated against the backend config in CI — if a row drifts from the implementation, the build fails.
-
 ## Popular
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Google | `google` | Supported | Automatic | [Google OAuth docs](https://developers.google.com/identity/protocols/oauth2) |
-| GitHub | `github` | Supported | Not supported | [GitHub OAuth docs](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/authorizing-oauth-apps) |
-| Slack | `slack` | Not supported | Automatic | [Slack OAuth docs](https://api.slack.com/authentication/oauth-v2) |
-| Microsoft | `microsoft` | Supported | Automatic | [Microsoft identity platform](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) |
-| Atlassian | `atlassian` | Supported | Automatic | [Atlassian OAuth 2.0](https://developer.atlassian.com/cloud/jira/platform/oauth-2-3lo-apps/) |
-| Notion | `notion` | Not supported | Automatic | [Notion OAuth docs](https://developers.notion.com/docs/authorization) |
-| HubSpot | `hubspot` | Supported | Automatic | [HubSpot OAuth docs](https://developers.hubspot.com/docs/apps/developer-platform/build-apps/authentication/oauth/working-with-oauth) |
-| Salesforce | `salesforce` | Supported | Automatic | [Salesforce OAuth docs](https://help.salesforce.com/s/articleView?id=sf.remoteaccess_oauth_web_server_flow.htm) |
-| Asana | `asana` | Supported | Automatic | [Asana OAuth docs](https://developers.asana.com/docs/oauth) |
-| Stripe (Connect) | `stripe` | Not supported | Not supported | [Stripe Connect OAuth](https://docs.stripe.com/connect/oauth-reference) |
-| Calendly | `calendly` | Supported | Automatic | [Calendly OAuth docs](https://developer.calendly.com/creating-an-oauth-app) |
-| Canva | `canva` | Supported | Automatic | [Canva Connect API](https://www.canva.dev/docs/connect/authentication/) |
-| ClickUp | `clickup` | Supported | Automatic | [ClickUp OAuth docs](https://clickup.com/api/developer-portal/authentication/) |
+<CardGroup cols={4}>
+  <Card title="Google" href="/reference/oauth-providers/google" />
+  <Card title="GitHub" href="/reference/oauth-providers/github" />
+  <Card title="Slack" href="/reference/oauth-providers/slack" />
+  <Card title="Microsoft" href="/reference/oauth-providers/microsoft" />
+  <Card title="Atlassian" href="/reference/oauth-providers/atlassian" />
+  <Card title="Notion" href="/reference/oauth-providers/notion" />
+  <Card title="HubSpot" href="/reference/oauth-providers/hubspot" />
+  <Card title="Salesforce" href="/reference/oauth-providers/salesforce" />
+  <Card title="Asana" href="/reference/oauth-providers/asana" />
+  <Card title="Stripe (Connect)" href="/reference/oauth-providers/stripe" />
+  <Card title="Calendly" href="/reference/oauth-providers/calendly" />
+  <Card title="Canva" href="/reference/oauth-providers/canva" />
+  <Card title="ClickUp" href="/reference/oauth-providers/clickup" />
+</CardGroup>
 
 ## Productivity & collaboration
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Acuity Scheduling | `acuity-scheduling` | Supported | Automatic | [Acuity Scheduling OAuth docs](https://developers.acuityscheduling.com/reference/oauth2) |
-| Airtable | `airtable` | Supported | Automatic | [Airtable OAuth docs](https://airtable.com/developers/web/api/oauth-reference) |
-| Basecamp | `basecamp` | Supported | Automatic | [Basecamp OAuth docs](https://github.com/basecamp/api/blob/master/sections/authentication.md) |
-| Cal.com | `cal-com` | Not supported | Automatic | [Cal.com platform docs](https://cal.com/docs/platform/quick-start) |
-| DocuSign | `docusign` | Supported | Automatic | [DocuSign OAuth docs](https://developers.docusign.com/platform/auth/authcode/) |
-| Linear | `linear` | Supported | Automatic | [Linear OAuth docs](https://linear.app/developers/oauth-2-0-authentication) |
-| Miro | `miro` | Supported | Automatic | [Miro OAuth docs](https://developers.miro.com/docs/getting-started) |
-| Monday | `monday` | Not supported | Not supported | [Monday OAuth docs](https://developer.monday.com/apps/docs/oauth) |
-| Todoist | `todoist` | Not supported | Not supported | [Todoist OAuth docs](https://developer.todoist.com/guides/#authorization) |
-| Typeform | `typeform` | Supported | Automatic | [Typeform OAuth docs](https://www.typeform.com/developers/get-started/applications/) |
+<CardGroup cols={4}>
+  <Card title="Acuity Scheduling" href="/reference/oauth-providers/acuity-scheduling" />
+  <Card title="Airtable" href="/reference/oauth-providers/airtable" />
+  <Card title="Basecamp" href="/reference/oauth-providers/basecamp" />
+  <Card title="Cal.com" href="/reference/oauth-providers/cal-com" />
+  <Card title="DocuSign" href="/reference/oauth-providers/docusign" />
+  <Card title="Linear" href="/reference/oauth-providers/linear" />
+  <Card title="Miro" href="/reference/oauth-providers/miro" />
+  <Card title="Monday" href="/reference/oauth-providers/monday" />
+  <Card title="Todoist" href="/reference/oauth-providers/todoist" />
+  <Card title="Typeform" href="/reference/oauth-providers/typeform" />
+</CardGroup>
 
 ## CRM & sales
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Apollo | `apollo` | Not supported | Automatic | [Apollo OAuth docs](https://docs.apollo.io/docs/use-oauth-20-authorization-flow-to-access-apollo-user-information-partners) |
-| Attio | `attio` | Supported | Automatic | [Attio OAuth docs](https://developers.attio.com/docs/authorization) |
-| Close | `close` | Supported | Automatic | [Close OAuth docs](https://developer.close.com/topics/authentication/) |
-| Outreach | `outreach` | Supported | Automatic | [Outreach OAuth docs](https://developers.outreach.io/api/oauth/) |
-| Pipedrive | `pipedrive` | Supported | Automatic | [Pipedrive OAuth docs](https://pipedrive.readme.io/docs/marketplace-oauth-authorization) |
+<CardGroup cols={4}>
+  <Card title="Apollo" href="/reference/oauth-providers/apollo" />
+  <Card title="Attio" href="/reference/oauth-providers/attio" />
+  <Card title="Close" href="/reference/oauth-providers/close" />
+  <Card title="Outreach" href="/reference/oauth-providers/outreach" />
+  <Card title="Pipedrive" href="/reference/oauth-providers/pipedrive" />
+</CardGroup>
 
 ## Design & creative
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Adobe | `adobe` | Supported | Automatic | [Adobe OAuth docs](https://developer.adobe.com/developer-console/docs/guides/authentication/OAuth/) |
-| Autodesk | `autodesk` | Not supported | Automatic | [Autodesk OAuth docs](https://aps.autodesk.com/en/docs/oauth/v2/developers_guide/overview/) |
-| Figma | `figma` | Supported | Automatic | [Figma OAuth docs](https://www.figma.com/developers/api#authentication) |
+<CardGroup cols={4}>
+  <Card title="Adobe" href="/reference/oauth-providers/adobe" />
+  <Card title="Autodesk" href="/reference/oauth-providers/autodesk" />
+  <Card title="Figma" href="/reference/oauth-providers/figma" />
+</CardGroup>
 
 ## Developer tools
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Bitbucket | `bitbucket` | Not supported | Automatic | [Bitbucket OAuth docs](https://support.atlassian.com/bitbucket-cloud/docs/use-oauth-on-bitbucket-cloud/) |
-| Contentful | `contentful` | Supported | Automatic | [Contentful OAuth docs](https://www.contentful.com/developers/docs/references/authentication/) |
-| DigitalOcean | `digitalocean` | Supported | Automatic | [DigitalOcean OAuth docs](https://docs.digitalocean.com/reference/api/oauth-api/) |
-| PagerDuty | `pagerduty` | Supported | Automatic | [PagerDuty OAuth docs](https://developer.pagerduty.com/docs/app-integration-development/oauth-2-functionality/) |
-| Sentry | `sentry` | Supported | Automatic | [Sentry OAuth docs](https://docs.sentry.io/api/) |
-| Webflow | `webflow` | Not supported | Not supported | [Webflow OAuth docs](https://developers.webflow.com/data/reference/authorization/authorize) |
+<CardGroup cols={4}>
+  <Card title="Bitbucket" href="/reference/oauth-providers/bitbucket" />
+  <Card title="Contentful" href="/reference/oauth-providers/contentful" />
+  <Card title="DigitalOcean" href="/reference/oauth-providers/digitalocean" />
+  <Card title="PagerDuty" href="/reference/oauth-providers/pagerduty" />
+  <Card title="Sentry" href="/reference/oauth-providers/sentry" />
+  <Card title="Webflow" href="/reference/oauth-providers/webflow" />
+</CardGroup>
 
 ## Marketing & events
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Bitly | `bitly` | Supported | Not supported | [Bitly OAuth docs](https://dev.bitly.com/docs/getting-started/authentication/) |
-| Constant Contact | `constant-contact` | Not supported | Automatic | [Constant Contact OAuth docs](https://developer.constantcontact.com/api_guide/auth_overview.html) |
-| Eventbrite | `eventbrite` | Not supported | Not supported | [Eventbrite API docs](https://www.eventbrite.com/platform/api) |
-| Mailchimp | `mailchimp` | Not supported | Not supported | [Mailchimp OAuth docs](https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/) |
+<CardGroup cols={4}>
+  <Card title="Bitly" href="/reference/oauth-providers/bitly" />
+  <Card title="Constant Contact" href="/reference/oauth-providers/constant-contact" />
+  <Card title="Eventbrite" href="/reference/oauth-providers/eventbrite" />
+  <Card title="Mailchimp" href="/reference/oauth-providers/mailchimp" />
+</CardGroup>
 
 ## Communication
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Aircall | `aircall` | Supported | Automatic | [Aircall OAuth docs](https://developer.aircall.io/api-references/#oauth-overview) |
-| Dialpad | `dialpad` | Supported | Automatic | [Dialpad OAuth docs](https://developers.dialpad.com/docs/oauth) |
-| Discord | `discord` | Supported | Automatic | [Discord OAuth docs](https://discord.com/developers/docs/topics/oauth2) |
-| RingCentral | `ringcentral` | Supported | Automatic | [RingCentral OAuth docs](https://developers.ringcentral.com/guide/authentication) |
-| Webex | `webex` | Supported | Automatic | [Webex OAuth docs](https://developer.webex.com/docs/integrations) |
+<CardGroup cols={4}>
+  <Card title="Aircall" href="/reference/oauth-providers/aircall" />
+  <Card title="Dialpad" href="/reference/oauth-providers/dialpad" />
+  <Card title="Discord" href="/reference/oauth-providers/discord" />
+  <Card title="RingCentral" href="/reference/oauth-providers/ringcentral" />
+  <Card title="Webex" href="/reference/oauth-providers/webex" />
+</CardGroup>
 
 ## Social & media
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Facebook | `facebook` | Supported | Automatic | [Facebook Login docs](https://developers.facebook.com/docs/facebook-login/guides/advanced/manual-flow) |
-| Instagram | `instagram` | Supported | Automatic | [Instagram OAuth docs](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-facebook-login) |
-| LinkedIn | `linkedin` | Not supported | Automatic | [LinkedIn OAuth docs](https://learn.microsoft.com/en-us/linkedin/shared/authentication/authorization-code-flow) |
-| Pinterest | `pinterest` | Supported | Automatic | [Pinterest OAuth docs](https://developers.pinterest.com/docs/getting-started/authentication-and-scopes/) |
-| Reddit | `reddit` | Supported | Automatic | [Reddit API docs](https://www.reddit.com/wiki/api) |
-| Snapchat | `snapchat` | Supported | Automatic | [Snapchat OAuth docs](https://docs.snap.com/api/marketing-api/Ads-API/authentication) |
-| Spotify | `spotify` | Supported | Automatic | [Spotify OAuth docs](https://developer.spotify.com/documentation/web-api/concepts/authorization) |
-| TikTok | `tiktok` | Supported | Automatic | [TikTok OAuth docs](https://developers.tiktok.com/doc/oauth-user-access-token-management) |
-| Twitter | `twitter` | Supported | Automatic | [Twitter OAuth docs](https://developer.x.com/en/docs/authentication/oauth-2-0/authorization-code) |
+<CardGroup cols={4}>
+  <Card title="Facebook" href="/reference/oauth-providers/facebook" />
+  <Card title="Instagram" href="/reference/oauth-providers/instagram" />
+  <Card title="LinkedIn" href="/reference/oauth-providers/linkedin" />
+  <Card title="Pinterest" href="/reference/oauth-providers/pinterest" />
+  <Card title="Reddit" href="/reference/oauth-providers/reddit" />
+  <Card title="Snapchat" href="/reference/oauth-providers/snapchat" />
+  <Card title="Spotify" href="/reference/oauth-providers/spotify" />
+  <Card title="TikTok" href="/reference/oauth-providers/tiktok" />
+  <Card title="Twitter" href="/reference/oauth-providers/twitter" />
+</CardGroup>
 
 ## Storage & files
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Box | `box` | Not supported | Automatic | [Box OAuth docs](https://developer.box.com/guides/authentication/oauth2/) |
-| Dropbox | `dropbox` | Supported | Automatic | [Dropbox OAuth docs](https://www.dropbox.com/developers/documentation/http/documentation) |
+<CardGroup cols={4}>
+  <Card title="Box" href="/reference/oauth-providers/box" />
+  <Card title="Dropbox" href="/reference/oauth-providers/dropbox" />
+</CardGroup>
 
 ## Finance & HR
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| Brex | `brex` | Supported | Automatic | [Brex OAuth docs](https://developer.brex.com/docs/authentication/) |
-| Deel | `deel` | Supported | Automatic | [Deel OAuth docs](https://developer.deel.com/docs/oauth-2-0) |
-| Mercury | `mercury` | Supported | Automatic | [Mercury OAuth docs](https://docs.mercury.com/reference/oauth) |
-| QuickBooks | `quickbooks` | Supported | Automatic | [QuickBooks OAuth docs](https://developer.intuit.com/app/developer/qbo/docs/develop/authentication-and-authorization/oauth-2.0) |
-| Ramp | `ramp` | Supported | Automatic | [Ramp OAuth docs](https://docs.ramp.com/reference/authorization) |
+<CardGroup cols={4}>
+  <Card title="Brex" href="/reference/oauth-providers/brex" />
+  <Card title="Deel" href="/reference/oauth-providers/deel" />
+  <Card title="Mercury" href="/reference/oauth-providers/mercury" />
+  <Card title="QuickBooks" href="/reference/oauth-providers/quickbooks" />
+  <Card title="Ramp" href="/reference/oauth-providers/ramp" />
+</CardGroup>
 
 ## Payments
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| PayPal | `paypal` | Supported | Automatic | [PayPal OAuth docs](https://developer.paypal.com/docs/log-in-with-paypal/integrate/) |
-| Square | `square` | Supported | Automatic | [Square OAuth docs](https://developer.squareup.com/docs/oauth-api/overview) |
+<CardGroup cols={4}>
+  <Card title="PayPal" href="/reference/oauth-providers/paypal" />
+  <Card title="Square" href="/reference/oauth-providers/square" />
+</CardGroup>
 
 ## E-commerce
 
-| Provider | Slug | PKCE | Token refresh | Provider docs |
-|---|---|---|---|---|
-| eBay | `ebay` | Supported | Automatic | [eBay OAuth docs](https://developer.ebay.com/api-docs/static/oauth-authorization-code-grant.html) |
-| Squarespace | `squarespace` | Supported | Automatic | [Squarespace OAuth docs](https://developers.squarespace.com/oauth) |
+<CardGroup cols={4}>
+  <Card title="eBay" href="/reference/oauth-providers/ebay" />
+  <Card title="Squarespace" href="/reference/oauth-providers/squarespace" />
+</CardGroup>
 
 ## What's next
 

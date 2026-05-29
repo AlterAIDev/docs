@@ -54,19 +54,19 @@ Throws [`AlterValueError`](/reference/typescript-sdk/errors) if `apiKey` is miss
 | `actorId` | `string \| null` | Backend-resolved actor UUID. Populated after the first authenticated call. |
 | `lastRetryInfo` | `RetryInfo \| null` | Token-refresh retry metadata from the most recent `request()` call. |
 | `baseUrl` | `string` | Backend the client is pinned to. Diagnostic accessor. |
-| `agents` | [`AgentsNamespace`](/reference/typescript-sdk/agents) | Managed agent CRUD. |
-| `keys` | [`KeysNamespace`](/reference/typescript-sdk/keys) | Scoped sub-key lifecycle. |
-| `scopes` | [`ScopesNamespace`](/reference/typescript-sdk/scopes) | Scope catalog discovery. |
+| `agents` | [`AgentsNamespace`](/reference/typescript-sdk/agents#appagents-namespace) | Managed agent CRUD. |
+| `keys` | [`KeysNamespace`](/reference/typescript-sdk/agents#keys-namespace) | Scoped sub-key lifecycle. |
+| `scopes` | [`ScopesNamespace`](/reference/typescript-sdk/calling-apis#scopeslist) | Scope catalog discovery. |
 
 ### Methods
 
 The `App` class exposes:
 
-- [`request()`](/reference/typescript-sdk/request), [`proxyRequest()`](/reference/typescript-sdk/proxy)
-- [`listGrants()`](/reference/typescript-sdk/grants#listgrants), [`revokeGrant()`](/reference/typescript-sdk/grants#revokegrant), [`revokeDelegation()`](/reference/typescript-sdk/grants#revokedelegation), [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#createmanagedsecretgrant)
-- [`createConnectSession()`](/reference/typescript-sdk/connect#createconnectsession), [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect#createmanagedsecretconnectsession), [`pollConnectSession()`](/reference/typescript-sdk/connect#pollconnectsession), [`createConnectSessionForError()`](/reference/typescript-sdk/connect#createconnectsessionforerror), [`connect()`](/reference/typescript-sdk/connect#connect)
-- [`authenticate()`](/reference/typescript-sdk/connect#authenticate), `verifyUserToken()`
-- [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval)
+- [`request()`](/reference/typescript-sdk/calling-apis#request), [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest)
+- [`listGrants()`](/reference/typescript-sdk/connect-and-grants#listgrants), [`revokeGrant()`](/reference/typescript-sdk/connect-and-grants#revokegrant), [`revokeDelegation()`](/reference/typescript-sdk/connect-and-grants#revokedelegation), [`createManagedSecretGrant()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretgrant)
+- [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession), [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretconnectsession), [`pollConnectSession()`](/reference/typescript-sdk/connect-and-grants#pollconnectsession), [`createConnectSessionForError()`](/reference/typescript-sdk/connect-and-grants#createconnectsessionforerror), [`connect()`](/reference/typescript-sdk/connect-and-grants#connect)
+- [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate), `verifyUserToken()`
+- [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval)
 - [`withConstraints()`](#withconstraints), [`getAgent()`](#getagent), [`close()`](#close)
 
 ## Agent
@@ -106,8 +106,8 @@ new Agent(options: AgentOptions)
 | `actorId` | `string \| null` | Backend-resolved actor UUID. |
 | `lastRetryInfo` | `RetryInfo \| null` | Token-refresh retry metadata. |
 | `baseUrl` | `string` | Backend the client is pinned to. |
-| `keys` | [`KeysNamespace`](/reference/typescript-sdk/keys) | Scoped sub-key lifecycle. |
-| `scopes` | [`ScopesNamespace`](/reference/typescript-sdk/scopes) | Scope catalog discovery. |
+| `keys` | [`KeysNamespace`](/reference/typescript-sdk/agents#keys-namespace) | Scoped sub-key lifecycle. |
+| `scopes` | [`ScopesNamespace`](/reference/typescript-sdk/calling-apis#scopeslist) | Scope catalog discovery. |
 
 `Agent` has no `agents` namespace — agent CRUD is application-scoped.
 
@@ -115,12 +115,12 @@ new Agent(options: AgentOptions)
 
 The `Agent` class exposes:
 
-- [`me()`](/reference/typescript-sdk/agents#agent-me) — return the calling agent's own record.
-- [`request()`](/reference/typescript-sdk/request), [`proxyRequest()`](/reference/typescript-sdk/proxy)
-- [`trace()`](/reference/typescript-sdk/agents#agent-trace), [`withConstraints()`](#withconstraints)
-- [`listGrants()`](/reference/typescript-sdk/grants#listgrants), [`revokeDelegation()`](/reference/typescript-sdk/grants#revokedelegation)
-- [`createConnectSession()`](/reference/typescript-sdk/connect#createconnectsession), [`connect()`](/reference/typescript-sdk/connect#connect)
-- [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval)
+- [`me()`](/reference/typescript-sdk/agents#agentme) — return the calling agent's own record.
+- [`request()`](/reference/typescript-sdk/calling-apis#request), [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest)
+- [`trace()`](/reference/typescript-sdk/agents#agenttrace), [`withConstraints()`](#withconstraints)
+- [`listGrants()`](/reference/typescript-sdk/connect-and-grants#listgrants), [`revokeDelegation()`](/reference/typescript-sdk/connect-and-grants#revokedelegation)
+- [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession), [`connect()`](/reference/typescript-sdk/connect-and-grants#connect)
+- [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval)
 - [`close()`](#close)
 
 ## withConstraints
@@ -178,7 +178,7 @@ Drain pending audit and background tasks, then release HTTP resources.
 async close(): Promise<void>
 ```
 
-Both `App` and `Agent` expose `close()`. The SDK does not auto-close on process exit; call it explicitly or use the `await using` pattern below.
+Both `App` and `Agent` expose `close()`. The SDK does not auto-close on process exit; call it explicitly (typically from a `try`/`finally`):
 
 ```typescript
 const app = new App({ apiKey });
@@ -190,19 +190,3 @@ try {
 ```
 
 `close()` is idempotent. Subsequent calls on a closed client throw [`AlterSDKError`](/reference/typescript-sdk/errors).
-
-## await using
-
-Both classes implement `Symbol.asyncDispose`, so `await using` releases resources automatically at the end of the block (TypeScript 5.2+, Node 18+).
-
-```typescript
-async function listForUser(userToken: string) {
-  await using app = new App({
-    apiKey: process.env.ALTER_API_KEY!,
-    userTokenGetter: () => userToken,
-  });
-  return await app.listGrants();
-}
-```
-
-The `[Symbol.asyncDispose]()` method delegates to `close()`.

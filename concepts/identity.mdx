@@ -1,0 +1,219 @@
+---
+title: 'Identity'
+description: 'Who is calling, on whose behalf — runtime modes, retrieve vs proxy, and how the SDK resolves a grant per call.'
+---
+
+**Every Alter call answers two questions: who is calling (the runtime identity) and which credential it should use (the resolved grant).** This page covers both — the SDK shapes (`App`, `Agent`, impersonation), the two transport modes (retrieve vs proxy), and the three ways a call site picks a grant.
+
+## Runtime modes
+
+The SDK exposes two top-level shapes. They differ in *who the backend believes is calling*, which in turn decides which grants are reachable and how the audit row is attributed.
+
+| | `App` | `Agent` |
+|---|---|---|
+| **Constructor** | `App(api_key=alter_key_app_…)` | `Agent(api_key=alter_key_agent_…)` |
+| **Identity at backend** | The app itself | The named agent |
+| **Reachable grants** | Every grant on the app, scoped by the key | Only grants bound to this agent (managed-secret grants or delegated OAuth grants) |
+| **Audit attribution** | `app_id` only | `app_id` + `agent_id` |
+| **`user_token_getter`** | Resolves the calling end user's JWT for [JWT identity](#identity-resolution) | Same, plus disambiguates between delegations from multiple users |
+
+Apps and agents can be mixed freely in one application — one `App` instance, N `Agent` instances, each with its own key, audit, and access boundary. The SDK call surface is the same on both: `request()`, `proxy_request()`, `connect()`, `list_grants()`.
+
+### When to construct an `Agent`
+
+| Workload | Use |
+|---|---|
+| Single backend service | `App` |
+| Cron job, webhook handler | `App` |
+| Multi-step AI workflow with named sub-agents (researcher, writer, reviewer) | One `Agent` per role |
+| MCP server in a sandbox where exposing the app key would be unsafe | Per-agent key |
+| Workload that must be revocable independently of the app key | Per-agent key |
+| Multi-tenant agent fleet | One `Agent` per tenant |
+
+See [Agents](/concepts/agents) for the full agent model.
+
+### Impersonation — agents acting on behalf of users
+
+When an agent holds a delegation from an end user, the runtime identity is still the agent (the backend trusts the agent's key signature) but the *grant being exercised* is the user's. The audit row carries both: `agent_id` as the actor, `user_id` as the on-behalf-of principal.
+
+Two construction shapes for an agent that bridges user context:
+
+```python
+# Agent acting only on its own managed-secret grants — no user context needed.
+agent = Agent(api_key=ALTER_AGENT_KEY)
+
+# Agent acting on delegated user grants — bridge the user JWT so the backend
+# picks the right delegation when this agent has delegations from many users.
+agent = Agent(
+    api_key=ALTER_AGENT_KEY,
+    user_token_getter=lambda: get_jwt_from_request(),
+)
+```
+
+The runtime call is identical (`agent.request(...)`). The backend chooses the grant from the (agent, user) pair when a `user_token` is in scope, and from (agent, provider) alone when it isn't.
+
+See [Delegation](/concepts/credentials#delegation) for how the user-to-agent binding is created and revoked.
+
+## Retrieve vs proxy
+
+Every Alter call reaches the third party in one of two transport modes: **retrieve** or **proxy**. The SDK exposes them as two separate methods (`request` vs `proxy_request`), and each requires a different scope on the API key. Most operators only need to know the tradeoffs to pick a default; HITL forces the choice.
+
+| | Retrieve | Proxy |
+|---|---|---|
+| **SDK method** | `app.request(...)` | `app.proxy_request(...)` |
+| **Scope** | `tokens:retrieve` | `proxy:execute` |
+| **Token returned to SDK** | Yes — to the SDK process, never to application code | No — stays on the backend |
+| **Who calls the third party** | The SDK, from the application process | The Alter backend |
+| **HITL compatible** | No — see below | Yes |
+| **Streaming / WebSocket** | Yes | Limited |
+| **Audit granularity** | Token issuance + outcome | Full wire-level request + response |
+
+### How a call flows in each mode
+
+**Retrieve**
+
+```
+Application      Alter SDK            Alter backend       Third-party API
+    │                │                      │                    │
+    │── request() ──▶│                      │                    │
+    │                │── ask for token ────▶│                    │
+    │                │                policy + decrypt           │
+    │                │◀── token + headers ──│                    │
+    │                │── inject + call ────────────────────────▶ │
+    │                │◀── response ─────────────────────────────│
+    │◀── response ──│                      │                    │
+```
+
+The token lives in SDK process memory between the backend response and the outgoing call. Application code only sees the third-party response.
+
+**Proxy**
+
+```
+Application      Alter SDK            Alter backend       Third-party API
+    │                │                      │                    │
+    │ proxy_request()│                      │                    │
+    │───────────────▶│── forward request ──▶│                    │
+    │                │              policy + approval (HITL?)    │
+    │                │              decrypt + inject + call ──▶ │
+    │                │                      │◀────── response ───│
+    │                │◀── response ─────────│                    │
+    │◀── response ──│                      │                    │
+```
+
+The token never leaves the backend. The exact wire-level request that was approved is the wire-level request that gets executed — this is the integrity guarantee that HITL relies on.
+
+### When to pick retrieve
+
+- The default for high-volume, low-stakes calls (a fleet of agents pulling calendar events).
+- Long-lived SDK processes with pooled HTTP clients to the provider — the SDK keeps connection state the proxy can't replay.
+- Streaming endpoints, Server-Sent Events, WebSockets, or any protocol where an extra hop adds unacceptable latency.
+- Calls that need provider-SDK features the proxy doesn't surface (e.g., the Google SDK's retry semantics, or a provider's signed-request helper).
+
+The token sits in SDK process memory for the duration of one call. Threat-model implications: crash dumps, error reporters in the SDK process, and any debugger attached to the SDK can read the token while the call is in flight.
+
+### When to pick proxy
+
+- Any grant that uses [HITL approval](/guides/add-human-in-the-loop-approvals) — proxy is **required**. Retrieve mode fails closed with `hitl_grant_requires_proxy`.
+- Centralized audit of the exact wire request and response, not just the token issuance event.
+- Strong isolation of credentials from the application process (no token in caller memory, no risk of token leaking into crash dumps or APM traces).
+- Centralized policy enforcement at the call site, not just at token mint — the backend can deny based on the actual request body, headers, or method.
+- Token refresh handled transparently mid-call without the SDK observing the new token.
+
+### Why HITL is proxy-only
+
+In retrieve mode the SDK holds the token. The approver sees a request payload at approval time; the SDK can then call the provider with a different payload using the same token. There is no integrity binding between the approved payload and the executed payload.
+
+In proxy mode the backend holds the token and the approved payload. The execution call uses both, atomically. The approver is reviewing the exact bytes that will reach the provider.
+
+This is enforced by the backend, not the SDK: any grant with HITL configured fails closed in retrieve mode with `400 hitl_grant_requires_proxy`. There is no policy knob to disable it.
+
+### Scoping a key for each transport mode
+
+Alter scopes on the API key gate which transport mode the key can use:
+
+- `tokens:retrieve` — required for `app.request()`.
+- `proxy:execute` — required for `app.proxy_request()`.
+
+Most operators mint a single backend-service key with both scopes and let call sites pick per call. The scope picker in the developer portal bundles them in the **Backend service** preset for this reason. A strict least-privilege deployment can mint two keys (one per mode) and hand them to different runtimes.
+
+## Identity resolution
+
+Identity resolution is how the SDK decides which grant backs a given `app.request()` call. Three modes exist, and every call site uses exactly one.
+
+Pick the mode based on what the call site has on hand:
+
+1. **JWT identity** — there's a logged-in end user, the app has an IDP configured.
+2. **Explicit `grant_id`** — the call has no end user, or explicit grant control is needed.
+3. **Headless** — the call has no end user *and* no `grant_id` yet (one-time bootstrap flows).
+
+The mode picks *how the SDK finds the grant*, not *what credential is behind it*. An OAuth grant and a managed secret bound to the same user resolve under JWT identity the same way.
+
+### 1. JWT identity — for apps with logged-in users
+
+The app has an [identity provider](/admin/identity-provider) configured. Construct the SDK with a `user_token_getter` that returns the calling user's JWT; the SDK includes the JWT on every request and the backend resolves the user's grant from it.
+
+```python
+app = App(
+    api_key=ALTER_API_KEY,
+    user_token_getter=lambda: get_jwt_from_request(),
+)
+
+# No grant_id — the backend resolves Alice's Google grant from her JWT.
+response = await app.request("GET", url, provider="google")
+```
+
+**When to use**: any flow where a logged-in user is the reason for the call. SaaS products, agentic apps with a user session, anything that already has a JWT in scope.
+
+**Why it's the default**: the app stops tracking `grant_id` in its own database. Deprovisioning a user in the IDP automatically locks them out of grants they own.
+
+### 2. Explicit `grant_id` — for scripts, batch jobs, system-principal grants
+
+Pass an explicit `grant_id` per call. Use this when:
+
+- The call has no end user (cron jobs, webhook handlers, system-principal managed secrets).
+- Explicit control over which grant a request uses is required.
+
+```python
+app = App(api_key=ALTER_API_KEY)
+response = await app.request("GET", url, grant_id=STRIPE_GRANT_ID)
+```
+
+A managed-secret grant bound to a *user* or *group* does not require this mode — it resolves under JWT identity (mode 1) automatically.
+
+### 3. Headless — for CLIs, notebooks, agent bootstrap
+
+`app.connect()` opens a browser, walks through OAuth, and returns a `grant_id` usable immediately. No frontend, no callback URL, no JWT.
+
+```python
+app = App(api_key=ALTER_API_KEY)
+results = await app.connect(providers=["github"])
+grant_id = results[0].grant_id
+```
+
+**When to use**: local scripts, Jupyter notebooks, server-side workloads bootstrapping a long-lived grant, the [Quickstart](/quickstart) walkthrough.
+
+### Picking one
+
+```
+Is there a logged-in user with a JWT?
+├── Yes → JWT
+└── No  → Is a grant_id already known?
+         ├── Yes → grant_id
+         └── No  → Headless
+```
+
+Modes can be mixed in one application — different SDK instances for different code paths. For agent workloads, see [Give an agent scoped access](/guides/give-an-agent-scoped-access).
+
+### Ambiguous resolution
+
+A JWT can match more than one grant if the user has connected the same provider multiple times (personal + work Gmail). The backend raises [`AmbiguousGrantError`](/reference/errors) with the matching account identifiers; application code passes `account=…` on retry to pick one.
+
+## What's next
+
+- [Credentials](/concepts/credentials) — what the resolved grant points at.
+- [Agents](/concepts/agents) — the workload-identity model behind the `Agent` shape.
+- [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) — JWT identity in production.
+- [Add human-in-the-loop approvals](/guides/add-human-in-the-loop-approvals) — the only flow that mandates proxy mode.
+- [Calling APIs (Python)](/reference/python-sdk/calling-apis) / [(TypeScript)](/reference/typescript-sdk/calling-apis) — the SDK methods that consume a resolved grant.
+- [Scopes](/concepts/scopes) — `tokens:retrieve` and `proxy:execute` in the wider scope catalog.
+- [Security architecture](/reference/security-architecture) — the credential pipeline both transport modes share.

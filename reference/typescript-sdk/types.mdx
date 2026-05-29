@@ -34,7 +34,7 @@ Only `warn` is currently called by the SDK. The other methods are part of the co
 
 ## AlterResponse
 
-The return type of [`request()`](/reference/typescript-sdk/request).
+The return type of [`request()`](/reference/typescript-sdk/calling-apis#request).
 
 ```typescript
 interface AlterResponse extends Response {
@@ -109,7 +109,7 @@ A single-grant record.
 
 ## UnifiedGrantListResult
 
-Returned by [`listGrants()`](/reference/typescript-sdk/grants#listgrants).
+Returned by [`listGrants()`](/reference/typescript-sdk/connect-and-grants#listgrants).
 
 | Field | Type |
 |---|---|
@@ -165,7 +165,7 @@ type GrantListItem = OAuthGrantItem | ManagedSecretGrantItem;
 
 ## Principal
 
-Discriminated union passed to [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#createmanagedsecretgrant).
+Discriminated union passed to [`createManagedSecretGrant()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretgrant).
 
 ```typescript
 type Principal = UserPrincipal | GroupPrincipal | SystemPrincipal | AgentPrincipal;
@@ -204,7 +204,7 @@ type Principal = UserPrincipal | GroupPrincipal | SystemPrincipal | AgentPrincip
 
 ## CreateGrantResult
 
-Returned by [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#createmanagedsecretgrant).
+Returned by [`createManagedSecretGrant()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretgrant).
 
 | Field | Type |
 |---|---|
@@ -215,7 +215,7 @@ Returned by [`createManagedSecretGrant()`](/reference/typescript-sdk/grants#crea
 
 ## RevokeGrantResult
 
-Returned by [`revokeGrant()`](/reference/typescript-sdk/grants#revokegrant).
+Returned by [`revokeGrant()`](/reference/typescript-sdk/connect-and-grants#revokegrant).
 
 | Field | Type |
 |---|---|
@@ -236,7 +236,7 @@ Per-grant policy.
 
 ## ConnectSession
 
-Returned by [`createConnectSession()`](/reference/typescript-sdk/connect#createconnectsession).
+Returned by [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession).
 
 | Field | Type |
 |---|---|
@@ -247,13 +247,13 @@ Returned by [`createConnectSession()`](/reference/typescript-sdk/connect#createc
 
 ## ManagedSecretConnectSession
 
-Returned by [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect#createmanagedsecretconnectsession). Same shape as `ConnectSession`.
+Returned by [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretconnectsession). Same shape as `ConnectSession`.
 
 `toString()` redacts `connectUrl` — the URL fragment carries the session token, so logging would be a leak.
 
 ## ConnectResult
 
-Returned per provider by [`connect()`](/reference/typescript-sdk/connect#connect) and [`pollConnectSession()`](/reference/typescript-sdk/connect#pollconnectsession).
+Returned per provider by [`connect()`](/reference/typescript-sdk/connect-and-grants#connect) and [`pollConnectSession()`](/reference/typescript-sdk/connect-and-grants#pollconnectsession).
 
 | Field | Type |
 |---|---|
@@ -265,7 +265,7 @@ Returned per provider by [`connect()`](/reference/typescript-sdk/connect#connect
 
 ## AuthResult
 
-Returned by [`authenticate()`](/reference/typescript-sdk/connect#authenticate).
+Returned by [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate).
 
 | Field | Type |
 |---|---|
@@ -274,7 +274,7 @@ Returned by [`authenticate()`](/reference/typescript-sdk/connect#authenticate).
 
 ## PendingApproval
 
-Returned by [`proxyRequest()`](/reference/typescript-sdk/proxy) when an HITL grant requires approval.
+Returned by [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest) when an HITL grant requires approval.
 
 | Field | Type |
 |---|---|
@@ -288,7 +288,7 @@ Discriminate from `ApprovalResult` with `result instanceof PendingApproval` or `
 
 ## ApprovalStatus
 
-Snapshot returned by [`getApprovalStatus()`](/reference/typescript-sdk/approvals#getapprovalstatus).
+Snapshot returned by [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus).
 
 | Field | Type |
 |---|---|
@@ -319,7 +319,7 @@ type ApprovalStatusValue =
 
 ## ApprovalResult
 
-Returned by [`awaitApproval()`](/reference/typescript-sdk/approvals#awaitapproval) and the synchronous branch of [`proxyRequest()`](/reference/typescript-sdk/proxy).
+Returned by [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval) and the synchronous branch of [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest).
 
 | Field | Type |
 |---|---|
@@ -462,7 +462,7 @@ Extends [`APIKeyInfo`](#apikeyinfo) with the plaintext.
 
 ## ScopeCatalog
 
-Returned by [`scopes.list()`](/reference/typescript-sdk/scopes#list).
+Returned by [`scopes.list()`](/reference/typescript-sdk/calling-apis#scopeslist).
 
 | Field | Type |
 |---|---|

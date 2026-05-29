@@ -8,7 +8,7 @@ By the end of this guide, an application backend calls third-party APIs on behal
 The flow:
 
 1. The end user clicks **Connect Google** in the frontend.
-2. Alter Connect runs the OAuth flow and writes a [grant](/concepts/grants) bound to that user's identity.
+2. Alter Connect runs the OAuth flow and writes a [grant](/concepts/credentials) bound to that user's identity.
 3. The backend calls `app.request()` with the user's JWT in scope. The SDK resolves the grant from the JWT, refreshes the token, injects it, and returns the response.
 
 ## Prerequisites
@@ -225,7 +225,7 @@ The user is also free to revoke from the Wallet at any time.
   <Card title="Give an agent scoped access" icon="robot" href="/guides/give-an-agent-scoped-access">
     Let an AI agent call providers on the user's behalf.
   </Card>
-  <Card title="Identity resolution" icon="fingerprint" href="/concepts/identity-resolution">
+  <Card title="Identity resolution" icon="fingerprint" href="/concepts/identity#identity-resolution">
     The three modes in depth.
   </Card>
 </CardGroup>

@@ -1,9 +1,13 @@
 ---
-title: 'Agents'
-description: 'Managed agents — App.agents namespace, Agent.me, Agent.trace, Agent.with_constraints.'
+title: 'Agents & Keys'
+description: 'Managed agents (App.agents namespace), Agent runtime (me/trace/with_constraints), scoped key lifecycle (keys namespace).'
 ---
 
-The `agents` namespace on `App` is the operator surface for creating, listing, updating, and revoking managed agents. The `Agent` class adds workload-side primitives — self-introspection via `me()`, audit-scoping via `trace()`, and macaroon-style attenuation via `with_constraints()`.
+This page covers the full lifecycle of managed agents and the scoped-key primitives they're built on:
+
+- **[`app.agents.*`](#appagents-namespace)** — operator CRUD for managed agents and per-agent key rotation.
+- **[`Agent` runtime](#agent-runtime)** — workload-side primitives: `me()`, `trace()`, `with_constraints()`.
+- **[`keys.*`](#keys-namespace)** — scoped sub-key lifecycle (`derive`, `rotate`, `revoke`).
 
 ```python
 # Operator side
@@ -18,9 +22,18 @@ me = await agent.me()
 async with agent.trace(run_id="run_42"):
     await agent.request(...)
 narrowed = agent.with_constraints(scopes=["grants:read"])
+
+# Scoped key lifecycle
+derived = await app.keys.derive(scopes=["tokens:retrieve"], expires_in=3600)
+new_key = await app.keys.rotate(key_id=old.id)
+revoked = await app.keys.revoke(key_id=leaked.id)
 ```
 
-## app.agents.create
+---
+
+## app.agents namespace
+
+### create
 
 Create a managed agent and its initial API key.
 
@@ -44,7 +57,7 @@ async def create(
 | `type` | `str` | `"agent"` | `"agent"` (default) or `"service"`. |
 | `scopes` | `dict[str, list[str]] \| None` | `None` | Per-provider scope allowlist. |
 | `metadata` | `dict \| None` | `None` | Free-form metadata. |
-| `policy` | `dict \| None` | `None` | Validated policy block (`HitlConfig` + Cerbos attributes). |
+| `policy` | `dict \| None` | `None` | Validated policy block (HITL config + policy attributes). |
 | `idempotency_key` | `str \| None` | `None` | Optional Idempotency-Key header. Same key + same body returns identical metadata; the `api_key` field is `None` on replay (branch on `result.api_key is None`). Different body raises `IdempotencyKeyBodyMismatchError`. |
 
 **Returns:** [`AgentCreateResult`](/reference/python-sdk/types#agentcreateresult). The plaintext `api_key` is returned ONCE — store it immediately.
@@ -62,7 +75,7 @@ agent_api_key = result.api_key       # store securely; never recoverable
 agent_id = str(result.id)
 ```
 
-## app.agents.list
+### list
 
 ```python
 async def list(
@@ -90,7 +103,7 @@ while page.has_more:
     ...
 ```
 
-## app.agents.get
+### get
 
 Fetch a single agent by id.
 
@@ -100,7 +113,7 @@ async def get(agent_id: str) -> AgentInfo
 
 **Raises:** `AlterValueError`, `AgentNotFoundError`.
 
-## app.agents.get_by_name
+### get_by_name
 
 Fetch an agent by exact name. Returns `None` if no active agent matches — cheap "does it exist?" lookup.
 
@@ -114,7 +127,7 @@ if existing is None:
     result = await app.agents.create(name="support-bot")
 ```
 
-## app.agents.update
+### update
 
 Update mutable fields on an agent.
 
@@ -149,7 +162,7 @@ updated = await app.agents.update(
 )
 ```
 
-## app.agents.delete
+### delete
 
 <Warning>
 Hard-revoke. Flips status to `"revoked"` (terminal) and cascade-revokes every active API key for the agent in the same transaction. Idempotent on already-revoked agents.
@@ -163,7 +176,7 @@ async def delete(agent_id: str) -> AgentInfo
 
 **Raises:** `AlterValueError`, `AgentNotFoundError`.
 
-## app.agents.mint_key
+### mint_key
 
 Mint a subsequent API key for an existing agent. Plaintext returned ONCE.
 
@@ -175,7 +188,7 @@ async def mint_key(agent_id: str) -> AgentKeyMintResult
 
 **Raises:** `AlterValueError`, `AgentNotFoundError`, `AgentCannotMintSubagentsError`.
 
-## app.agents.list_keys
+### list_keys
 
 Every key for the agent, ordered by `created_at` ascending. Plaintext is never included.
 
@@ -183,7 +196,7 @@ Every key for the agent, ordered by `created_at` ascending. Plaintext is never i
 async def list_keys(agent_id: str) -> AgentKeyList
 ```
 
-## app.agents.deprecate_key / undeprecate_key
+### deprecate_key / undeprecate_key
 
 ```python
 async def deprecate_key(agent_id: str, key_id: str) -> AgentKey
@@ -194,7 +207,7 @@ Mark a key as deprecated (it still authenticates; the SDK surfaces a deprecation
 
 **Raises:** `AlterValueError`, `AgentNotFoundError`, `KeyNotFoundError`, `KeyAlreadyRevokedError`.
 
-## app.agents.revoke_key
+### revoke_key
 
 Revoke a single key (terminal). Default-protective: refuses to revoke the last non-revoked key on an agent unless `force=True`.
 
@@ -217,7 +230,9 @@ async def revoke_key(
 
 ---
 
-## Agent.me
+## Agent runtime
+
+### me
 
 Self-introspection — returns the calling agent's own record. Carved out from the policy pipeline so paused or revoked agents can still call `me()` to self-diagnose (per-key `revoked_at` is still enforced).
 
@@ -237,9 +252,9 @@ info = await agent.me()
 print(info.id, info.name, info.status, info.version)
 ```
 
-## Agent.trace
+### trace
 
-Async context manager that scopes audit identity for every nested call. Tags every `request()` made inside the block — on this agent, on the parent `App`, or via framework-bridged code — with this agent's identity, `run_id`, `thread_id`, and arbitrary metadata.
+Async context manager that scopes audit identity for every nested call. Tags every [`request()`](/reference/python-sdk/calling-apis#request) made inside the block — on this agent, on the parent `App`, or via framework-bridged code — with this agent's identity, `run_id`, `thread_id`, and arbitrary metadata.
 
 ```python
 def trace(
@@ -269,10 +284,137 @@ async with agent.trace(run_id="run_abc", role="writer"):
         await researcher.request("GET", other_url)
 ```
 
-## Agent.with_constraints
+### with_constraints
+
+Return a macaroon-style constrained sub-`Agent`. Every request from the returned `Agent` carries a permanent scope-constraints assertion that narrows the underlying key to the supplied scope set. The supplied scopes must already be implied by the key — the backend rejects broadening attempts with HTTP 400 `constraint_not_narrowing`.
 
 ```python
 def with_constraints(*, scopes: list[str]) -> Agent
 ```
 
-See [`App.with_constraints()`](/reference/python-sdk/client#with-constraints) for the full semantics. Returns a sibling `Agent` whose every request carries a permanent scope-constraints assertion narrowing the underlying key to the supplied scope set.
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `scopes` | `list[str]` | — | Non-empty list of scope strings to attenuate to. |
+
+**Raises:** `AlterValueError` (empty list, nested constraint call), `AlterSDKError` (client closed).
+
+See also [`App.with_constraints()`](/reference/python-sdk/client#with_constraints) — same semantics for the operator client.
+
+```python
+narrowed = agent.with_constraints(scopes=["grants:read"])
+await narrowed.list_grants()
+```
+
+---
+
+## keys namespace
+
+The `keys` namespace lets a caller mint short-lived attenuated sub-keys, rotate keys with an overlap window, and revoke keys (with cascade to derived descendants). Available on both `App` (`app.keys`) and `Agent` (`agent.keys`, when the agent holds `keys:derive`).
+
+### derive
+
+Mint a short-lived attenuated key under the caller's key. The derived key is a strict narrowing — scopes must be a subset of the caller's, `expires_in` capped at org policy, `cidr_allowlist` a subset of the caller's. Derived keys cannot themselves derive.
+
+```python
+async def derive(
+    *,
+    scopes: list[str],
+    expires_in: int,
+    cidr_allowlist: list[str] | None = None,
+    name: str | None = None,
+    metadata: dict | None = None,
+) -> MintedKey
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `scopes` | `list[str]` | — | Non-empty list of scope strings. Must be a subset of the caller's effective scope set. `keys:derive` is rejected (raises `AlterValueError`) — derived keys cannot themselves derive. |
+| `expires_in` | `int` | — | Lifetime in seconds. Positive integer. Capped at the org policy ceiling and the caller's remaining TTL. |
+| `cidr_allowlist` | `list[str] \| None` | `None` | Per-key IP allowlist. Subset of caller's. Inherits caller's value when omitted. |
+| `name` | `str \| None` | `None` | Human-readable label. Defaults to `derived-YYYYMMDD-HHMMSS` on the backend. |
+| `metadata` | `dict \| None` | `None` | Free-form metadata stored on the key. |
+
+**Returns:** [`MintedKey`](/reference/python-sdk/types#mintedkey). The plaintext `api_key` is returned ONCE.
+
+**Raises:**
+
+- `AlterValueError` — empty scopes, non-string scope entries, non-positive `expires_in`, `keys:derive` in scopes.
+- `InsufficientScopeError` — caller lacks `keys:derive`.
+- `BackendError` — scope-not-subset (permission boundary) or other lifecycle failure.
+
+```python
+import os
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+derived = await app.keys.derive(
+    scopes=["tokens:retrieve", "grants:read"],
+    expires_in=3600,
+    cidr_allowlist=["10.0.0.0/8"],
+    metadata={"purpose": "ci-deploy"},
+)
+os.environ["CHILD_KEY"] = derived.api_key  # plaintext shown ONCE
+```
+
+### rotate
+
+Rotate an existing key: mint a same-scope successor and deprecate the old key with an overlap window. The old key remains valid for `overlap_days` so callers can roll out the new secret. Derived (`dk`) keys cannot be rotated — derive a new one from the parent instead.
+
+```python
+async def rotate(
+    *,
+    key_id: str | UUID,
+    overlap_days: int = 7,
+) -> MintedKey
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `key_id` | `str \| UUID` | — | Key to rotate. Keyword-only. |
+| `overlap_days` | `int` | `7` | Overlap window in days, `0` to `30`. |
+
+**Returns:** [`MintedKey`](/reference/python-sdk/types#mintedkey) for the new successor. Plaintext shown ONCE.
+
+**Raises:**
+
+- `AlterValueError` — `overlap_days` out of `[0, 30]`.
+- `InsufficientScopeError` — caller lacks `keys:admin` on the target.
+- `BackendError` — target not found / already revoked / is a `dk` key.
+
+```python
+new_key = await app.keys.rotate(key_id=old.id, overlap_days=14)
+# Deploy new_key.api_key; the old key remains valid for 14 more days
+```
+
+### revoke
+
+Revoke a key and every derived (`dk`) descendant in the same transaction. The cascade walks `parent_key_id` recursively but only follows `dk` children — rotation successors (same `key_type`) survive.
+
+Default-protective: refuses to revoke the last active key on a managed agent unless `force=True`. The cascade is counted in the guard.
+
+```python
+async def revoke(
+    *,
+    key_id: str | UUID,
+    force: bool = False,
+) -> APIKeyInfo
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `key_id` | `str \| UUID` | — | Key to revoke. Keyword-only. |
+| `force` | `bool` | `False` | Bypass the last-active-key guard. |
+
+**Returns:** [`APIKeyInfo`](/reference/python-sdk/types#apikeyinfo) with `revoked_at` populated.
+
+**Raises:**
+
+- `InsufficientScopeError` — caller lacks `keys:admin` on the target.
+- `BackendError` — target not found / last-active without `force` / other failure.
+
+```python
+revoked = await app.keys.revoke(key_id=leaked.id)
+# emergency revoke of last active key:
+revoked = await app.keys.revoke(key_id=last.id, force=True)
+```

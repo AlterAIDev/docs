@@ -1,0 +1,386 @@
+---
+title: 'Calling APIs'
+description: 'Credential-injected provider calls — request(), proxyRequest(), AWS SigV4, scopes catalog.'
+---
+
+Every credential-injection path lives on this page. The SDK fetches the token, injects it into the outbound request, calls the provider, logs the call for audit, and returns the response. The token is never returned to application code.
+
+```typescript
+// Direct provider call, SDK process executes
+await app.request(method, url, options);
+
+// Backend-mediated execution (HITL approval, server-side isolation)
+await app.proxyRequest({ method, url, grantId, ... });
+
+// AWS SigV4 — call AWS endpoints via request()
+await app.request("GET", "https://sts.us-east-1.amazonaws.com/...", { grantId });
+
+// Scope catalog discovery
+await app.scopes.list();
+```
+
+## Picking a calling pattern
+
+| Pattern | Token leaves backend? | HITL approval? | When to use |
+|---|---|---|---|
+| [`request()`](#request) | Yes — SDK process holds it briefly | No (rejects HITL grants with `hitl_grant_requires_proxy`) | Default. Direct provider call, lowest latency. AWS SigV4 is computed transparently. |
+| [`proxyRequest()`](#proxyrequest) | No — backend executes | Yes | HITL grants, MCP/serverless without long-lived connections, compliance requires zero-egress. |
+
+For [`scopes.list()`](#scopeslist) see the catalog section below. For the AWS SigV4 path on `request()` see [AWS](#aws-sigv4-bridge).
+
+## request()
+
+```typescript
+async request(
+  method: HttpMethod | string,
+  url: string,
+  options?: RequestOptions,
+): Promise<AlterResponse>
+```
+
+Retrieve a credential from the backend, inject it into the outgoing HTTP request, and call the provider. The token is never returned to application code.
+
+Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent).
+
+```typescript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const app = new App({
+  apiKey: process.env.ALTER_API_KEY!,
+  userTokenGetter: () => getCurrentUserJwt(),
+});
+
+const response = await app.request(
+  HttpMethod.GET,
+  "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+  {
+    provider: "google",
+    queryParams: { maxResults: "10" },
+    reason: "Render upcoming events",
+  },
+);
+const events = await response.json();
+```
+
+### Resolution modes
+
+The SDK supports two ways to pick which credential to inject. Exactly one must be specified.
+
+#### Identity mode — `provider`
+
+Resolve the credential by identity + provider. The backend looks up the active grant for the calling user (resolved from the JWT) or the calling agent (resolved from its delegation rows) on the named provider.
+
+```typescript
+await app.request("GET", url, {
+  provider: "google",
+  userToken: callingUserJwt,
+});
+```
+
+For `App`, identity comes from `userTokenGetter` on the constructor or the per-call `userToken` option. For `Agent`, identity comes from the agent's API key — `userToken` disambiguates between multiple delegations on the same provider.
+
+#### Direct mode — `grantId`
+
+Use an explicit grant ID. Bypasses identity resolution.
+
+```typescript
+await app.request("GET", url, { grantId: "grnt_…" });
+```
+
+Use direct mode when an upstream layer has already resolved which grant to use, when the grant has no associated user (system grants, agent-owned managed secrets), or when the caller wants to scope an audit row to a specific grant.
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `method` | [`HttpMethod`](/reference/typescript-sdk/types#httpmethod) `\| string` | HTTP method. Case-insensitive. |
+| `url` | `string` | Provider URL. Must start with `https://` or `http://`. Path templates use `{name}` placeholders resolved via `pathParams`. |
+| `options` | `RequestOptions` | See below. |
+
+#### `RequestOptions`
+
+| Option | Type | Description |
+|---|---|---|
+| `grantId` | `string` | Explicit grant ID for direct resolution. Mutually exclusive with `provider`. |
+| `provider` | `string` | Provider slug for identity resolution. Mutually exclusive with `grantId`. |
+| `account` | `string` | Account disambiguator. Only valid alongside `provider`. |
+| `userToken` | `string` | Per-call user JWT. Overrides `userTokenGetter` for this call. |
+| `appUserId` | `string` | Per-call AppUser UUID. Equivalent in authority to `userToken` but skips JWT validation when the caller has already resolved the user upstream. |
+| `caller` | `string` | Per-call caller override for audit attribution. |
+| `json` | `Record<string, unknown>` | JSON request body. The SDK serializes and sets `Content-Type: application/json`. Mutually exclusive with `body`. |
+| `body` | `Uint8Array \| ArrayBuffer \| string` | Raw request body. The caller is responsible for `Content-Type` on binary payloads. Mutually exclusive with `json`. |
+| `extraHeaders` | `Record<string, string>` | Additional request headers. The credential-injection header is overwritten if present (the SDK logs a warning). |
+| `queryParams` | `Record<string, string \| number \| boolean>` | Query-string parameters. Values are coerced to strings. |
+| `pathParams` | `Record<string, string>` | Substitutions for `{name}` placeholders in `url`. Each value is URL-encoded. |
+| `reason` | `string` | Free-form reason for the call. Stored on the audit row. |
+| `context` | `Record<string, string>` | Application metadata attached to the audit row (e.g. `runId`, `toolName`). |
+
+### Returns
+
+`AlterResponse` — a standard `Response` with one extra property:
+
+- `retryInfo` (`RetryInfo \| null`) — populated when the backend had to retry the token refresh. `null` when the token was served from cache or refreshed on the first attempt.
+
+The body is consumed exactly once. Use `await response.json()`, `await response.text()`, or `response.body` as you would with `fetch`.
+
+### Throws
+
+- [`AlterSDKError`](/reference/typescript-sdk/errors) — both `grantId` and `provider` set, neither set, both `json` and `body` set, invalid URL scheme, malformed `pathParams`, or the SDK has been closed.
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `userToken` or `appUserId` is an empty string.
+- [`GrantNotFoundError`](/reference/typescript-sdk/errors), [`GrantExpiredError`](/reference/typescript-sdk/errors), [`GrantRevokedError`](/reference/typescript-sdk/errors), [`GrantDeletedError`](/reference/typescript-sdk/errors), [`CredentialRevokedError`](/reference/typescript-sdk/errors) — grant-state failures.
+- [`ReAuthRequiredError`](/reference/typescript-sdk/errors) — user JWT is invalid or expired.
+- [`AmbiguousGrantError`](/reference/typescript-sdk/errors) — multiple grants match the identity + provider tuple. Pass `account` or use `grantId`.
+- [`NoDelegatedGrantError`](/reference/typescript-sdk/errors) — the calling agent has no delegation for the resolved user on this provider.
+- [`PolicyViolationError`](/reference/typescript-sdk/errors), [`InsufficientScopeError`](/reference/typescript-sdk/errors) — backend authorization failures.
+- [`ProviderAPIError`](/reference/typescript-sdk/errors) — provider returned a 4xx/5xx that is not a scope failure.
+- [`ScopeReauthRequiredError`](/reference/typescript-sdk/errors) — provider returned 403 `insufficient_scope`, or the backend already knew the grant's scopes don't cover the configured required set. Re-authorize the grant via [`createConnectSessionForError()`](/reference/typescript-sdk/connect-and-grants#createconnectsessionforerror).
+- [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors) — transport failures.
+
+### Examples
+
+#### Identity mode with per-call JWT
+
+```typescript
+const response = await app.request(
+  HttpMethod.POST,
+  "https://api.github.com/repos/{owner}/{repo}/issues",
+  {
+    provider: "github",
+    userToken: callingUserJwt,
+    pathParams: { owner: "octocat", repo: "hello-world" },
+    json: { title: "Bug report", body: "Steps to reproduce…" },
+    reason: "User-submitted bug report",
+  },
+);
+```
+
+#### Direct mode with audit context
+
+```typescript
+await app.request(
+  HttpMethod.GET,
+  "https://api.stripe.com/v1/customers",
+  {
+    grantId,
+    queryParams: { limit: 100 },
+    reason: "Nightly reconciliation",
+    context: { runId, jobId, batch: "customers" },
+  },
+);
+```
+
+#### Reading retry metadata
+
+```typescript
+const response = await app.request("GET", url, { grantId });
+if (response.retryInfo !== null) {
+  console.log(
+    `Token refresh succeeded on attempt ${response.retryInfo.successfulAttempt}`,
+  );
+}
+```
+
+---
+
+## proxyRequest()
+
+```typescript
+async proxyRequest(args: {
+  method: HttpMethod | string;
+  url: string;
+  grantId: string;
+  jsonBody?: unknown;
+  headers?: Record<string, string>;
+  queryParams?: Record<string, unknown>;
+  reason?: string;
+}): Promise<PendingApproval | ApprovalResult>
+```
+
+Send the full request to the Alter backend, which retrieves the credential, calls the provider, and returns the response. The token never reaches the SDK process.
+
+Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent).
+
+`proxyRequest()` takes a **single options object** — there are no positional `method` / `url` arguments.
+
+```typescript
+const result = await app.proxyRequest({
+  method: "POST",
+  url: "https://api.example.com/transfer",
+  grantId,
+  jsonBody: { amount: 1000, currency: "usd" },
+  reason: "Quarterly payout",
+});
+```
+
+### When to use it
+
+- **HITL grants.** Grants with `requires_approval` configured can only be exercised through `proxyRequest()` — [`request()`](#request) rejects them with `hitl_grant_requires_proxy`.
+- **Server-side credential isolation.** The token never crosses the SDK boundary. The backend is the only system that observes the plaintext.
+- **Wire-level audit.** The backend records the full request/response on the audit row, including bytes and headers.
+- **Tight policy enforcement.** The backend re-evaluates policy at execution time.
+
+For everything else, [`request()`](#request) avoids the extra hop.
+
+### Parameters
+
+| Field | Type | Description |
+|---|---|---|
+| `method` | [`HttpMethod`](/reference/typescript-sdk/types#httpmethod) `\| string` | HTTP method. Case-insensitive. |
+| `url` | `string` | Provider URL. Must be a non-empty string. |
+| `grantId` | `string` | Grant ID. Required — `proxyRequest()` has no identity-mode resolution. |
+| `jsonBody` | `unknown` | JSON-serializable body. Accepts plain objects, arrays, strings, numbers, booleans, and `null`. Class instances, `Date`, `Map`, and `Set` are rejected at the SDK boundary (they serialize to `{}` via `JSON.stringify`). |
+| `headers` | `Record<string, string>` | Additional headers. Authorization-bearing headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) are rejected — the backend injects credentials at execution time. |
+| `queryParams` | `Record<string, unknown>` | Query-string parameters. |
+| `reason` | `string` | Free-form reason. Stored on the audit row and shown to the approver when HITL is configured. |
+
+### Returns
+
+The return type is a discriminated union. Use `instanceof` or the `status` field to branch.
+
+- [`ApprovalResult`](/reference/typescript-sdk/types#approvalresult) — the call ran synchronously and the provider response is on this object. Typical when the grant has no HITL requirement, or when the approval was pre-granted.
+- [`PendingApproval`](/reference/typescript-sdk/types#pendingapproval) — the backend created an approval row and is waiting for an approver. The call has NOT executed yet. Pass `approvalId` to [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval) or poll with [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus).
+
+```typescript
+import { PendingApproval } from "@alter-ai/alter-sdk";
+
+const result = await app.proxyRequest({
+  method: "POST",
+  url: "https://api.example.com/transfer",
+  grantId,
+  jsonBody: { amount: 1000 },
+  reason: "Quarterly payout",
+});
+
+if (result instanceof PendingApproval) {
+  // Surface result.approvalUrl to the approver, then poll.
+  const final = await app.awaitApproval(result.approvalId, {
+    timeoutMs: 5 * 60_000,
+  });
+  console.log(final.statusCode, final.bodyText());
+} else {
+  // Synchronous response.
+  console.log(result.statusCode, result.bodyJson());
+}
+```
+
+The `status` field is `"pending"` on `PendingApproval`. `ApprovalResult` has no `status` field.
+
+### Throws
+
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `grantId` is missing or empty, `url` is missing, `jsonBody` has an unsupported shape, an authorization-bearing header was supplied, or the SDK has been closed.
+- [`ApprovalDeniedError`](/reference/typescript-sdk/errors) — backend rejected the call (policy denial that does not require human review).
+- [`ApprovalExpiredError`](/reference/typescript-sdk/errors) — the approval window elapsed before a decision was recorded.
+- [`ApprovalExecutionFailedError`](/reference/typescript-sdk/errors) — backend failed to execute the proxied call after the approval was granted.
+- [`BackendError`](/reference/typescript-sdk/errors) — other backend failure.
+- [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors) — transport failures to the Alter backend.
+
+### Reading the response body
+
+[`ApprovalResult`](/reference/typescript-sdk/types#approvalresult) carries the provider response body as base64. Three helpers decode on demand:
+
+```typescript
+result.bodyBytes();   // Uint8Array
+result.bodyText();    // string (utf-8 default)
+result.bodyJson();    // parsed JSON
+```
+
+`result.bodyTruncated` is `true` if the backend truncated the body (very large responses).
+
+---
+
+## AWS SigV4 bridge
+
+The TypeScript SDK signs AWS requests using SigV4 automatically. There is no separate AWS client class — call AWS exactly like any other provider with [`request()`](#request) and pass the URL of the AWS service endpoint. The SDK recognizes grants that resolve to AWS credentials and computes the multi-header signature transparently.
+
+```typescript
+import { App, HttpMethod } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey: process.env.ALTER_API_KEY! });
+
+const response = await app.request(
+  HttpMethod.GET,
+  "https://sts.us-east-1.amazonaws.com/?Action=GetCallerIdentity&Version=2011-06-15",
+  { grantId },
+);
+const xml = await response.text();
+```
+
+### How it works
+
+When the grant resolves to an AWS credential, the SDK signs the outgoing request with SigV4 (`Authorization`, `x-amz-date`, `x-amz-content-sha256`, and `x-amz-security-token` when applicable) before sending. The credential is never returned to application code.
+
+### Region and service
+
+The signing region and service are part of the credential. The SDK uses them verbatim, so if the URL targets a different region than the credential is configured for, AWS rejects the call with `SignatureDoesNotMatch`. Provision a credential per region (or update the existing one) to match the target endpoint.
+
+### Using AWS SDK clients
+
+For the simple "call a URL" shape, `app.request()` is sufficient — the SDK computes the signature for you:
+
+```typescript
+const response = await app.request(
+  HttpMethod.GET,
+  "https://my-bucket.s3.us-east-1.amazonaws.com/path/to/object",
+  { grantId },
+);
+```
+
+For everything outside that shape — multipart uploads, streaming downloads, paginators — use the official AWS SDK clients (`@aws-sdk/client-s3`, etc.) and route each call through [`proxyRequest()`](#proxyrequest) so signing stays inside Alter.
+
+### Throws
+
+Same exception set as [`request()`](#request). Two AWS-specific failure modes:
+
+- [`BackendError`](/reference/typescript-sdk/errors) — AWS signing material is incomplete for this grant. Re-store the AWS credential with both the access key ID and secret access key.
+- [`ProviderAPIError`](/reference/typescript-sdk/errors) with AWS `SignatureDoesNotMatch` — region or service slug on the credential does not match the URL.
+
+---
+
+## scopes.list()
+
+The `scopes` namespace exposes the active scope catalog — the set of resource verbs and reserved actions the backend recognizes. Use it to render scope pickers, validate [`keys.derive({ scopes })`](/reference/typescript-sdk/agents#derive) inputs, or sanity-check that a planned attenuation matches the deployment.
+
+Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent).
+
+```typescript
+async list(): Promise<ScopeCatalog>
+```
+
+No scope is required to read the catalog (it is static metadata), but the call still authenticates with the API key, passes through env / CIDR / rate-limit gates, and is rate-limited per key.
+
+Returns [`ScopeCatalog`](/reference/typescript-sdk/types#scopecatalog).
+
+| Field | Type | Description |
+|---|---|---|
+| `scopeVersion` | `number` | Server-advertised catalog version. Changes only on backend release. |
+| `resources` | `Record<string, ResourceScopes>` | Per-resource verb sets. |
+| `actionVerbs` | `readonly string[]` | Reserved action verbs (e.g. `derive`, `admin`). |
+| `deprecated` | `readonly string[]` | Scopes still accepted but flagged for removal in a future release. |
+
+The catalog is not cached by the SDK — call `list()` on demand. The shape is small and the call is light.
+
+```typescript
+import { App } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey });
+
+const catalog = await app.scopes.list();
+console.log(`Scope version: ${catalog.scopeVersion}`);
+for (const [resource, { verbs }] of Object.entries(catalog.resources)) {
+  console.log(`${resource}: ${verbs.join(", ")}`);
+}
+
+const validScopes = new Set(
+  Object.entries(catalog.resources).flatMap(([resource, { verbs }]) =>
+    verbs.map((verb) => `${resource}:${verb}`),
+  ),
+);
+
+const requested = ["tokens:retrieve", "grants:read"];
+const unknown = requested.filter((scope) => !validScopes.has(scope));
+if (unknown.length > 0) {
+  throw new Error(`Unknown scopes: ${unknown.join(", ")}`);
+}
+```
+
+Throws [`BackendError`](/reference/typescript-sdk/errors), [`AlterValueError`](/reference/typescript-sdk/errors) (on a wire-shape regression), [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors).

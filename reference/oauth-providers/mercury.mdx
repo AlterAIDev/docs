@@ -1,0 +1,77 @@
+---
+title: 'Mercury'
+description: 'Set up Mercury OAuth for business banking and financial data'
+---
+
+## Overview
+
+Connect your users to Mercury for business banking data, account balances, transactions, and financial management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `mercury` |
+| **Category** | Finance & HR |
+| **PKCE** | Supported |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create a Mercury OAuth App
+
+<Steps>
+  <Step title="Review Mercury's OAuth integration guide">
+    Open [Mercury's OAuth2 integration guide](https://docs.mercury.com/docs/integrations-with-oauth2) and submit an integration request. Mercury does not offer a self-serve developer console for OAuth.
+  </Step>
+
+  <Step title="Wait for Mercury to provision credentials">
+    After approval, Mercury provides a **Client ID** and **Client Secret**.
+  </Step>
+
+  <Step title="Register the redirect URI">
+    Provide the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) as the registered **Redirect URI**.
+  </Step>
+
+  <Step title="Enter credentials in Alter Vault">
+    Use the **Client ID** and **Client Secret** from Mercury in the Developer Portal (see Step 2 below).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Mercury provider">
+    Go to **OAuth Providers** > **Add Provider** > **Mercury**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Mercury Client ID
+    - **Client Secret**: Paste your Mercury Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+| Scope | Description |
+|-------|-------------|
+| `read` | Read-only access to account and transaction data |
+| `offline_access` | Maintain continuous access with refresh tokens |
+
+## Notes
+
+- Request only the scopes the application needs. For read-only financial dashboards, `read` is sufficient.
+- See the [Mercury OAuth documentation](https://docs.mercury.com/reference/oauth) for more details.

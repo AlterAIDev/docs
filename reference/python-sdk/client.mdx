@@ -3,7 +3,7 @@ title: 'Client'
 description: 'App and Agent constructors, lifecycle, and identity helpers.'
 ---
 
-The SDK exposes two top-level client classes — `App` for application/operator credentials and `Agent` for workload-scoped credentials. Both are async and share the request surface defined in [`request()`](/reference/python-sdk/request).
+The SDK exposes two top-level client classes — `App` for application/operator credentials and `Agent` for workload-scoped credentials. Both are async and share the request surface defined in [`request()`](/reference/python-sdk/calling-apis#request).
 
 ```python
 from alter_sdk import App, Agent, CallerType
@@ -55,14 +55,14 @@ App(
 
 `App` exposes:
 
-- [`request()`](/reference/python-sdk/request), [`proxy_request()`](/reference/python-sdk/proxy), [`boto3_client()`](/reference/python-sdk/aws)
-- [`list_grants()`](/reference/python-sdk/grants), [`revoke_grant()`](/reference/python-sdk/grants), [`revoke_delegation()`](/reference/python-sdk/grants), [`create_managed_secret_grant()`](/reference/python-sdk/grants)
-- [`create_connect_session()`](/reference/python-sdk/connect), [`create_managed_secret_connect_session()`](/reference/python-sdk/connect), [`connect()`](/reference/python-sdk/connect), [`poll_connect_session()`](/reference/python-sdk/connect), [`create_connect_session_for_error()`](/reference/python-sdk/connect)
-- [`authenticate()`](/reference/python-sdk/connect#authenticate), `verify_user_token()`
-- [`get_approval_status()`](/reference/python-sdk/approvals), [`await_approval()`](/reference/python-sdk/approvals)
-- `agents` namespace (see [Agents](/reference/python-sdk/agents))
-- `keys` namespace (see [Keys](/reference/python-sdk/keys))
-- `scopes` namespace (see [Scopes](/reference/python-sdk/scopes))
+- [`request()`](/reference/python-sdk/calling-apis#request), [`proxy_request()`](/reference/python-sdk/calling-apis#proxy_request), [`boto3_client()`](/reference/python-sdk/calling-apis#boto3_client)
+- [`list_grants()`](/reference/python-sdk/connect-and-grants#list_grants), [`revoke_grant()`](/reference/python-sdk/connect-and-grants#revoke_grant), [`revoke_delegation()`](/reference/python-sdk/connect-and-grants#revoke_delegation), [`create_managed_secret_grant()`](/reference/python-sdk/connect-and-grants#create_managed_secret_grant)
+- [`create_connect_session()`](/reference/python-sdk/connect-and-grants#create_connect_session), [`create_managed_secret_connect_session()`](/reference/python-sdk/connect-and-grants#create_managed_secret_connect_session), [`connect()`](/reference/python-sdk/connect-and-grants#connect), [`poll_connect_session()`](/reference/python-sdk/connect-and-grants#poll_connect_session), [`create_connect_session_for_error()`](/reference/python-sdk/connect-and-grants#create_connect_session_for_error)
+- [`authenticate()`](/reference/python-sdk/connect-and-grants#authenticate), `verify_user_token()`
+- [`get_approval_status()`](/reference/python-sdk/connect-and-grants#get_approval_status), [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval)
+- `agents` namespace (see [Agents & Keys](/reference/python-sdk/agents#appagents-namespace))
+- `keys` namespace (see [Agents & Keys](/reference/python-sdk/agents#keys-namespace))
+- `scopes` namespace (see [Calling APIs](/reference/python-sdk/calling-apis#scopeslist))
 - `with_constraints()`, `get_agent()` (below)
 
 ### with_constraints
@@ -161,19 +161,19 @@ Agent(
 | `actor_id` | `str \| None` | Cached actor UUID once the first authenticated call resolves. |
 | `last_retry_info` | `RetryInfo \| None` | Retry metadata from the most recent `request()` call. |
 | `base_url` | `str` | Backend base URL the client is pinned to. |
-| `keys` | namespace | Scoped-key lifecycle (see [Keys](/reference/python-sdk/keys)). |
-| `scopes` | namespace | Scope catalog discovery (see [Scopes](/reference/python-sdk/scopes)). |
+| `keys` | namespace | Scoped-key lifecycle (see [Agents & Keys](/reference/python-sdk/agents#keys-namespace)). |
+| `scopes` | namespace | Scope catalog discovery (see [Calling APIs](/reference/python-sdk/calling-apis#scopeslist)). |
 
 ### Methods
 
 `Agent` exposes:
 
 - [`me()`](/reference/python-sdk/agents#me) — self-introspection (agent-only).
-- [`request()`](/reference/python-sdk/request), [`proxy_request()`](/reference/python-sdk/proxy), [`boto3_client()`](/reference/python-sdk/aws)
-- [`list_grants()`](/reference/python-sdk/grants)
-- [`create_connect_session()`](/reference/python-sdk/connect), [`connect()`](/reference/python-sdk/connect)
-- [`revoke_delegation()`](/reference/python-sdk/grants) — self-revoke only.
-- [`get_approval_status()`](/reference/python-sdk/approvals), [`await_approval()`](/reference/python-sdk/approvals)
+- [`request()`](/reference/python-sdk/calling-apis#request), [`proxy_request()`](/reference/python-sdk/calling-apis#proxy_request), [`boto3_client()`](/reference/python-sdk/calling-apis#boto3_client)
+- [`list_grants()`](/reference/python-sdk/connect-and-grants#list_grants)
+- [`create_connect_session()`](/reference/python-sdk/connect-and-grants#create_connect_session), [`connect()`](/reference/python-sdk/connect-and-grants#connect)
+- [`revoke_delegation()`](/reference/python-sdk/connect-and-grants#revoke_delegation) — self-revoke only.
+- [`get_approval_status()`](/reference/python-sdk/connect-and-grants#get_approval_status), [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval)
 - [`trace()`](/reference/python-sdk/agents#trace) — audit-scope context manager.
 - `with_constraints()` (below)
 
@@ -181,7 +181,7 @@ Operator surfaces (`agents` namespace CRUD, `authenticate`, `verify_user_token`,
 
 ### with_constraints
 
-Identical semantics to [`App.with_constraints()`](#with-constraints) — returns a constrained sub-`Agent` whose every request carries the scope-constraints assertion.
+Identical semantics to [`App.with_constraints()`](#with_constraints) — returns a constrained sub-`Agent` whose every request carries the scope-constraints assertion.
 
 ```python
 Agent.with_constraints(*, scopes: list[str]) -> Agent

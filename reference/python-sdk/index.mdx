@@ -37,34 +37,16 @@ async with App(api_key="alter_key_app_…") as app:
 
 <CardGroup cols={2}>
   <Card title="Client" icon="code" href="/reference/python-sdk/client">
-    `App` and `Agent` constructors, lifecycle, `with_constraints`, `get_agent`.
+    `App` and `Agent` constructors, lifecycle, `with_constraints`, `get_agent`, `is_valid_key`.
   </Card>
-  <Card title="request()" icon="paper-plane" href="/reference/python-sdk/request">
-    Token-injected provider calls. Identity mode and direct grant mode.
+  <Card title="Calling APIs" icon="paper-plane" href="/reference/python-sdk/calling-apis">
+    `request()`, `proxy_request()`, `boto3_client()`, `scopes.list()` — every credential-injection path.
   </Card>
-  <Card title="proxy_request()" icon="shuffle" href="/reference/python-sdk/proxy">
-    Backend-mediated provider calls. Use when HITL approval or server-side execution is required.
+  <Card title="Connect & Grants" icon="link" href="/reference/python-sdk/connect-and-grants">
+    Connect sessions, grant CRUD, delegation revoke, managed-secret grants, HITL approvals.
   </Card>
-  <Card title="boto3_client()" icon="aws" href="/reference/python-sdk/aws">
-    SigV4-bridged boto3 client for AWS APIs.
-  </Card>
-  <Card title="connect()" icon="link" href="/reference/python-sdk/connect">
-    Headless OAuth flow, Connect sessions, polling, recovery sessions.
-  </Card>
-  <Card title="Grants" icon="key" href="/reference/python-sdk/grants">
-    `list_grants`, `revoke_grant`, `create_managed_secret_grant`.
-  </Card>
-  <Card title="Agents namespace" icon="users" href="/reference/python-sdk/agents">
-    `app.agents.create / list / get / update / delete`, agent-runtime tracing.
-  </Card>
-  <Card title="Keys namespace" icon="lock" href="/reference/python-sdk/keys">
-    `keys.derive / rotate / revoke` — scoped sub-key lifecycle.
-  </Card>
-  <Card title="Approvals" icon="check" href="/reference/python-sdk/approvals">
-    `await_approval`, `get_approval_status`, `PendingApproval`, `ApprovalResult`.
-  </Card>
-  <Card title="Scopes" icon="list" href="/reference/python-sdk/scopes">
-    Scope catalog discovery.
+  <Card title="Agents & Keys" icon="users" href="/reference/python-sdk/agents">
+    `app.agents.*` CRUD, `Agent.me / trace / with_constraints`, `keys.derive / rotate / revoke`.
   </Card>
   <Card title="Types" icon="cube" href="/reference/python-sdk/types">
     Pydantic models returned across the SDK surface.

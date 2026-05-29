@@ -1,0 +1,425 @@
+---
+title: 'Calling APIs'
+description: 'Credential-injected provider calls — request(), proxy_request(), boto3_client(), and scopes catalog.'
+---
+
+Every credential-injection path lives on this page. The SDK fetches the token, injects it into the outbound request, calls the provider, logs the call for audit, and returns the response. The token is never returned to application code.
+
+```python
+# Direct provider call, SDK process executes
+await app.request(method, url, *, grant_id=..., ...)
+
+# Backend-mediated execution (HITL approval, server-side isolation)
+await app.proxy_request(method, url, *, grant_id=..., ...)
+
+# AWS SigV4 — real boto3 client routed through request()
+s3 = await app.boto3_client("s3", grant_id=...)
+
+# Scope catalog discovery
+catalog = await app.scopes.list()
+```
+
+## Picking a calling pattern
+
+| Pattern | Token leaves backend? | HITL approval? | When to use |
+|---|---|---|---|
+| [`request()`](#request) | Yes — SDK process holds it briefly | No (raises on HITL grants) | Default. Direct provider call, lowest latency. |
+| [`proxy_request()`](#proxy_request) | No — backend executes | Yes | HITL grants, MCP/serverless without long-lived connections, compliance requires zero-egress. |
+| [`boto3_client()`](#boto3_client) | Yes — SDK signs SigV4 | No | AWS APIs via real boto3. Requires `[aws]` extra. |
+
+For [`scopes.list()`](#scopeslist) see the catalog section below.
+
+## request()
+
+The single entry point for calling a provider API with an Alter-managed credential.
+
+```python
+async def request(
+    method: HttpMethod | str,
+    url: str,
+    *,
+    grant_id: str | None = None,
+    provider: str | None = None,
+    account: str | None = None,
+    json: dict[str, Any] | None = None,
+    extra_headers: dict[str, str] | None = None,
+    query_params: dict[str, Any] | None = None,
+    path_params: dict[str, str] | None = None,
+    reason: str | None = None,
+    context: dict[str, str] | None = None,
+    body: bytes | None = None,
+    caller: str | None = None,
+    user_token: str | None = None,
+    app_user_id: str | None = None,
+    scope: list[str] | None = None,
+    constraints: dict[str, Any] | None = None,
+) -> httpx.Response
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `method` | `HttpMethod \| str` | — | HTTP method. The [`HttpMethod`](/reference/python-sdk/types#httpmethod) enum is recommended for IDE autocomplete. |
+| `url` | `str` | — | Full provider URL. Must start with `http://` or `https://`. Supports `{name}` placeholders resolved via `path_params`. |
+| `grant_id` | `str \| None` | `None` | Direct-mode grant identifier. Mutually exclusive with `provider`. |
+| `provider` | `str \| None` | `None` | Identity-mode provider id (e.g. `"google"`). Requires `user_token_getter` on the client or `user_token=` per call. Mutually exclusive with `grant_id`. |
+| `account` | `str \| None` | `None` | Disambiguator for identity mode when the resolved user has multiple grants on the same provider (see [`AmbiguousGrantError`](/reference/python-sdk/errors)). |
+| `json` | `dict \| None` | `None` | JSON-serialized request body. Mutually exclusive with `body`. |
+| `body` | `bytes \| None` | `None` | Raw bytes request body. Mutually exclusive with `json`. |
+| `extra_headers` | `dict[str, str] \| None` | `None` | Extra request headers. `Authorization` is injected by the SDK and must not be set here. |
+| `query_params` | `dict[str, Any] \| None` | `None` | Query string parameters. |
+| `path_params` | `dict[str, str] \| None` | `None` | Values substituted into `{name}` placeholders in `url`. URL-encoded. |
+| `reason` | `str \| None` | `None` | Audit reason recorded with the call. |
+| `context` | `dict[str, str] \| None` | `None` | Audit-correlation context. Capped at 4096 bytes, 20 keys, 64-char keys, 512-char values. Falls back to the ambient context from `Agent.trace()` / `@alter_tool` / `@alter.tool()` when omitted. |
+| `caller` | `str \| None` | `None` | Per-call override of the client's caller identifier. |
+| `user_token` | `str \| None` | `None` | Per-call user JWT for identity mode. Wins over `user_token_getter`. |
+| `app_user_id` | `str \| None` | `None` | Per-call user identifier for agent-delegation disambiguation. |
+| `scope` | `list[str] \| None` | `None` | <Warning>Reserved — passing a non-None value raises `AlterValueError`.</Warning> |
+| `constraints` | `dict[str, Any] \| None` | `None` | <Warning>Reserved — passing a non-None value raises `AlterValueError`.</Warning> |
+
+**Returns:** `httpx.Response`. Inspect `response.status_code`, `response.json()`, `response.text`, etc.
+
+**Raises:**
+
+- `AlterSDKError` — missing both `grant_id` and `provider`, supplying both, supplying both `json` and `body`, client closed, URL with disallowed scheme.
+- `AlterValueError` — bad `context` shape, malformed `user_token` / `app_user_id`, reserved `scope` / `constraints` set.
+- `GrantNotFoundError`, `GrantExpiredError`, `GrantRevokedError`, `GrantDeletedError`, `CredentialRevokedError` — grant-state failures (see [Errors](/reference/python-sdk/errors)).
+- `AmbiguousGrantError` — identity-mode resolution matched multiple grants. Inspect `e.account_identifiers` and retry with `account=`.
+- `NoDelegatedGrantError` — agent caller has no access path to the provider.
+- `PolicyViolationError`, `InsufficientScopeError`, `ScopeReauthRequiredError`, `TokenRefreshInProgressError` — policy / scope / refresh failures.
+- `ProviderAPIError` — non-2xx provider response (raised only when the SDK can map it to a typed error).
+- `NetworkError`, `TimeoutError` — connectivity failures.
+
+### Direct grant mode
+
+Pass `grant_id=` when the application has the grant identifier in hand (stored after a Connect flow, returned by [`list_grants()`](/reference/python-sdk/connect-and-grants#list_grants), etc.).
+
+```python
+from alter_sdk import App, HttpMethod
+
+app = App(api_key="alter_key_app_…")
+
+resp = await app.request(
+    HttpMethod.GET,
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    grant_id="11111111-2222-3333-4444-555555555555",
+    query_params={"maxResults": 10},
+)
+events = resp.json()
+```
+
+### Identity mode
+
+Pass `provider=` when the caller is acting on behalf of a known user. The SDK resolves the user's JWT (from `user_token_getter` or `user_token=`) and looks up the grant.
+
+<CodeGroup>
+```python user_token_getter
+from alter_sdk import App
+
+def jwt_for_current_user() -> str:
+    return request_state.user_jwt
+
+app = App(
+    api_key="alter_key_app_…",
+    user_token_getter=jwt_for_current_user,
+)
+
+resp = await app.request(
+    "GET",
+    "https://api.github.com/user/repos",
+    provider="github",
+)
+```
+
+```python per-call
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+resp = await app.request(
+    "GET",
+    "https://slack.com/api/conversations.list",
+    provider="slack",
+    user_token=user_jwt,
+)
+```
+</CodeGroup>
+
+### Disambiguating with account
+
+When identity mode resolves to multiple grants on the same provider, the backend returns 409 and the SDK raises `AmbiguousGrantError`. Retry with `account=`:
+
+```python
+from alter_sdk import AmbiguousGrantError
+
+try:
+    resp = await app.request("GET", url, provider="google")
+except AmbiguousGrantError as e:
+    chosen = e.account_identifiers[0]
+    resp = await app.request("GET", url, provider="google", account=chosen)
+```
+
+### URL templates with path_params
+
+```python
+resp = await app.request(
+    "GET",
+    "https://api.github.com/repos/{owner}/{repo}/issues/{number}",
+    grant_id=grant_id,
+    path_params={"owner": "anthropic", "repo": "claude-code", "number": "42"},
+)
+```
+
+Values are URL-encoded before substitution.
+
+### Audit context
+
+`context` is propagated to the audit row for every call:
+
+```python
+resp = await app.request(
+    "POST",
+    "https://api.openai.com/v1/chat/completions",
+    grant_id=grant_id,
+    json=payload,
+    reason="user_initiated_chat",
+    context={"thread_id": "thr_abc", "tool": "summarize"},
+)
+```
+
+When called inside an [`Agent.trace()`](/reference/python-sdk/agents#trace) block or from inside a `@alter_tool` / `@alter.tool()` body, the ambient context is used automatically if `context=` is not passed.
+
+---
+
+## proxy_request()
+
+`proxy_request()` sends the full request to Alter for server-side execution. The backend resolves the credential, calls the provider, and either returns the response synchronously or returns a `PendingApproval` if the grant requires human-in-the-loop approval.
+
+Use it when:
+
+- The grant has an HITL approval policy attached.
+- The workload cannot hold the provider connection open (serverless cold starts, MCP tool calls).
+- Audit / compliance requires the credential to never leave the backend perimeter.
+
+For the common case of "I have a credential, call this URL", use [`request()`](#request) instead.
+
+```python
+async def proxy_request(
+    method: HttpMethod | str,
+    url: str,
+    *,
+    grant_id: str,
+    json_body: dict | list | str | bool | float | None = None,
+    headers: dict[str, str] | None = None,
+    query_params: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> ApprovalResult | PendingApproval
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `method` | `HttpMethod \| str` | — | HTTP method. |
+| `url` | `str` | — | Full provider URL. |
+| `grant_id` | `str` | — | Direct grant identifier. This method requires `grant_id`; provider-based resolution is unavailable here. |
+| `json_body` | `dict \| list \| str \| bool \| float \| None` | `None` | JSON-serializable request body. |
+| `headers` | `dict[str, str] \| None` | `None` | Non-auth request headers. `Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token` are rejected by the backend (422) — the backend injects the credential at execution time. |
+| `query_params` | `dict[str, Any] \| None` | `None` | Query string parameters. |
+| `reason` | `str \| None` | `None` | Audit reason. |
+
+**Returns:** [`ApprovalResult`](/reference/python-sdk/types#approvalresult) for synchronous (non-HITL) execution, or [`PendingApproval`](/reference/python-sdk/types#pendingapproval) when the grant requires approval (HTTP 202).
+
+**Raises:**
+
+- `AlterValueError` — payload not JSON-serializable, header validation failure, forbidden auth header.
+- `BackendError` and subclasses — backend-side failure or grant-state error.
+- `NetworkError`, `TimeoutError` — connectivity failures.
+
+### Sync execution
+
+When the grant has no approval requirement, the backend executes the call and returns the response:
+
+```python
+from alter_sdk import App, HttpMethod
+from alter_sdk.models import ApprovalResult
+
+app = App(api_key="alter_key_app_…")
+
+result = await app.proxy_request(
+    HttpMethod.POST,
+    "https://api.stripe.com/v1/charges",
+    grant_id=grant_id,
+    json_body={"amount": 2000, "currency": "usd", "source": "tok_visa"},
+)
+assert isinstance(result, ApprovalResult)
+print(result.status_code, result.body_json())
+```
+
+### HITL approval flow
+
+When the grant has `requires_approval` configured, the backend returns 202 and a `PendingApproval`. Pass `approval_id` to [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval) to block until the approver decides.
+
+```python
+from alter_sdk.models import ApprovalResult, PendingApproval
+
+result = await app.proxy_request(
+    "POST",
+    "https://api.stripe.com/v1/refunds",
+    grant_id=grant_id,
+    json_body={"charge": "ch_abc123"},
+    reason="customer_service_refund",
+)
+
+if isinstance(result, PendingApproval):
+    notify_approver(result.approval_url)
+    final = await app.await_approval(
+        str(result.approval_id),
+        timeout=600.0,
+    )
+    assert isinstance(final, ApprovalResult)
+    print(final.body_json())
+```
+
+### Reading the response body
+
+`ApprovalResult` stores the body base64-encoded. Use the helpers:
+
+```python
+result.body_bytes()        # raw bytes
+result.body_text()         # UTF-8 decode
+result.body_text("latin-1")
+result.body_json()         # parse JSON
+result.status_code         # HTTP status from the provider
+result.headers             # response headers (dict)
+```
+
+See [`ApprovalResult`](/reference/python-sdk/types#approvalresult) for the full model.
+
+### Forbidden headers
+
+The backend rejects requests that try to inject credentials in `headers`:
+
+- `Authorization`
+- `Cookie`
+- `x-api-key`
+- `x-amz-security-token`
+
+The backend injects the correct credential at execution time based on the grant.
+
+---
+
+## boto3_client()
+
+`boto3_client()` returns a real boto3 service client whose every request flows through the SDK's request pipeline: credential retrieval, SigV4 signing, policy enforcement, and audit logging. The AWS access keys are managed by Alter and never reach application code.
+
+Requires the `aws` extra:
+
+```bash
+pip install 'alter-sdk[aws]'
+```
+
+```python
+async def boto3_client(
+    service_name: str,
+    *,
+    grant_id: str,
+    region_name: str | None = None,
+    timeout: float | None = None,
+    reason: str | None = None,
+    context: dict[str, str] | None = None,
+) -> Any
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `service_name` | `str` | — | AWS service name (`"s3"`, `"dynamodb"`, `"sqs"`, …). Positional. |
+| `grant_id` | `str` | — | Alter grant ID for AWS credentials. Keyword-only. |
+| `region_name` | `str \| None` | `None` | AWS region. Falls back to `"us-east-1"` when omitted. |
+| `timeout` | `float \| None` | client timeout + 5 s buffer | Per-call wall-clock timeout covering token retrieval and the HTTP request. |
+| `reason` | `str \| None` | `None` | Audit reason applied to every call from this client. |
+| `context` | `dict[str, str] \| None` | `None` | Audit-correlation context applied to every call. |
+
+**Returns:** a boto3 service client. Every call routes through [`request()`](#request) for credential injection.
+
+**Raises:** `AlterSDKError` if `boto3` is not installed or the SDK client is closed.
+
+### Usage
+
+boto3's API is synchronous. Wrap calls in `asyncio.to_thread()` from async code:
+
+```python
+import asyncio
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+s3 = await app.boto3_client("s3", grant_id=aws_grant_id, region_name="us-west-2")
+
+response = await asyncio.to_thread(
+    s3.list_objects_v2,
+    Bucket="my-bucket",
+    MaxKeys=100,
+)
+for obj in response.get("Contents", []):
+    print(obj["Key"], obj["Size"])
+```
+
+### With Agent
+
+```python
+from alter_sdk import Agent
+
+agent = Agent(api_key="alter_key_agent_…")
+
+ddb = await agent.boto3_client(
+    "dynamodb",
+    grant_id=ddb_grant_id,
+    region_name="us-east-1",
+    reason="agent_query",
+)
+
+result = await asyncio.to_thread(
+    ddb.get_item,
+    TableName="orders",
+    Key={"order_id": {"S": "ord_123"}},
+)
+```
+
+### Lifecycle and large payloads
+
+<Note>
+The returned boto3 client holds a strong reference to the SDK client through closures. `__del__`-based cleanup will NOT fire while the boto3 client exists. Always call `await app.close()` / `await agent.close()` explicitly or use the async context manager.
+</Note>
+
+<Note>
+Responses are buffered fully in memory. For multi-GB payloads (e.g. `s3.get_object()` on large objects), use [`request()`](#request) with `httpx` streaming instead of `boto3_client()`.
+</Note>
+
+---
+
+## scopes.list()
+
+The `scopes` namespace exposes the backend's scope-catalog discovery endpoint. The catalog is static metadata for a given backend version — use it to introspect what scopes exist before calling [`keys.derive()`](/reference/python-sdk/agents#derive), or to render a scope picker in a custom dashboard.
+
+Both `App` and `Agent` expose `scopes`.
+
+```python
+async def list() -> ScopeCatalog
+```
+
+**Returns:** [`ScopeCatalog`](/reference/python-sdk/types#scopecatalog) — `scope_version`, per-resource verb lists, action verb list, deprecated scopes.
+
+**Raises:** `BackendError` on backend reachability or response-shape failure.
+
+```python
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+catalog = await app.scopes.list()
+print("scope_version:", catalog.scope_version)
+for resource, info in catalog.resources.items():
+    print(f"  {resource}: {info.verbs}")
+print("action verbs:", catalog.action_verbs)
+print("deprecated:", catalog.deprecated)
+```
+
+The catalog is not cached by the SDK — callers are expected to call `list()` on demand. No scope is required to read the catalog.

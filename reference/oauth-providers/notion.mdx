@@ -1,0 +1,77 @@
+---
+title: 'Notion'
+description: 'Set up Notion OAuth for notes, docs, and knowledge management'
+---
+
+## Overview
+
+Connect your users to Notion for notes, documents, databases, and knowledge management.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `notion` |
+| **Category** | Productivity |
+| **PKCE** | Not supported |
+| **Token refresh** | Automatic (rolling refresh tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+<Note>
+  Notion permissions are granted per-page during authorization. Alter Vault automatically handles token refresh using Notion's rolling refresh tokens.
+</Note>
+
+## Step 1: Create a Notion Public Connection
+
+<Steps>
+  <Step title="Open the Notion Creator dashboard">
+    Navigate to [notion.so/profile/integrations](https://www.notion.so/profile/integrations) and sign in. (Notion renamed "integrations" to "connections" — the OAuth equivalent is a public connection.)
+  </Step>
+
+  <Step title="Create a new public connection">
+    In the **Build** section of the sidebar, select **Public connections** and click **Create a new connection**. Enter the connection name and pick a development workspace.
+  </Step>
+
+  <Step title="Configure the redirect URI, installation scope, and capabilities">
+    Add the Redirect URI from the Developer Portal under **Redirect URIs**. Choose an **Installation scope** (Any workspace or Selected workspaces only) — this cannot be changed later. Select the capabilities the connection needs.
+  </Step>
+
+  <Step title="Get credentials">
+    Open the **Configuration** tab and copy the **OAuth client ID** and **OAuth client secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Notion provider">
+    Go to **OAuth Providers** > **Add Provider** > **Notion**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Notion OAuth client ID
+    - **Client Secret**: Paste your Notion OAuth client secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+Notion does not use traditional OAuth scopes. Instead, permissions are granted per-page by the user during the authorization flow. The user selects which pages and databases to share with your integration.
+
+## Notes
+
+- Notion renamed **integrations** to **connections**. Internal connections use a static token; public connections use OAuth and are required to integrate with Alter Vault.
+- Installation scope is set at creation time and cannot be changed afterward.
+- Notion uses rolling refresh tokens. Each refresh generates a new access token and refresh token, invalidating the old one. Alter Vault handles this automatically.
+- Users grant access to specific pages and databases during authorization, not via scopes.
+- See the [Notion OAuth documentation](https://developers.notion.com/docs/authorization) for more details.

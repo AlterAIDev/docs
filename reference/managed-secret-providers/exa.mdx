@@ -1,0 +1,62 @@
+---
+title: 'Exa'
+description: 'Connect Exa to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Exa credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `exa` |
+| **Category** | Search |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Exa Dashboard">
+    Log in to the Exa Dashboard at [dashboard.exa.ai](https://dashboard.exa.ai/).
+  </Step>
+  <Step title="Navigate to API Keys">
+    Navigate to API Keys at [dashboard.exa.ai/api-keys](https://dashboard.exa.ai/api-keys).
+  </Step>
+  <Step title="Create or copy your API key">
+    Create a new API key or copy your existing one.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Exa">
+    Go to **Managed Secrets** > **Add Provider** > **Exa**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://api.exa.ai/search",
+    grant_id="YOUR_GRANT_ID",
+)
+```

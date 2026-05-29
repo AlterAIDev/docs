@@ -1,12 +1,36 @@
 ---
-title: 'Agents'
-description: 'app.agents namespace, Agent.me(), Agent.trace(), Agent.withConstraints().'
+title: 'Agents & Keys'
+description: 'Managed agents (app.agents namespace), Agent runtime (me/trace/withConstraints), scoped key lifecycle (keys namespace).'
 ---
 
-The agents surface has two halves:
+This page covers the full lifecycle of managed agents and the scoped-key primitives they're built on:
 
-- **`app.agents.*`** — managed agent CRUD and per-agent key rotation. App-only.
-- **`agent.me()`, `agent.trace()`, `agent.withConstraints()`** — agent-runtime introspection and audit scoping. Agent-only.
+- **[`app.agents.*`](#appagents-namespace)** — managed agent CRUD and per-agent key rotation. App-only.
+- **[`Agent` runtime](#agent-runtime)** — workload-side primitives: `me()`, `trace()`, `withConstraints()`.
+- **[`keys.*`](#keys-namespace)** — scoped sub-key lifecycle (`derive`, `rotate`, `revoke`).
+
+```typescript
+// Operator side
+const created = await app.agents.create({ name: "research-agent" });
+const page = await app.agents.list();
+const info = await app.agents.get(agentId);
+await app.agents.update(agentId, { displayName: "Research Agent v2" });
+await app.agents.delete(agentId);
+
+// Workload side
+const me = await agent.me();
+await agent.trace({ runId: "run_42" }, async () => {
+  await agent.request(...);
+});
+const narrowed = agent.withConstraints({ scopes: ["grants:read"] });
+
+// Scoped key lifecycle
+const derived = await app.keys.derive({ scopes: ["tokens:retrieve"], expiresIn: 3600 });
+const rotated = await app.keys.rotate({ keyId: old.id });
+const revoked = await app.keys.revoke({ keyId: leaked.id });
+```
+
+---
 
 ## app.agents namespace
 
@@ -33,7 +57,7 @@ async create(options: AgentCreateOptions): Promise<AgentCreateResult>
 | `type` | `"agent" \| "service"` | Defaults to `"agent"`. |
 | `scopes` | `Record<string, string[]>` | Per-provider scope allowlist. |
 | `metadata` | `Record<string, unknown>` | Free-form metadata (≤8 KB). |
-| `policy` | `Record<string, unknown>` | HITL config + Cerbos attributes. |
+| `policy` | `Record<string, unknown>` | HITL config + policy attributes. |
 | `idempotencyKey` | `string` | Caller-supplied idempotency key. No CR/LF. |
 
 Returns [`AgentCreateResult`](/reference/typescript-sdk/types#agentcreateresult). The plaintext `apiKey` is returned **exactly once** — store it securely on receipt. On an idempotency replay where the original key cannot be re-issued, `apiKey` is `null`; branch on `result.apiKey === null` to detect replay.
@@ -138,7 +162,11 @@ async revokeKey(
 
 Throws [`KeyNotFoundError`](/reference/typescript-sdk/errors), [`KeyAlreadyRevokedError`](/reference/typescript-sdk/errors), [`LastActiveKeyError`](/reference/typescript-sdk/errors).
 
-## Agent.me
+---
+
+## Agent runtime
+
+### Agent.me
 
 Return the calling agent's own record.
 
@@ -154,7 +182,7 @@ const info = await agent.me();
 console.log(info.status, info.scopes);
 ```
 
-## Agent.trace
+### Agent.trace
 
 Run a callback inside an audit-context scope. Every nested SDK call propagates the agent identity, run ID, and optional metadata for audit attribution.
 
@@ -177,7 +205,7 @@ async trace<T>(
 | `parent` | `string \| null` | Explicit parent identity. Overrides ambient detection. |
 | `[metadataKey]` | `string` | Free-form metadata. Values must be strings. |
 
-Inside the callback, every `request()`, `proxyRequest()`, or nested `trace()` on this agent — or on any other client constructed in the same async context — carries the scope automatically.
+Inside the callback, every [`request()`](/reference/typescript-sdk/calling-apis#request), [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest), or nested `trace()` on this agent — or on any other client constructed in the same async context — carries the scope automatically.
 
 ```typescript
 await agent.trace({ runId: "run_abc", role: "writer" }, async () => {
@@ -189,11 +217,11 @@ await agent.trace({ runId: "run_abc", role: "writer" }, async () => {
 });
 ```
 
-### Ambient parent detection
+#### Ambient parent detection
 
 When an outer `trace()` of a different agent is active, `parent_agent` is recorded automatically. Re-entering `trace()` for the same agent does not set `parent_agent`.
 
-### Reserved metadata keys
+#### Reserved metadata keys
 
 These keys are reserved and throw [`AlterValueError`](/reference/typescript-sdk/errors) when passed via metadata:
 
@@ -209,7 +237,7 @@ These keys are reserved and throw [`AlterValueError`](/reference/typescript-sdk/
 Always `await` the call. `trace()` returns a Promise; without `await`, code following the call runs before the callback completes, and any error thrown inside becomes an unhandled rejection. Enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch this codebase-wide.
 </Warning>
 
-## Agent.withConstraints
+### Agent.withConstraints
 
 Return a constrained sibling `Agent` with a narrowed scope set. See [`withConstraints` on the Client page](/reference/typescript-sdk/client#withconstraints).
 
@@ -218,4 +246,113 @@ const readOnly = agent.withConstraints({ scopes: ["grants:read"] });
 const page = await readOnly.listGrants();
 ```
 
-The constrained sibling preserves the parent agent's `trace()` identity — the run ID, thread ID, and metadata propagate through the scope-narrowed client.
+The constrained sibling preserves the parent agent's [`trace()`](#agenttrace) identity — the run ID, thread ID, and metadata propagate through the scope-narrowed client.
+
+---
+
+## keys namespace
+
+The `keys` namespace lifecycle-manages scoped API keys. Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent) — agent callers typically only have permission to call [`derive()`](#derive).
+
+```typescript
+import { App } from "@alter-ai/alter-sdk";
+
+const app = new App({ apiKey });
+
+const derived = await app.keys.derive({
+  scopes: ["tokens:retrieve", "grants:read"],
+  expiresIn: 3600,
+  cidrAllowlist: ["10.0.0.0/8"],
+  metadata: { purpose: "ci-deploy" },
+});
+process.env.CHILD_KEY = derived.apiKey;  // shown ONCE
+```
+
+### derive
+
+Mint a short-lived attenuated key under the calling key.
+
+```typescript
+async derive(options: DeriveKeyOptions): Promise<MintedKey>
+```
+
+| Option | Type | Description |
+|---|---|---|
+| `scopes` | `readonly string[]` | Scopes the derived key holds. Must be a non-empty subset of the caller's effective scopes. `keys:derive` is rejected — derived keys cannot themselves derive. |
+| `expiresIn` | `number` | Lifetime in **seconds**. Capped by org policy (`maxDerivedKeyTtlHours`, default 24 h) and by the caller's remaining TTL. |
+| `cidrAllowlist` | `readonly string[]` | Optional IP allowlist. Must be a subset of the caller's allowlist. |
+| `name` | `string` | Optional label. |
+| `metadata` | `Record<string, unknown>` | Free-form metadata stored on the key. |
+
+Returns [`MintedKey`](/reference/typescript-sdk/types#mintedkey) — extends [`APIKeyInfo`](/reference/typescript-sdk/types#apikeyinfo) with the plaintext `apiKey`. **The plaintext is returned exactly once.** Store it securely.
+
+Throws:
+
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `scopes` empty, `scopes` contains `keys:derive`, `expiresIn` non-positive.
+- [`InsufficientScopeError`](/reference/typescript-sdk/errors) — caller lacks `keys:derive`.
+- [`BackendError`](/reference/typescript-sdk/errors) — scope-not-subset failure or any other lifecycle failure.
+
+### rotate
+
+Rotate an existing key: mint a same-scope successor with an overlap window where both keys work.
+
+```typescript
+async rotate(options: RotateKeyOptions): Promise<MintedKey>
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `keyId` | `string` | — | The key to rotate. Required. |
+| `overlapDays` | `number` | `7` | Days the old key remains valid. Range 0..30. |
+
+Returns [`MintedKey`](/reference/typescript-sdk/types#mintedkey) — the successor's plaintext is on `apiKey`, returned once.
+
+Derived (`dk`) keys cannot be rotated. Derive a new sub-key from the parent instead.
+
+Throws:
+
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `keyId` missing, `overlapDays` out of range.
+- [`InsufficientScopeError`](/reference/typescript-sdk/errors) — caller lacks `keys:admin` on the target.
+- [`BackendError`](/reference/typescript-sdk/errors) — target not found, already revoked, or is a derived key.
+
+### revoke
+
+Revoke a key and cascade-revoke every derived (`dk`) descendant.
+
+```typescript
+async revoke(options: RevokeKeyOptions): Promise<APIKeyInfo>
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `keyId` | `string` | — | The key to revoke. Required. |
+| `force` | `boolean` | `false` | Bypass the last-active-key guard. |
+
+Default-protective: refuses to revoke the last active key on a managed agent. Pass `force: true` to override (e.g. incident response on a leaked key without a successor).
+
+Returns the post-revoke [`APIKeyInfo`](/reference/typescript-sdk/types#apikeyinfo).
+
+Throws:
+
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `keyId` missing.
+- [`InsufficientScopeError`](/reference/typescript-sdk/errors) — caller lacks `keys:admin` on the target.
+- [`BackendError`](/reference/typescript-sdk/errors) — target not found, last-active without `force`.
+
+### isValidKey
+
+Synchronous, no-network format check for a plaintext key. Re-derives the embedded CRC checksum and compares.
+
+```typescript
+import { isValidKey } from "@alter-ai/alter-sdk";
+
+isValidKey("alter_rk_…");   // true | false
+isValidKey(undefined);       // false
+```
+
+```typescript
+function isValidKey(plainKey: unknown): boolean
+```
+
+Returns `false` for non-strings, empty strings, unknown key-type discriminators, the wrong segment count, or a mismatched checksum. Returns `true` for legacy `alter_key_…` keys (which have no checksum) when the body is non-empty. Does **not** throw.
+
+This is a **usability gate** that catches single-character typos before paying a network round-trip. It is not a security boundary — a forged checksum cannot pass backend authentication because the server verifies the key against its hashed fingerprint.

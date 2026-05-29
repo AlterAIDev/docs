@@ -28,11 +28,15 @@ The SDK exposes two top-level clients. They share the request surface but differ
   </Card>
 </CardGroup>
 
-Both classes are async. Always close them (`await app.close()`) or use `await using` for automatic disposal (TypeScript 5.2+, Node 18+).
+Both classes are async. Always close them via `await app.close()` (or wrap usage in `try`/`finally`) so background tasks drain and HTTP/2 connections release.
 
 ```typescript
-await using app = new App({ apiKey: process.env.ALTER_API_KEY! });
-const page = await app.listGrants();
+const app = new App({ apiKey: process.env.ALTER_API_KEY! });
+try {
+  const page = await app.listGrants();
+} finally {
+  await app.close();
+}
 ```
 
 ## Reference
@@ -41,32 +45,14 @@ const page = await app.listGrants();
   <Card title="Client" icon="code" href="/reference/typescript-sdk/client">
     `App` and `Agent` constructors, lifecycle, `withConstraints`, `getAgent`.
   </Card>
-  <Card title="request()" icon="paper-plane" href="/reference/typescript-sdk/request">
-    Token-injected provider calls. Identity mode and direct grant mode.
+  <Card title="Calling APIs" icon="paper-plane" href="/reference/typescript-sdk/calling-apis">
+    `request()`, `proxyRequest()`, AWS SigV4 bridge, `scopes.list()` — every credential-injection path.
   </Card>
-  <Card title="proxyRequest()" icon="shuffle" href="/reference/typescript-sdk/proxy">
-    Backend-mediated provider calls. Use when HITL approval or server-side execution is required.
+  <Card title="Connect & Grants" icon="link" href="/reference/typescript-sdk/connect-and-grants">
+    Connect sessions, grant CRUD, delegation revoke, managed-secret grants, HITL approvals.
   </Card>
-  <Card title="AWS bridge" icon="aws" href="/reference/typescript-sdk/aws">
-    Use `request()` against AWS APIs. SigV4 is computed automatically.
-  </Card>
-  <Card title="connect()" icon="link" href="/reference/typescript-sdk/connect">
-    Headless OAuth flow, Connect sessions, polling, recovery sessions.
-  </Card>
-  <Card title="Grants" icon="key" href="/reference/typescript-sdk/grants">
-    `listGrants`, `revokeGrant`, `createManagedSecretGrant`.
-  </Card>
-  <Card title="Agents namespace" icon="users" href="/reference/typescript-sdk/agents">
-    `app.agents.create / list / get / update / delete`, agent-runtime tracing.
-  </Card>
-  <Card title="Keys namespace" icon="lock" href="/reference/typescript-sdk/keys">
-    `keys.derive / rotate / revoke` — scoped sub-key lifecycle.
-  </Card>
-  <Card title="Approvals" icon="check" href="/reference/typescript-sdk/approvals">
-    `awaitApproval`, `getApprovalStatus`, `PendingApproval`, `ApprovalResult`.
-  </Card>
-  <Card title="Scopes" icon="list" href="/reference/typescript-sdk/scopes">
-    Scope catalog discovery.
+  <Card title="Agents & Keys" icon="users" href="/reference/typescript-sdk/agents">
+    `app.agents.*` CRUD, `Agent.me / trace / withConstraints`, `keys.derive / rotate / revoke`.
   </Card>
   <Card title="Types" icon="cube" href="/reference/typescript-sdk/types">
     Models returned across the SDK surface.

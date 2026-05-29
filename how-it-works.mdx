@@ -33,7 +33,7 @@ Application                Alter SDK              Alter backend         Third-pa
     │◀── response ─────────────│                        │                      │
 ```
 
-Application code never holds, logs, or stores the token. Whether the injection happens on the backend or inside the SDK depends on the [runtime mode](/concepts/runtime-modes) the call uses.
+Application code never holds, logs, or stores the token. Whether the injection happens on the backend or inside the SDK depends on the [runtime mode](/concepts/identity#retrieve-vs-proxy) the call uses.
 
 ## The four primitives
 
@@ -59,7 +59,7 @@ The SDK call site is identical. The difference is *where the credential came fro
 
 ## Identity resolution
 
-For OAuth grants, the SDK needs to know *which* grant to use. Three modes, [explained on one page](/concepts/identity-resolution):
+For OAuth grants, the SDK needs to know *which* grant to use. Three modes, [explained on one page](/concepts/identity#identity-resolution):
 
 1. **JWT identity** — the recommended path for any app with logged-in users. Configure the IDP once, the SDK resolves the grant from each user's JWT.
 2. **Explicit `grant_id`** — for scripts, batch jobs, and managed-secret grants.
