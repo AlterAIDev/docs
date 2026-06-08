@@ -16,7 +16,8 @@ from alter_sdk import (
     AgentKey, AgentKeyList, AgentKeyMintResult,
     APIKeyInfo, MintedKey, ScopeCatalog, ResourceScopes,
     ApprovalResult, ApprovalStatus, ApprovalStatusValue, PendingApproval,
-    AuthResult, APICallAuditLog,
+    AuthResult, AuthSession, APICallAuditLog,
+    OAuthProviderCatalog, OAuthProviderCatalogItem, OAuthProviderScopeInfo,
     RetryInfo, RetryErrorInfo,
     HttpMethod, CallerType, Provider,
 )
@@ -297,6 +298,56 @@ Same shape as `ConnectSession`. `__repr__` redacts `connect_url` (it carries the
 |---|---|---|
 | `user_token` | `str` | IDP JWT bearer token. |
 | `user_info` | `dict[str, Any]` | User info from IDP (`sub`, `email`, `name`). |
+
+### AuthSession
+
+Returned by [`create_auth_session()`](/reference/python-sdk/connect-and-grants#create_auth_session). `__repr__` redacts `auth_url` (it carries the session token as the OIDC `state` parameter).
+
+| Field | Type | Description |
+|---|---|---|
+| `session_token` | `str` | Handle to poll with `poll_auth_session()`. Persistable. |
+| `auth_url` | `str` | IDP sign-in URL to hand to the end user. Never log it. |
+| `expires_in` | `int` | Seconds until the session expires. |
+| `expires_at` | `str` | ISO 8601 expiry timestamp. |
+
+---
+
+## Provider catalog
+
+### OAuthProviderCatalog
+
+Returned by [`oauth_providers.list()`](/reference/python-sdk/connect-and-grants#oauth_providerslist).
+
+| Member | Type | Description |
+|---|---|---|
+| `providers` | `dict[str, OAuthProviderCatalogItem]` | Connectable providers, keyed by id (`"<provider_id>"`, …). |
+| `get_default_scopes(provider)` | `tuple[str, ...]` | Default scopes for a provider, or `()` if unknown. Accepts a string or `Provider` member. |
+| `get_required_scopes(provider)` | `tuple[str, ...]` | Required scopes for a provider, or `()` if unknown. |
+
+### OAuthProviderCatalogItem
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `str` | Provider id. |
+| `name` | `str` | Internal provider name. |
+| `display_name` | `str` | Human-readable name. |
+| `category` | `str \| None` | Provider category. |
+| `description` | `str \| None` | Short description. |
+| `logo_url` | `str \| None` | Logo URL. |
+| `supports_refresh` | `bool` | Provider issues refresh tokens. |
+| `supports_pkce` | `bool` | Provider supports PKCE. |
+| `available_scopes` | `dict[str, OAuthProviderScopeInfo]` | All requestable scopes, keyed by scope string. |
+| `default_scopes` | `list[str]` | Scopes pre-selected in a Connect flow. |
+| `required_scopes` | `list[str]` | Scopes that are always requested. |
+| `status` | `str` | Always `"active"` (only connectable providers are returned). |
+
+### OAuthProviderScopeInfo
+
+| Field | Type | Description |
+|---|---|---|
+| `description` | `str` | What the scope grants. |
+| `required` | `bool` | Scope is always requested. |
+| `is_default` | `bool` | Scope is pre-selected by default. |
 
 ---
 

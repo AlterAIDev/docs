@@ -65,8 +65,9 @@ The `App` class exposes:
 - [`request()`](/reference/typescript-sdk/calling-apis#request), [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest)
 - [`listGrants()`](/reference/typescript-sdk/connect-and-grants#listgrants), [`revokeGrant()`](/reference/typescript-sdk/connect-and-grants#revokegrant), [`revokeDelegation()`](/reference/typescript-sdk/connect-and-grants#revokedelegation), [`createManagedSecretGrant()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretgrant)
 - [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession), [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretconnectsession), [`pollConnectSession()`](/reference/typescript-sdk/connect-and-grants#pollconnectsession), [`createConnectSessionForError()`](/reference/typescript-sdk/connect-and-grants#createconnectsessionforerror), [`connect()`](/reference/typescript-sdk/connect-and-grants#connect)
-- [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate), `verifyUserToken()`
+- [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate), [`createAuthSession()`](/reference/typescript-sdk/connect-and-grants#createauthsession), [`pollAuthSession()`](/reference/typescript-sdk/connect-and-grants#pollauthsession), `verifyUserToken()`
 - [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval)
+- `oauthProviders` namespace — [`oauthProviders.list()`](/reference/typescript-sdk/connect-and-grants#oauthproviderslist) (OAuth provider catalog)
 - [`withConstraints()`](#withconstraints), [`getAgent()`](#getagent), [`close()`](#close)
 
 ## Agent
@@ -119,6 +120,7 @@ The `Agent` class exposes:
 - [`request()`](/reference/typescript-sdk/calling-apis#request), [`proxyRequest()`](/reference/typescript-sdk/calling-apis#proxyrequest)
 - [`trace()`](/reference/typescript-sdk/agents#agenttrace), [`withConstraints()`](#withconstraints)
 - [`listGrants()`](/reference/typescript-sdk/connect-and-grants#listgrants), [`revokeDelegation()`](/reference/typescript-sdk/connect-and-grants#revokedelegation)
+- [`oauthProviders.list()`](/reference/typescript-sdk/connect-and-grants#oauthproviderslist) — OAuth provider catalog.
 - [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession), [`connect()`](/reference/typescript-sdk/connect-and-grants#connect)
 - [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval)
 - [`close()`](#close)

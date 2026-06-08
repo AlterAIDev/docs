@@ -272,12 +272,58 @@ Returned per provider by [`connect()`](/reference/typescript-sdk/connect-and-gra
 
 ## AuthResult
 
-Returned by [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate).
+Returned by [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate) and [`pollAuthSession()`](/reference/typescript-sdk/connect-and-grants#pollauthsession).
 
 | Field | Type |
 |---|---|
 | `userToken` | `string` |
 | `userInfo` | `Record<string, unknown>` |
+
+## AuthSession
+
+Returned by [`createAuthSession()`](/reference/typescript-sdk/connect-and-grants#createauthsession). `toString()` redacts `authUrl` (it carries the session token as the OIDC `state` parameter).
+
+| Field | Type | Description |
+|---|---|---|
+| `sessionToken` | `string` | Handle to poll with `pollAuthSession()`. Persistable. |
+| `authUrl` | `string` | IDP sign-in URL to hand to the end user. Never log it. |
+| `expiresIn` | `number` | Seconds until the session expires. |
+| `expiresAt` | `string` | ISO 8601 expiry timestamp. |
+
+## OAuthProviderCatalog
+
+Returned by [`oauthProviders.list()`](/reference/typescript-sdk/connect-and-grants#oauthproviderslist).
+
+| Member | Type | Description |
+|---|---|---|
+| `providers` | `Readonly<Record<string, OAuthProviderCatalogItem>>` | Connectable providers, keyed by id (`"<providerId>"`, …). |
+| `getDefaultScopes(provider)` | `readonly string[]` | Default scopes for a provider, or `[]` if unknown. |
+| `getRequiredScopes(provider)` | `readonly string[]` | Required scopes for a provider, or `[]` if unknown. |
+
+## OAuthProviderCatalogItem
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Provider id. |
+| `name` | `string` | Internal provider name. |
+| `displayName` | `string` | Human-readable name. |
+| `category` | `string \| null` | Provider category. |
+| `description` | `string \| null` | Short description. |
+| `logoUrl` | `string \| null` | Logo URL. |
+| `supportsRefresh` | `boolean` | Provider issues refresh tokens. |
+| `supportsPkce` | `boolean` | Provider supports PKCE. |
+| `availableScopes` | `Readonly<Record<string, OAuthProviderScopeInfo>>` | All requestable scopes, keyed by scope string. |
+| `defaultScopes` | `readonly string[]` | Scopes pre-selected in a Connect flow. |
+| `requiredScopes` | `readonly string[]` | Scopes that are always requested. |
+| `status` | `string` | Always `"active"` (only connectable providers are returned). |
+
+## OAuthProviderScopeInfo
+
+| Field | Type | Description |
+|---|---|---|
+| `description` | `string` | What the scope grants. |
+| `required` | `boolean` | Scope is always requested. |
+| `isDefault` | `boolean` | Scope is pre-selected by default. |
 
 ## PendingApproval
 

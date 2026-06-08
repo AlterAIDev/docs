@@ -16,8 +16,12 @@ Three concentric layers, each optional after the previous:
 3. **Webhook deprovisioning** (optional) — real-time revocation when the IDP deletes a user.
 
 <Warning>
-Claim mappings (user-ID claim, group claim, role claim) **lock** after the first user signs in. Configure non-default claims before testing the first sign-in.
+The **user-ID claim** is the token field Alter uses as each user's permanent identity (the standard OIDC `sub` for most providers). Claim mappings (user-ID claim, group claim, role claim) **lock** after the first user signs in — changing the user-ID claim afterward would re-resolve every token to a different identifier and orphan existing users. Configure non-default claims before testing the first sign-in.
 </Warning>
+
+<Note>
+When OIDC sign-in credentials are saved, Alter verifies the **Client ID** and **Client Secret** against the provider's token endpoint, so a wrong client ID or secret is rejected at save time rather than surfacing at the first sign-in. If the provider can't be reached (or returns an inconclusive response), the credentials are saved anyway with a notice to verify them with a test sign-in.
+</Note>
 
 ## Supported providers
 

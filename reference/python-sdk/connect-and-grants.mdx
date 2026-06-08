@@ -3,16 +3,23 @@ title: 'Connect & Grants'
 description: 'Connect sessions, grant lifecycle, delegation revoke, managed-secret grants, HITL approvals.'
 ---
 
-This page covers every surface for getting a credential into the system and managing its lifecycle: Connect sessions (user-consent flows), grant CRUD, agent-delegation revoke, managed-secret grant creation, and human-in-the-loop approvals.
+This page covers every surface for getting a credential into the system and managing its lifecycle: the OAuth provider catalog, Connect sessions (user-consent flows), grant CRUD, agent-delegation revoke, managed-secret grant creation, and human-in-the-loop approvals.
 
 ```python
+# Provider catalog
+catalog = await app.oauth_providers.list()
+
 # Connect flows
 results = await app.connect(providers=["google"])
 session = await app.create_connect_session(allowed_providers=["github"])
 results = await app.poll_connect_session(session.session_token)
 session = await app.create_connect_session_for_error(caught_error)
 session = await app.create_managed_secret_connect_session(...)
-auth   = await app.authenticate()
+
+# End-user sign-in (IDP login)
+auth         = await app.authenticate()                 # CLI convenience
+auth_session = await app.create_auth_session()          # headless / remote user
+result       = await app.poll_auth_session(auth_session.session_token)
 
 # Grants
 page   = await app.list_grants()
@@ -26,6 +33,37 @@ await agent.revoke_delegation(grant_id)          # agent self-revoke
 # Approvals
 final  = await app.await_approval(approval_id, timeout=600.0)
 status = await app.get_approval_status(approval_id)
+```
+
+## oauth_providers.list()
+
+Fetch the OAuth provider catalog: the connectable providers configured for the platform and, per provider, the scopes you can request. Use it to drive provider pickers and scope selection instead of hardcoding scope strings.
+
+```python
+async def list(*, force_refresh: bool = False) -> OAuthProviderCatalog
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `force_refresh` | `bool` | `False` | Bypass the in-process cache and re-fetch. |
+
+Results are cached in-process for 5 minutes. The catalog lists only **active** (connectable) providers. Available on both `App` and `Agent` as `app.oauth_providers` / `agent.oauth_providers`.
+
+**Returns:** [`OAuthProviderCatalog`](/reference/python-sdk/types#oauthprovidercatalog) — `providers` keyed by id, plus `get_default_scopes(provider)` / `get_required_scopes(provider)` helpers.
+
+**Raises:** `BackendError` (malformed catalog response), `AlterSDKError`, `NetworkError`. Requires the `providers:read` scope.
+
+```python
+from alter_sdk import App
+
+app = App(api_key="alter_key_app_…")
+
+catalog = await app.oauth_providers.list()
+provider = catalog.providers["<provider_id>"]
+print(provider.display_name, provider.default_scopes)
+
+# Pre-fill a Connect flow with the provider's default scopes.
+scopes = catalog.get_default_scopes("<provider_id>")
 ```
 
 ## connect()
@@ -239,6 +277,54 @@ result = await app.authenticate(timeout=180.0)
 email = result.user_info.get("email")
 ```
 
+## create_auth_session()
+
+The split, headless counterpart to [`authenticate()`](#authenticate). Mints a sign-in session and returns the IDP `auth_url` without opening a browser or mutating the instance. Hand `auth_url` to a user on any channel (a chat message, an MCP client, a printed link), then poll with [`poll_auth_session()`](#poll_auth_session). Because it installs no `user_token_getter`, it is safe on a shared `App` that resolves a JWT per request.
+
+```python
+async def create_auth_session() -> AuthSession
+```
+
+**Returns:** [`AuthSession`](/reference/python-sdk/types#authsession) with `session_token`, `auth_url`, `expires_in`, and `expires_at`. `session_token` is persistable: a worker can store it, poll in the background, and resume after a restart.
+
+**Raises:** `AlterSDKError` (no IDP configured, client closed), `BackendError` (malformed response), `NetworkError`. Requires the `idp_users:write` scope. App-only — agents do not start user logins.
+
+```python
+auth_session = await app.create_auth_session()
+# Send `auth_session.auth_url` to the user; never log it (it carries the session token).
+return {"sign_in_url": auth_session.auth_url, "session": auth_session.session_token}
+```
+
+## poll_auth_session()
+
+The polling half of the link-based flow. Blocks until the user finishes IDP login, then returns their JWT. Like `create_auth_session()`, it installs no `user_token_getter` — the caller decides what to do with the token.
+
+```python
+async def poll_auth_session(
+    session_token: str,
+    *,
+    timeout: float = 300.0,
+    poll_interval: float = 2.0,
+) -> AuthResult
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `session_token` | `str` | — | Token from `create_auth_session()`. |
+| `timeout` | `float` | `300.0` | Max **seconds** to wait. The TS SDK's equivalent takes milliseconds. |
+| `poll_interval` | `float` | `2.0` | Seconds between polls. |
+
+Transient network blips and non-200 responses are retried until the deadline; only a terminal IDP error, an expired session, or the timeout ends the loop.
+
+**Returns:** [`AuthResult`](/reference/python-sdk/types#authresult) with `user_token` (JWT) and `user_info`.
+
+**Raises:** `AlterValueError` (blank `session_token`), `ConnectTimeoutError` (deadline), `AlterSDKError` (closed, terminal IDP error / expired session). A permanent backend failure surfaces as its typed subclass (`GrantNotFoundError`, `PolicyViolationError`, `ReAuthRequiredError`, `BackendError`). Requires the `idp_users:read` scope.
+
+```python
+auth_session = await app.create_auth_session()
+result = await app.poll_auth_session(auth_session.session_token, timeout=600.0)
+```
+
 ---
 
 ## list_grants()
@@ -251,6 +337,9 @@ Paginated list of grants visible to the calling principal. The unified endpoint 
 async def list_grants(
     *,
     provider_id: str | None = None,
+    status: str | None = None,
+    account: str | None = None,
+    end_user_token: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> UnifiedGrantListResult
@@ -259,10 +348,13 @@ async def list_grants(
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
+| `status` | `str \| None` | `None` | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
+| `account` | `str \| None` | `None` | Filter by `account_identifier` (multi-account disambiguation). |
+| `end_user_token` | `str \| None` | `None` | Scope the list to one end user by their JWT. Takes precedence over a configured `user_token_getter`. |
 | `limit` | `int` | `100` | Page size, 1-1000. |
 | `offset` | `int` | `0` | Page offset. |
 
-When the `App` is constructed with a `user_token_getter`, the JWT is forwarded so the backend scopes the list to the resolving AppUser. Without a getter, the response is app-wide.
+When the `App` is constructed with a `user_token_getter`, the JWT is forwarded so the backend scopes the list to the resolving AppUser. Without a getter (and without `end_user_token`), the response is app-wide.
 
 ```python
 from alter_sdk import App, Provider
@@ -280,6 +372,10 @@ for item in page.grants:
 ```python
 async def list_grants(
     *,
+    provider_id: str | None = None,
+    status: str | None = None,
+    account: str | None = None,
+    end_user_token: str | None = None,
     limit: int = 100,
     offset: int = 0,
 ) -> UnifiedGrantListResult
@@ -287,10 +383,14 @@ async def list_grants(
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
+| `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
+| `status` | `str \| None` | `None` | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
+| `account` | `str \| None` | `None` | Filter by `account_identifier`. |
+| `end_user_token` | `str \| None` | `None` | Scope the agent's *delegated* OAuth grants to one end user by their JWT. Agent-owned managed-secret grants have no end user, so they are unaffected. |
 | `limit` | `int` | `100` | Page size, 1-1000. |
 | `offset` | `int` | `0` | Page offset. |
 
-Returns a merged view: delegated OAuth grants the agent can act on AND agent-owned managed-secret grants. The agent surface does not accept `provider_id` or per-user filters — the response is the complete view of grants visible to the calling agent.
+Returns a merged view: delegated OAuth grants the agent can act on AND agent-owned managed-secret grants. Without filters, the response is the complete view of grants visible to the calling agent.
 
 ```python
 page = await agent.list_grants()

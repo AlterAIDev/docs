@@ -3,16 +3,23 @@ title: 'Connect & Grants'
 description: 'Connect sessions, grant lifecycle, delegation revoke, managed-secret grants, HITL approvals.'
 ---
 
-This page covers every surface for getting a credential into the system and managing its lifecycle: Connect sessions (user-consent flows), grant CRUD, agent-delegation revoke, managed-secret grant creation, and human-in-the-loop approvals.
+This page covers every surface for getting a credential into the system and managing its lifecycle: the OAuth provider catalog, Connect sessions (user-consent flows), grant CRUD, agent-delegation revoke, managed-secret grant creation, and human-in-the-loop approvals.
 
 ```typescript
+// Provider catalog
+const catalog = await app.oauthProviders.list();
+
 // Connect flows
 const results = await app.connect({ providers: ["google"] });
 const session = await app.createConnectSession({ allowedProviders: ["github"] });
 const grants  = await app.pollConnectSession(session.sessionToken);
 const recover = await app.createConnectSessionForError(caughtError);
 const msSess  = await app.createManagedSecretConnectSession({ /* ... */ });
-const auth    = await app.authenticate();
+
+// End-user sign-in (IDP login)
+const auth        = await app.authenticate();                 // CLI convenience
+const authSession = await app.createAuthSession();            // headless / remote user
+const result      = await app.pollAuthSession(authSession.sessionToken);
 
 // Grants
 const page    = await app.listGrants({ limit: 50 });
@@ -26,6 +33,31 @@ await agent.revokeDelegation(grantId);          // agent self-revoke
 // Approvals
 const final  = await app.awaitApproval(approvalId, { timeoutMs: 600_000 });
 const status = await app.getApprovalStatus(approvalId);
+```
+
+## oauthProviders.list
+
+Fetch the OAuth provider catalog: the connectable providers configured for the platform and, per provider, the scopes you can request. Use it to drive provider pickers and scope selection instead of hardcoding scope strings.
+
+```typescript
+async list(options?: { forceRefresh?: boolean }): Promise<OAuthProviderCatalog>
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `forceRefresh` | `boolean` | `false` | Bypass the in-process cache and re-fetch. |
+
+Results are cached in-process for 5 minutes. The catalog lists only **active** (connectable) providers. Available on both `App` and `Agent` as `app.oauthProviders` / `agent.oauthProviders`.
+
+Returns [`OAuthProviderCatalog`](/reference/typescript-sdk/types#oauthprovidercatalog) — a `providers` record keyed by id, plus `getDefaultScopes(provider)` / `getRequiredScopes(provider)` helpers. Throws [`BackendError`](/reference/typescript-sdk/errors) on a malformed catalog response. Requires the `providers:read` scope.
+
+```typescript
+const catalog = await app.oauthProviders.list();
+const provider = catalog.providers["<providerId>"];
+console.log(provider.displayName, provider.defaultScopes);
+
+// Pre-fill a Connect flow with the provider's default scopes.
+const scopes = catalog.getDefaultScopes("<providerId>");
 ```
 
 ## createConnectSession
@@ -194,6 +226,47 @@ App-only method.
 `authenticate()` overwrites the constructor-supplied `userTokenGetter` for the lifetime of the `App` instance. The returned JWT becomes the active getter; subsequent identity-mode [`request()`](/reference/typescript-sdk/calling-apis#request) calls use it. Construct a fresh `App` to restore the original getter. Designed for interactive CLI flows.
 </Warning>
 
+## createAuthSession
+
+The split, headless counterpart to [`authenticate()`](#authenticate). Mints a sign-in session and returns the IDP `authUrl` without opening a browser or mutating the instance. Hand `authUrl` to a user on any channel (a chat message, an MCP client, a printed link), then poll with [`pollAuthSession()`](#pollauthsession). Because it installs no `userTokenGetter`, it is safe on a shared `App` that resolves a JWT per request.
+
+```typescript
+async createAuthSession(): Promise<AuthSession>
+```
+
+Returns [`AuthSession`](/reference/typescript-sdk/types#authsession) with `sessionToken`, `authUrl`, `expiresIn`, and `expiresAt`. `sessionToken` is persistable: a worker can store it, poll in the background, and resume after a restart. Throws [`AlterSDKError`](/reference/typescript-sdk/errors) (no IDP configured) or [`BackendError`](/reference/typescript-sdk/errors) (malformed response). Requires the `idp_users:write` scope. App-only — agents do not start user logins.
+
+```typescript
+const session = await app.createAuthSession();
+// Send `session.authUrl` to the user; never log it (it carries the session token).
+return { signInUrl: session.authUrl, session: session.sessionToken };
+```
+
+## pollAuthSession
+
+The polling half of the link-based flow. Resolves when the user finishes IDP login, returning their JWT. Like `createAuthSession()`, it installs no `userTokenGetter` — the caller decides what to do with the token.
+
+```typescript
+async pollAuthSession(
+  sessionToken: string,
+  options?: { timeoutMs?: number; pollIntervalMs?: number },
+): Promise<AuthResult>
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `timeoutMs` | `number` | `300_000` | Maximum wait. **Milliseconds.** The Python SDK's equivalent takes seconds. |
+| `pollIntervalMs` | `number` | `2_000` | Milliseconds between polls. |
+
+Transient network blips and non-200 responses are retried until the deadline; only a terminal IDP error, an expired session, or the timeout ends the loop.
+
+Returns [`AuthResult`](/reference/typescript-sdk/types#authresult) with `userToken` and `userInfo`. Throws [`AlterValueError`](/reference/typescript-sdk/errors) (blank `sessionToken`), `ConnectTimeoutError` (deadline), or the matching typed subclass on a permanent backend failure. Requires the `idp_users:read` scope.
+
+```typescript
+const session = await app.createAuthSession();
+const result = await app.pollAuthSession(session.sessionToken, { timeoutMs: 600_000 });
+```
+
 ---
 
 ## listGrants
@@ -208,12 +281,17 @@ async listGrants(
 
 Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent). The backend dispatches by principal kind:
 
-- **App** — OAuth grants visible to the application. When `userTokenGetter` is configured, results are scoped to the resolved end user; otherwise app-wide grants are returned.
+- **App** — OAuth grants visible to the application. When `userTokenGetter` is configured (or `endUserToken` is passed), results are scoped to the resolved end user; otherwise app-wide grants are returned.
 - **Agent** — every grant the agent can use: OAuth delegations plus agent-owned managed-secret grants. Mixed result type.
+
+Both `AppListGrantsOptions` and `AgentListGrantsOptions` accept the same filters:
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `providerId` | `string` | — | Filter to one provider. App-only. |
+| `providerId` | `string` | — | Filter to one provider. |
+| `status` | `string` | — | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
+| `account` | `string` | — | Filter by `accountIdentifier` (multi-account disambiguation). |
+| `endUserToken` | `string` | — | Scope to one end user by their JWT. On `App`, takes precedence over `userTokenGetter`; on `Agent`, scopes the *delegated* OAuth grants (agent-owned managed-secret grants are unaffected). |
 | `limit` | `number` | `100` | Page size (1..1000). |
 | `offset` | `number` | `0` | Page offset. |
 

@@ -58,11 +58,12 @@ App(
 - [`request()`](/reference/python-sdk/calling-apis#request), [`proxy_request()`](/reference/python-sdk/calling-apis#proxy_request), [`boto3_client()`](/reference/python-sdk/calling-apis#boto3_client)
 - [`list_grants()`](/reference/python-sdk/connect-and-grants#list_grants), [`revoke_grant()`](/reference/python-sdk/connect-and-grants#revoke_grant), [`revoke_delegation()`](/reference/python-sdk/connect-and-grants#revoke_delegation), [`create_managed_secret_grant()`](/reference/python-sdk/connect-and-grants#create_managed_secret_grant)
 - [`create_connect_session()`](/reference/python-sdk/connect-and-grants#create_connect_session), [`create_managed_secret_connect_session()`](/reference/python-sdk/connect-and-grants#create_managed_secret_connect_session), [`connect()`](/reference/python-sdk/connect-and-grants#connect), [`poll_connect_session()`](/reference/python-sdk/connect-and-grants#poll_connect_session), [`create_connect_session_for_error()`](/reference/python-sdk/connect-and-grants#create_connect_session_for_error)
-- [`authenticate()`](/reference/python-sdk/connect-and-grants#authenticate), `verify_user_token()`
+- [`authenticate()`](/reference/python-sdk/connect-and-grants#authenticate), [`create_auth_session()`](/reference/python-sdk/connect-and-grants#create_auth_session), [`poll_auth_session()`](/reference/python-sdk/connect-and-grants#poll_auth_session), `verify_user_token()`
 - [`get_approval_status()`](/reference/python-sdk/connect-and-grants#get_approval_status), [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval)
 - `agents` namespace (see [Agents & Keys](/reference/python-sdk/agents#appagents-namespace))
 - `keys` namespace (see [Agents & Keys](/reference/python-sdk/agents#keys-namespace))
 - `scopes` namespace (see [Calling APIs](/reference/python-sdk/calling-apis#scopeslist))
+- `oauth_providers` namespace — [`oauth_providers.list()`](/reference/python-sdk/connect-and-grants#oauth_providerslist) (OAuth provider catalog)
 - `with_constraints()`, `get_agent()` (below)
 
 ### with_constraints
@@ -171,6 +172,7 @@ Agent(
 - [`me()`](/reference/python-sdk/agents#me) — self-introspection (agent-only).
 - [`request()`](/reference/python-sdk/calling-apis#request), [`proxy_request()`](/reference/python-sdk/calling-apis#proxy_request), [`boto3_client()`](/reference/python-sdk/calling-apis#boto3_client)
 - [`list_grants()`](/reference/python-sdk/connect-and-grants#list_grants)
+- [`oauth_providers.list()`](/reference/python-sdk/connect-and-grants#oauth_providerslist) — OAuth provider catalog.
 - [`create_connect_session()`](/reference/python-sdk/connect-and-grants#create_connect_session), [`connect()`](/reference/python-sdk/connect-and-grants#connect)
 - [`revoke_delegation()`](/reference/python-sdk/connect-and-grants#revoke_delegation) — self-revoke only.
 - [`get_approval_status()`](/reference/python-sdk/connect-and-grants#get_approval_status), [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval)
