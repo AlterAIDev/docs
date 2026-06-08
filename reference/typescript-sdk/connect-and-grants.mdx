@@ -281,17 +281,17 @@ async listGrants(
 
 Available on both [`App`](/reference/typescript-sdk/client#app) and [`Agent`](/reference/typescript-sdk/client#agent). The backend dispatches by principal kind:
 
-- **App** — OAuth grants visible to the application. When `userTokenGetter` is configured (or `endUserToken` is passed), results are scoped to the resolved end user; otherwise app-wide grants are returned.
-- **Agent** — every grant the agent can use: OAuth delegations plus agent-owned managed-secret grants. Mixed result type.
+- **App** — every grant the application owns: OAuth **and** managed-secret, across all principal kinds (user, group, system, agent). With `userTokenGetter` configured (or `endUserToken` passed), the list narrows to that end user — their own grants plus group grants they are a live member of.
+- **Agent** — only what the agent can reach: OAuth grants delegated to it, plus managed-secret grants it owns or that are delegated to it (`accessVia` marks `ownership` vs delegation). Other agents' grants, non-delegating users' grants, and generic system grants are invisible. Mixed result type.
 
-Both `AppListGrantsOptions` and `AgentListGrantsOptions` accept the same filters:
+Both `AppListGrantsOptions` and `AgentListGrantsOptions` accept the same filters — all AND-ed, each only narrowing the result:
 
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `providerId` | `string` | — | Filter to one provider. |
 | `status` | `string` | — | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
 | `account` | `string` | — | Filter by `accountIdentifier` (multi-account disambiguation). |
-| `endUserToken` | `string` | — | Scope to one end user by their JWT. On `App`, takes precedence over `userTokenGetter`; on `Agent`, scopes the *delegated* OAuth grants (agent-owned managed-secret grants are unaffected). |
+| `endUserToken` | `string` | — | Scope to one end user by their JWT — their direct grants plus live group-member grants. On `App`, takes precedence over `userTokenGetter`; on `Agent`, narrows the *delegated* OAuth grants (agent-owned managed-secret grants are unaffected). An invalid token is a hard `401`, never a silent fall-through to app scope. |
 | `limit` | `number` | `100` | Page size (1..1000). |
 | `offset` | `number` | `0` | Page offset. |
 

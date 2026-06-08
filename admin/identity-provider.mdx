@@ -21,6 +21,8 @@ The **user-ID claim** is the token field Alter uses as each user's permanent ide
 
 <Note>
 When OIDC sign-in credentials are saved, Alter verifies the **Client ID** and **Client Secret** against the provider's token endpoint, so a wrong client ID or secret is rejected at save time rather than surfacing at the first sign-in. If the provider can't be reached (or returns an inconclusive response), the credentials are saved anyway with a notice to verify them with a test sign-in.
+
+Rotate the **Client ID** and **Client Secret** together. Submitting a new Client ID without also entering the Client Secret verifies the new ID against the previously saved secret, which can be rejected as an invalid pair — re-enter both whenever either changes.
 </Note>
 
 ## Supported providers

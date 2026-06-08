@@ -350,11 +350,11 @@ async def list_grants(
 | `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
 | `status` | `str \| None` | `None` | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
 | `account` | `str \| None` | `None` | Filter by `account_identifier` (multi-account disambiguation). |
-| `end_user_token` | `str \| None` | `None` | Scope the list to one end user by their JWT. Takes precedence over a configured `user_token_getter`. |
+| `end_user_token` | `str \| None` | `None` | Scope the list to one end user by their JWT — their own grants plus group grants they are a live member of. Takes precedence over a configured `user_token_getter`; an invalid token is rejected with `401`, never a silent fall-through to app scope. |
 | `limit` | `int` | `100` | Page size, 1-1000. |
 | `offset` | `int` | `0` | Page offset. |
 
-When the `App` is constructed with a `user_token_getter`, the JWT is forwarded so the backend scopes the list to the resolving AppUser. Without a getter (and without `end_user_token`), the response is app-wide.
+**Scope.** With no end-user scoping, `App.list_grants` returns *every* grant the app owns — both OAuth and managed-secret — across every principal kind (user, group, system, agent). Construct the `App` with a `user_token_getter`, or pass `end_user_token`, to narrow the list to one end user: their own grants plus any group grants they are a live member of. All filters are composable and AND-ed; each only narrows the result.
 
 ```python
 from alter_sdk import App, Provider
@@ -390,7 +390,7 @@ async def list_grants(
 | `limit` | `int` | `100` | Page size, 1-1000. |
 | `offset` | `int` | `0` | Page offset. |
 
-Returns a merged view: delegated OAuth grants the agent can act on AND agent-owned managed-secret grants. Without filters, the response is the complete view of grants visible to the calling agent.
+**Scope.** Returns only the grants the calling agent can reach: OAuth grants delegated to it, plus managed-secret grants it owns or that are delegated to it. The `access_via` field on each item marks `ownership` versus delegation (`oauth_delegation` / `ms_delegation`). Everything else is invisible — grants belonging to other agents, grants of users who did not delegate to this agent, and generic system grants. All filters are composable and AND-ed.
 
 ```python
 page = await agent.list_grants()

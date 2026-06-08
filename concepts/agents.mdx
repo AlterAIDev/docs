@@ -25,7 +25,7 @@ Apps and agents can be mixed freely. One app instance, N agent instances — eac
 An agent reaches **only** the grants the operator bound to that specific agent. Two paths:
 
 - **User-delegated OAuth grants** — a user consented to delegate one of their connections to this agent during the OAuth flow. See [Delegation](/concepts/credentials#delegation).
-- **Agent-owned managed secrets** — an operator issued a managed-secret grant directly to this agent.
+- **Managed-secret grants it owns or that are delegated to it** — an operator issued a managed-secret grant directly to this agent, or a user delegated one to it. See [Delegation](/concepts/credentials#delegation).
 
 `agent.list_grants()` returns the merged view of both kinds. Anything else — grants belonging to other agents, grants belonging to users who did not delegate, generic system grants — is invisible to the agent.
 
