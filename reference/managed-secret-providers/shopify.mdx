@@ -16,22 +16,26 @@ Use Shopify credentials to make authenticated API calls through Alter Vault with
 ## Step 1: Get Credentials
 
 <Steps>
-  <Step title="Log in to your Shopify Admin">
-    Log in to your Shopify Admin at [admin.shopify.com](https://admin.shopify.com/).
+  <Step title="Open the Shopify Dev Dashboard">
+    Open the [Shopify Dev Dashboard](https://dev.shopify.com/dashboard) and select (or create) the organization that owns the store.
   </Step>
-  <Step title="Go to Settings → Apps">
-    Go to Settings → Apps and sales channels → Develop apps.
+  <Step title="Create a custom app">
+    Click 'Create app', choose 'Custom app', name it, and confirm the destination store.
   </Step>
-  <Step title="Create an app">
-    Click 'Create an app', configure API scopes, and install it.
+  <Step title="Configure scopes and install">
+    Open the app, go to Configuration → Admin API access scopes, select the scopes the integration needs, then install the app on the store.
   </Step>
   <Step title="Copy the Admin API access token">
-    Copy the Admin API access token (starts with shpat_).
+    Copy the Admin API access token (starts with shpat_) — it is only shown once at install time.
   </Step>
   <Step title="Enter your store subdomain">
-    Enter your store subdomain (e.g. 'your-store' from your-store.myshopify.com) in the Store Subdomain field.
+    Enter the store subdomain (e.g. 'your-store' from your-store.myshopify.com) in the Store Subdomain field.
   </Step>
 </Steps>
+
+<Note>
+  Since January 1, 2026, new custom apps can no longer be created from the Shopify admin's Settings → Apps → Develop apps page — new custom apps must be created in the Dev Dashboard. Custom apps created in the admin before that date keep working and remain manageable from Settings → Apps → Develop apps.
+</Note>
 
 <Warning>
   Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.

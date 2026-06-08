@@ -1,0 +1,73 @@
+---
+title: 'alter grants'
+description: 'Inspect and revoke end-user grants (OAuth + managed-secret).'
+---
+
+A grant is an authorization that says "this end-user (or agent) can use credential X on this app." Two kinds exist — OAuth grants (provider-issued tokens) and managed-secret grants (developer-stored credentials) — and both surface through one command.
+
+```
+alter grants list   --app <app-id> [--status ...] [--provider ...] [--app-user ...] [--search ...]
+alter grants revoke --app <app-id> --grant <grant-id> [--reason "..."] [--yes]
+```
+
+`list` returns a polymorphic stream: each row carries a `grant_type` discriminator (`oauth` or `managed_secret`). `revoke` takes either kind by id — the backend routes the cascade based on the row's actual table.
+
+`list` needs `dashboard_grants:read` (in the default `alter auth login` scope set). `revoke` needs `dashboard_grants:admin` and is **not** in the default set — re-run `alter auth login` with `--scopes` and include the full set of scopes you want on the new PAT, plus `dashboard_grants:admin`. Note that `--scopes` REPLACES the default set rather than appending to it, so list every scope you need explicitly. Grant revocation is recoverable (re-consent restores access through the OAuth flow), which is why it sits on the standard `:admin` tier rather than a separate `:delete` tier.
+
+## list
+
+| Flag | Default | Description |
+|---|---|---|
+| `--app <app-id>` | — | App ID. Falls back to `ALTER_APP_ID`. |
+| `--status <status>` | all | `active`, `expired`, or `revoked`. Case-sensitive. |
+| `--provider <id>` | all | Filter by provider ID (e.g. `google`, `github`, or a managed-secret template slug). |
+| `--app-user <uuid>` | all | Filter to one end-user. |
+| `--search <text>` | — | Substring match on user identifier or display name (max 100 chars; backend-side). |
+| `--limit <n>` | `100` | Page size (1–1000). |
+| `--offset <n>` | `0` | Pagination offset. Clamps to 10,000 with `is_truncated=true`. |
+| `--output <format>` | `table` | `json`, `jsonl`, or `table`. |
+
+```bash
+# All active grants on an app
+alter grants list --app <app-id> --status active
+
+# Just one provider, as newline-delimited JSON for piping
+alter grants list --app <app-id> --provider google --output jsonl
+```
+
+## revoke
+
+Revoke a grant immediately. Cascades to active agent delegations under the grant, then best-effort-deletes the vault token.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--app <app-id>` | — | App ID. Falls back to `ALTER_APP_ID`. |
+| `--grant <grant-id>` | — | Grant ID (required). |
+| `--reason "<text>"` | — | Optional operator-supplied reason recorded on the audit row. |
+| `--yes` | — | Skip the interactive y/N prompt (use in scripts). |
+
+```bash
+alter grants revoke --app <app-id> --grant <grant-id> \
+  --reason "user requested deletion" --yes
+```
+
+## Recipes
+
+**Find expired grants for a user**
+
+```bash
+alter grants list --app <app-id> --app-user <uuid> --status expired
+```
+
+**Revoke every grant for a single provider**
+
+```bash
+alter grants list --app <app-id> --provider github --status active --output jsonl \
+  | jq -r '.id' \
+  | xargs -I{} alter grants revoke --app <app-id> --grant {} --yes
+```
+
+## Related
+
+- [Audit logs](/concepts/audit-logs) — every revoke produces an audit row with `actor_source=pat` when CLI-driven
+- [`alter audit grant-events`](/reference/cli/commands/audit) — query the same revocations after the fact

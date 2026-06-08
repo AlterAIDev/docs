@@ -154,6 +154,7 @@
                 "reference/cli/commands/managed-secrets",
                 "reference/cli/commands/policy",
                 "reference/cli/commands/audit",
+                "reference/cli/commands/grants",
                 "reference/cli/commands/sdk-passthrough"
               ]
             }
@@ -324,6 +325,10 @@
     {
       "source": "/cli/commands/audit",
       "destination": "/reference/cli/commands/audit"
+    },
+    {
+      "source": "/cli/commands/grants",
+      "destination": "/reference/cli/commands/grants"
     },
     {
       "source": "/cli/commands/sdk-passthrough",

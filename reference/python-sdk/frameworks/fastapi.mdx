@@ -76,7 +76,13 @@ app = FastAPI()
 @app.get("/grants")
 async def list_grants(vault = Depends(alter)):
     page = await vault.list_grants()
-    return [{"id": g.grant_id, "provider": g.provider_id} for g in page.grants]
+    # Branch on grant_kind — an operator list also includes managed-secret
+    # grants, which have no provider_id.
+    return [
+        {"id": g.grant_id, "provider": g.provider_id}
+        for g in page.grants
+        if g.grant_kind == "oauth"
+    ]
 
 @app.post("/connect")
 async def start_connect(vault = Depends(alter)):

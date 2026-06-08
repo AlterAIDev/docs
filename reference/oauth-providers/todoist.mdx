@@ -12,7 +12,7 @@ Connect your users to Todoist for task management, project organization, and pro
 | **Provider ID** | `todoist` |
 | **Category** | Productivity |
 | **PKCE** | Not supported |
-| **Token refresh** | Not supported (permanent tokens) |
+| **Token refresh** | Automatic (new apps); legacy apps use permanent tokens |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a Todoist OAuth App
@@ -76,6 +76,6 @@ Connect your users to Todoist for task management, project organization, and pro
 
 ## Notes
 
-- Todoist tokens do not expire. There is no refresh token flow.
+- Newly-created Todoist apps issue refresh tokens by default; access tokens expire after one hour and Alter Vault renews them automatically. Apps created before refresh tokens were introduced continue to receive long-lived tokens that do not expire.
 - For most integrations, `data:read` or `data:read_write` is sufficient.
 - See the [Todoist authorization documentation](https://developer.todoist.com/guides/#authorization) for more details.

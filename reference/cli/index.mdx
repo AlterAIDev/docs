@@ -1,6 +1,6 @@
 ---
 title: 'Alter CLI'
-description: 'Manage apps, keys, agents, providers, secrets, and audit logs from the command line.'
+description: 'Manage apps, keys, agents, providers, secrets, grants, and audit logs from the command line.'
 ---
 
 `alter` is the command-line client for the Alter developer portal. The day-to-day dashboard operations — create apps, mint keys, configure providers, issue managed-secret grants, read the audit log — are available as scriptable commands, authenticated with a Personal Access Token (PAT). A few org-wide and destructive operations stay dashboard-only by design (see [What's not in the CLI](#whats-not-in-the-cli)).
@@ -66,6 +66,7 @@ The CLI mirrors the dashboard's resource model. Each namespace maps to a concept
 | [`managed-secrets`](/reference/cli/commands/managed-secrets) | Backend credentials, grants, and access | [Managed secrets](/concepts/credentials#managed-secrets) |
 | [`policy`](/reference/cli/commands/policy) | App-level policy (read-only) | [Policies](/concepts/policies) |
 | [`audit`](/reference/cli/commands/audit) | The audit log | [Audit logs](/concepts/audit-logs) |
+| [`grants`](/reference/cli/commands/grants) | End-user OAuth + managed-secret grants | — |
 | [`sdk-passthrough`](/reference/cli/commands/sdk-passthrough) | One-off authenticated provider requests | — |
 
 Every namespace follows the same shape: `alter <namespace> <verb> [arguments] [flags]`. Run any command with `--help` for its full option list.

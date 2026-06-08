@@ -15,23 +15,23 @@ Connect your users to Squarespace for website content management, ecommerce orde
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
-## Step 1: Create a Squarespace OAuth App
+## Step 1: Register a Squarespace OAuth Client
 
 <Steps>
-  <Step title="Go to the Squarespace Developer Portal">
-    Navigate to [developers.squarespace.com](https://developers.squarespace.com/) and sign in.
+  <Step title="Open the Squarespace OAuth documentation">
+    Navigate to the [Squarespace OAuth guide](https://developers.squarespace.com/commerce-apis/oauth).
   </Step>
 
-  <Step title="Create a new application">
-    Register a new application and enter the app name and description.
+  <Step title="Submit the OAuth client registration form">
+    Squarespace OAuth clients are registered by submitting the request form linked under **Register the client and obtain OAuth 2.0 credentials**.
   </Step>
 
-  <Step title="Configure the redirect URI">
-    Add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) to the **Redirect URIs** field.
+  <Step title="Provide the redirect URI">
+    Provide the client name, icon, and the Alter callback URL from the [Developer Portal](https://portal.alterauth.com) as a **Redirect URI**.
   </Step>
 
   <Step title="Get credentials">
-    Copy the **Client ID** and **Client Secret**.
+    Squarespace reviews the registration and returns the **Client ID** and **Client Secret**.
   </Step>
 </Steps>
 
@@ -68,15 +68,18 @@ Connect your users to Squarespace for website content management, ecommerce orde
 
 | Scope | Description |
 |-------|-------------|
-| `website.orders.read` | Read order data |
-| `website.orders.write` | Manage orders |
-| `website.inventory.read` | Read inventory data |
-| `website.inventory.write` | Manage inventory |
-| `website.pages.read` | Read page content |
-| `website.products.read` | Read product catalog |
-| `website.products.write` | Manage products |
+| `website.orders.read` | View order and fulfillment information |
+| `website.orders` | Send order data and mark orders as fulfilled |
+| `website.transactions.read` | Access transactional order and donation data |
+| `website.inventory.read` | View inventory stock levels |
+| `website.inventory` | View and update inventory stock levels |
+| `website.products.read` | View product information |
+| `website.products` | View product information and modify products |
+| `website.contacts.read` | View customer contact information and address book entries |
+| `website.contacts` | View, create, update, and delete contacts and address book entries |
 
 ## Notes
 
-- Squarespace issues short-lived tokens. Alter Vault handles automatic token refresh.
-- See the [Squarespace OAuth documentation](https://developers.squarespace.com/oauth) for more details.
+- Scopes are comma-separated when requested.
+- Access tokens expire after 30 minutes. Alter Vault handles automatic token refresh; refresh tokens last 7 days and are rotated (single-use) on each refresh.
+- See the [Squarespace OAuth documentation](https://developers.squarespace.com/commerce-apis/oauth) for more details.

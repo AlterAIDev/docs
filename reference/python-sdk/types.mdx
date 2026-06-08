@@ -158,12 +158,13 @@ GrantListItem = OAuthGrantItem | ManagedSecretGrantItem
 | `created_at` | `str` | |
 | `last_used_at` | `str \| None` | |
 | `principal_type` | `"user" \| "system"` | |
+| `access_via` | `"ownership" \| "oauth_delegation"` | How the caller reached the grant. |
 | `delegated_at` | `str \| None` | Agent-branch field: when the calling agent's delegation row was created. |
 | `delegated_agent_ids` | `list[str]` | Operator-branch field: agent UUIDs this grant is currently delegated to. |
 
 ### ManagedSecretGrantItem
 
-`grant_kind="managed_secret"`. Agent-branch only.
+`grant_kind="managed_secret"`. Returned for any managed-secret grant the caller can reach — an operator (`App`) list surfaces every principal kind the app owns; an agent list surfaces its own and delegated grants.
 
 | Field | Type |
 |---|---|
@@ -172,13 +173,17 @@ GrantListItem = OAuthGrantItem | ManagedSecretGrantItem
 | `managed_secret_id` | `str` |
 | `managed_secret_slug` | `str` |
 | `managed_secret_name` | `str` |
-| `agent_id` | `str` |
+| `agent_id` | `str \| None` |
 | `label` | `str \| None` |
 | `status` | `str` |
+| `account_identifier` | `str \| None` |
 | `grant_policy` | `dict \| None` |
+| `expires_at` | `str \| None` |
 | `created_at` | `str` |
 | `last_used_at` | `str \| None` |
-| `principal_type` | `"agent"` |
+| `principal_type` | `"user" \| "group" \| "system" \| "agent"` |
+| `access_via` | `"ownership" \| "ms_delegation"` |
+| `delegated_at` | `str \| None` |
 
 ### GrantListResult (legacy)
 

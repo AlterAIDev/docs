@@ -12,7 +12,7 @@ Connect your users to ClickUp for project management, task tracking, and team co
 | **Provider ID** | `clickup` |
 | **Category** | Productivity |
 | **PKCE** | Supported |
-| **Token refresh** | Automatic |
+| **Token refresh** | Not supported (permanent tokens) |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
 
 ## Step 1: Create a ClickUp OAuth App
@@ -63,3 +63,4 @@ Connect your users to ClickUp for project management, task tracking, and team co
 ## Notes
 
 - ClickUp does not use scopes. The OAuth token grants access based on the user's workspace permissions.
+- ClickUp access tokens do not expire and there is no refresh token flow.

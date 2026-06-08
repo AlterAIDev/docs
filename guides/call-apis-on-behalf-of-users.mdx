@@ -178,9 +178,12 @@ For an in-app "Connected accounts" page, list grants visible to the calling user
 async def list_connections(user = Depends(authenticated_user)):
     current_jwt.set(user.jwt)
     page = await app.list_grants()
+    # list_grants() returns a discriminated union — branch on grant_kind before
+    # reading OAuth-only fields (managed-secret items have no provider_id).
     return [
         {"provider": g.provider_id, "account": g.account_identifier, "grant_id": g.grant_id}
         for g in page.grants
+        if g.grant_kind == "oauth"
     ]
 ```
 
@@ -188,9 +191,12 @@ async def list_connections(user = Depends(authenticated_user)):
 router.get("/api/connections", authenticated, async (req, res) => {
   await jwtStore.run(req.user.jwt, async () => {
     const page = await app.listGrants();
-    res.json(page.grants.map(g => ({
-      provider: g.providerId, account: g.accountIdentifier, grantId: g.grantId,
-    })));
+    // Branch on grantKind — managed-secret items have no providerId.
+    res.json(
+      page.grants
+        .filter(g => g.grantKind === "oauth")
+        .map(g => ({ provider: g.providerId, account: g.accountIdentifier, grantId: g.grantId })),
+    );
   });
 });
 ```
