@@ -15,10 +15,12 @@ AlterSDKError
 │   │   ├── CredentialRevokedError
 │   │   └── GrantDeletedError
 │   ├── GrantNotFoundError          — wrong grant_id; fix the code
-│   ├── AmbiguousGrantError         — JWT matched multiple grants; pick one
+│   ├── AmbiguousGrantError         — multiple grants matched; pick one
 │   ├── PolicyViolationError        — policy denied; may resolve later
 │   ├── InsufficientScopeError      — key scopes don't cover the route
 │   ├── NoDelegatedGrantError       — agent has no access path to the provider
+│   ├── RestrictedGrantRequiresProxyError — restricted grant; use the proxy call path
+│   ├── SiblingLabelConflictError   — label already in use on this connection
 │   ├── TokenRefreshInProgressError — transient 409; retry
 │   └── AgentError                  — managed-agent management
 │       ├── InvalidKeyError
@@ -65,16 +67,42 @@ The hierarchy is built so that catching a parent class handles every leaf that r
 
 ### `AmbiguousGrantError`
 
-Raised when the JWT matches more than one grant for the same provider.
+Raised when provider-based resolution matches more than one grant. Alter never
+silently picks a grant — there is no "default grant" or "most recently
+connected wins" behavior. The error enumerates the candidates so the caller
+(or the end user, conversationally) chooses explicitly. The candidates are
+always scoped to the caller's own accessible grants — the error can never
+reveal a grant the caller could not use.
 
 | Attribute | Description |
 |---|---|
 | `provider_id` | The provider whose grants matched. |
+| `candidates` | One entry per matching grant: `grant_id` and `label` (the sibling address — retry with `provider + label`), plus, where the caller may see them, `account_identifier` and `account_display_name`. Retry with the chosen `grant_id` — the universal disambiguator. |
 | `account_identifiers` | List of matching accounts; show to the user to pick. |
 | `account_was_provided` | True if `account=` was already passed and still produced an ambiguity (sign of a mis-set account). |
-| `app_user_ids` | (Agent flavor) UUIDs of the users with matching delegations. |
+| `app_user_ids` | (Agent flavor) UUIDs of the users with matching delegations. For an agent holding delegations from multiple users, `candidates` carry grant IDs and labels only — other users' account identifiers are never exposed to the agent. |
 
-Pass `account=<chosen>` (or `user_token=<jwt>` for the agent flavor) to disambiguate on retry.
+Pass the chosen `grant_id` (or `account=<chosen>` / `label=<chosen>` /
+`user_token=<jwt>` for the account / label / agent flavors) to disambiguate
+on retry. For production workloads, prefer addressing grants by `grant_id`
+from the start — the Connect flow returns it at consent time, and it stays
+unambiguous no matter how many grants a user adds later.
+
+### `RestrictedGrantRequiresProxyError`
+
+Raised when raw-token retrieval is attempted against a grant whose policy
+carries method/endpoint restrictions. Restricted grants are proxy-only by
+design — a token handed to the caller could not be held to the restriction —
+and there is no opt-out. Switch the call to the SDK's proxied execution path
+(`proxy_request()` / `proxyRequest()`); restriction denials there surface as
+`PolicyViolationError`.
+
+### `SiblingLabelConflictError`
+
+Raised by `mint_grant()` / `mintGrant()` when the requested label is already
+held by an active grant on the same connection. Carries `label`. Pick a
+different label, or revoke the holder first — revoking a grant frees its
+label.
 
 ### `InsufficientScopeError`
 

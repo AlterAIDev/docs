@@ -206,7 +206,9 @@ Modes can be mixed in one application — different SDK instances for different 
 
 ### Ambiguous resolution
 
-A JWT can match more than one grant if the user has connected the same provider multiple times (personal + work Gmail). The backend raises [`AmbiguousGrantError`](/reference/errors) with the matching account identifiers; application code passes `account=…` on retry to pick one.
+A JWT can match more than one grant if the user has connected the same provider multiple times (personal + work Gmail) or holds [`several sibling grants on one connection`](/concepts/credentials#multiple-grants-on-one-connection). The backend raises [`AmbiguousGrantError`](/reference/errors) whose `candidates` list the matching grants (grant ID, label, and account context); application code passes the chosen `grant_id` — or `account=…` / `label=…` — on retry to pick one.
+
+**Resolution never guesses.** When more than one grant matches, the call fails with the candidate list — there is no "default grant" and no "most recently connected wins". A silently-picked credential is an account mix-up waiting to happen; the explicit error, with the fix enclosed, is the contract. For production workloads, `grant_id` (mode 2) is the recommended path: the Connect flow returns it at consent time, and it stays unambiguous no matter how many grants a user adds later.
 
 ## What's next
 
