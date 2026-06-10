@@ -29,6 +29,11 @@ For every administrative action:
 
 - Provider configuration changes, API key mint/rotate/revoke, agent create/update/revoke, identity provider configuration.
 
+For every user-provisioning event (the **Provisioning** tab in the portal's Audit Logs view):
+
+- Users and groups created, updated, or deprovisioned — whether by an [IDP webhook](/admin/identity-provider), a [directory sync](/admin/identity-provider#how-directory-sync-works) run, or a first sign-in.
+- Each row records the originating path, the outcome (success, no-op, skipped, denied, error), and the reason.
+
 ## The two questions an audit trail answers
 
 Alter's audit model is built around two questions that traditional credential systems struggle with:

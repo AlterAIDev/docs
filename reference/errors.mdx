@@ -43,7 +43,8 @@ AlterSDKError
 │   ├── ConnectConfigError          — OAuth app misconfigured
 │   └── ConnectTimeoutError         — user didn't complete in time
 ├── ProviderAPIError                — provider returned 4xx/5xx
-│   └── ScopeReauthRequiredError   — 403 + scope mismatch; re-authorize
+│   ├── ScopeReauthRequiredError   — 403 + scope mismatch; re-authorize
+│   └── ProviderUnauthorizedError  — 401; token rejected provider-side; re-authorize
 ├── ApprovalError                   — HITL approval branch
 │   ├── ApprovalDeniedError
 │   ├── ApprovalExpiredError
@@ -81,6 +82,7 @@ reveal a grant the caller could not use.
 | `account_identifiers` | List of matching accounts; show to the user to pick. |
 | `account_was_provided` | True if `account=` was already passed and still produced an ambiguity (sign of a mis-set account). |
 | `app_user_ids` | (Agent flavor) UUIDs of the users with matching delegations. For an agent holding delegations from multiple users, `candidates` carry grant IDs and labels only — other users' account identifiers are never exposed to the agent. |
+| `grant_ids` | (Managed-secret flavor) IDs of the matching grants when one user delegated multiple managed-secret grants of the same template to the agent. Retry with the chosen `grant_id`. |
 
 Pass the chosen `grant_id` (or `account=<chosen>` / `label=<chosen>` /
 `user_token=<jwt>` for the account / label / agent flavors) to disambiguate
@@ -257,4 +259,4 @@ try {
 
 ### What recovery does NOT cover
 
-- **`AmbiguousGrantError`** — surface the existing `account_identifiers` / `app_user_ids` fields to let the user pick, then retry with `account=` or `user_token=`. Minting a new session would be the wrong remediation here.
+- **`AmbiguousGrantError`** — surface `candidates` (each carries a `grant_id`, the universal disambiguator) to let the user or agent pick, then retry with the chosen `grant_id`. For the OAuth account flavor, `account_identifiers` + `account=` and, for the agent flavor, `app_user_ids` + `user_token=` are alternates — and the only usable disambiguators when account/user fields are empty are the `grant_id`s in `candidates`. Minting a new session would be the wrong remediation here.
