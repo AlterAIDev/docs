@@ -1,0 +1,69 @@
+---
+title: 'Deepgram'
+description: 'Connect Deepgram to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Deepgram credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `deepgram` |
+| **Category** | AI |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Deepgram Console">
+    Log in to the Deepgram Console at [console.deepgram.com](https://console.deepgram.com/).
+  </Step>
+  <Step title="Open the API Keys tab">
+    Select a project and open the **API Keys** tab.
+  </Step>
+  <Step title="Create a key">
+    Click **Create a New API Key**, name it, and choose a permission level.
+  </Step>
+  <Step title="Copy the key">
+    Copy the key — it is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Deepgram">
+    Go to **Managed Secrets** > **Add Provider** > **Deepgram**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://api.deepgram.com/v1/listen",
+    grant_id="YOUR_GRANT_ID",
+)
+```
+
+## Notes
+
+- The key is injected as `Authorization: Token <key>` (Deepgram's non-Bearer scheme).

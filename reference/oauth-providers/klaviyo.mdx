@@ -1,0 +1,106 @@
+---
+title: 'Klaviyo'
+description: 'Set up Klaviyo OAuth for email marketing, SMS, and customer data'
+---
+
+## Overview
+
+Connect your users to Klaviyo for email marketing, SMS, and customer data.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `klaviyo` |
+| **Category** | Marketing |
+| **PKCE** | Required (S256) |
+| **Token refresh** | Automatic |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create a Klaviyo OAuth App
+
+<Steps>
+  <Step title="Go to Klaviyo Manage Apps">
+    Sign in to Klaviyo as an owner, admin, or manager and open [Settings > Manage Apps](https://www.klaviyo.com/manage-apps).
+  </Step>
+
+  <Step title="Create an app">
+    Click **Create App** and enter the app name.
+  </Step>
+
+  <Step title="Configure the redirect URL">
+    Add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) to the app's redirect URL allowlist.
+  </Step>
+
+  <Step title="Set scopes">
+    Set the app's scopes as a space-separated list. The scopes requested at authorization time must be part of the app's configured scope set — scopes not configured on the app are ignored.
+  </Step>
+
+  <Step title="Get credentials">
+    Copy the **Client ID** and **Client Secret**.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Klaviyo provider">
+    Go to **OAuth Providers** > **Add Provider** > **Klaviyo**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Klaviyo Client ID
+    - **Client Secret**: Paste your Klaviyo Client Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs. `accounts:read` is required and selected by default.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+Each resource exposes `:read` and (where applicable) `:write` scopes.
+
+| Resource | Scopes |
+|----------|--------|
+| Accounts | `accounts:read` (required) |
+| Campaigns | `campaigns:read`, `campaigns:write` |
+| Catalogs | `catalogs:read`, `catalogs:write` |
+| Conversations | `conversations:read`, `conversations:write` |
+| Coupons | `coupons:read`, `coupons:write`, `coupon-codes:read`, `coupon-codes:write` |
+| Data privacy | `data-privacy:read`, `data-privacy:write` |
+| Events | `events:read`, `events:write` |
+| Flows | `flows:read`, `flows:write` |
+| Forms | `forms:read` |
+| Images | `images:read`, `images:write` |
+| Lists | `lists:read`, `lists:write` |
+| Metrics | `metrics:read`, `metrics:write` |
+| Profiles | `profiles:read`, `profiles:write` |
+| Push tokens | `push-tokens:read`, `push-tokens:write` |
+| Reviews | `reviews:read` |
+| Segments | `segments:read`, `segments:write` |
+| Subscriptions | `subscriptions:read`, `subscriptions:write` |
+| Tags | `tags:read`, `tags:write` |
+| Templates | `templates:read` |
+| Tracking settings | `tracking-settings:read`, `tracking-settings:write` |
+| Web feeds | `web-feeds:read` |
+| Webhooks | `webhooks:read`, `webhooks:write` |
+
+## Notes
+
+- Klaviyo requires PKCE (S256) for all OAuth clients, including confidential ones. Alter Vault handles PKCE automatically.
+- Tokens grant access to the Klaviyo **account**, not an individual user. Only owner, admin, and manager roles can authorize apps.
+- Access tokens expire after 1 hour. The refresh token persists until the app is uninstalled, revoked, or unused for 90 days.
+- Request the least permissive scope set — Klaviyo rejects Marketplace listings that request more permissions than necessary.
+- See the [Klaviyo OAuth documentation](https://developers.klaviyo.com/en/docs/set_up_oauth) for more details.

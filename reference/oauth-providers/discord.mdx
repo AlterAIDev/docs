@@ -68,18 +68,18 @@ Connect your users to Discord for identity verification, server membership data,
 
 | Scope | Description |
 |-------|-------------|
-| `identify` | Access to user ID, username, and avatar |
-| `email` | Access to user's verified email address |
-| `guilds` | Access to list of servers the user belongs to |
-| `guilds.join` | Add user to a server |
-| `guilds.members.read` | Read server member data |
-| `messages.read` | Read DM messages (requires approval) |
-| `bot` | Add a bot to a server |
-| `connections` | Access to linked third-party accounts |
-| `webhook.incoming` | Create webhooks in servers |
+| `identify` | View the user's username, avatar, and banner |
+| `email` | View the user's email address |
+| `guilds` | View the servers the user is a member of |
+| `guilds.join` | Add the user to a server |
+| `guilds.members.read` | View the user's member info in servers |
+| `messages.read` | Read messages from all client channels (local RPC server API access) |
+| `bot` | Add a bot to a server (requires bot user) |
+| `connections` | View the user's linked third-party accounts |
+| `webhook.incoming` | Create incoming webhooks in servers |
 
 ## Notes
 
-- The `messages.read` scope requires Discord approval and is only available to verified bots.
+- The `messages.read` scope is part of the local RPC server API, which is in private beta and requires Discord approval.
 - For most user-facing integrations, `identify` and `email` are sufficient.
-- See the [Discord OAuth2 documentation](https://discord.com/developers/docs/topics/oauth2) for more details.
+- See the [Discord OAuth2 documentation](https://docs.discord.com/developers/topics/oauth2) for more details.

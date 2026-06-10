@@ -1,0 +1,67 @@
+---
+title: 'Elasticsearch'
+description: 'Connect Elasticsearch to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Elasticsearch credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `elasticsearch` |
+| **Category** | Search |
+| **Credential Type** | Encoded API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to Elastic Cloud">
+    Log in to [Elastic Cloud](https://cloud.elastic.co/) and open the deployment.
+  </Step>
+  <Step title="Create an API key">
+    In Kibana, go to **Stack Management** > **Security** > **API keys** and click **Create API key**.
+  </Step>
+  <Step title="Copy the encoded value">
+    Copy the **Encoded** value — it is the base64 form used directly after `ApiKey` in the Authorization header, and is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Elasticsearch">
+    Go to **Managed Secrets** > **Add Provider** > **Elasticsearch**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your Encoded API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-DEPLOYMENT.es.us-east-1.aws.elastic.cloud/my-index/_search",
+    grant_id="YOUR_GRANT_ID",
+    json={"query": {"match": {"title": "vector search"}}, "size": 5},
+)
+```
+
+## Notes
+
+- The credential is injected as `Authorization: ApiKey <encoded>` — store the encoded form of the key.

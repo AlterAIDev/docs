@@ -1,0 +1,68 @@
+---
+title: 'Apache Druid'
+description: 'Connect Apache Druid to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Apache Druid credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `druid` |
+| **Category** | Database |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to Imply Polaris">
+    Log in to [Imply Polaris](https://imply.io/) (hosted Apache Druid).
+  </Step>
+  <Step title="Create an API key">
+    Go to **Administration** > **API Keys** and create a key.
+  </Step>
+  <Step title="Copy the key">
+    Copy the key — Polaris keys are used directly after `Basic` in the Authorization header.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Apache Druid">
+    Go to **Managed Secrets** > **Add Provider** > **Apache Druid**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-ORG.YOUR-REGION.YOUR-CLOUD.api.imply.io/v1/projects/PROJECT_ID/query/sql",
+    grant_id="YOUR_GRANT_ID",
+    json={"query": "SELECT __time, page, user FROM wikipedia LIMIT 5"},
+)
+```
+
+## Notes
+
+- Imply Polaris API keys are pre-encoded: the header is `Authorization: Basic <api-key>` with the key verbatim.
+- Self-managed Druid clusters with basic auth enabled use `base64(username:password)` instead.

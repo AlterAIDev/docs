@@ -1,0 +1,67 @@
+---
+title: 'DataStax Astra DB'
+description: 'Connect DataStax Astra DB to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use DataStax Astra DB credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `astra` |
+| **Category** | Database |
+| **Credential Type** | Application Token |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Astra Portal">
+    Log in to the [Astra Portal](https://astra.datastax.com/).
+  </Step>
+  <Step title="Generate a token">
+    Open the database's Overview tab and click **Generate Token**.
+  </Step>
+  <Step title="Copy the token">
+    Copy the application token (starts with `AstraCS:`) — it is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add DataStax Astra DB">
+    Go to **Managed Secrets** > **Add Provider** > **DataStax Astra DB**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your Application Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-DB-ID-REGION.apps.astra.datastax.com/api/json/v1/default_keyspace/my_collection",
+    grant_id="YOUR_GRANT_ID",
+    json={"find": {"filter": {}, "options": {"limit": 5}}},
+)
+```
+
+## Notes
+
+- The token is injected via the `Token` header at the database's Data API endpoint.

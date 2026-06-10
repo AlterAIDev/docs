@@ -1,0 +1,67 @@
+---
+title: 'Qdrant'
+description: 'Connect Qdrant to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Qdrant credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `qdrant` |
+| **Category** | AI |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to Qdrant Cloud">
+    Log in to [Qdrant Cloud](https://cloud.qdrant.io/) and open the cluster.
+  </Step>
+  <Step title="Create an API key">
+    Open the **API Keys** tab and create a key (optionally read-only or scoped to collections).
+  </Step>
+  <Step title="Copy the key">
+    Copy the key — it is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Qdrant">
+    Go to **Managed Secrets** > **Add Provider** > **Qdrant**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-CLUSTER.cloud.qdrant.io/collections/my-collection/points/search",
+    grant_id="YOUR_GRANT_ID",
+    json={"vector": [0.05, 0.61, 0.76, 0.74], "limit": 5, "with_payload": True},
+)
+```
+
+## Notes
+
+- The key is injected via the `api-key` header.

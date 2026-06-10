@@ -1,0 +1,66 @@
+---
+title: 'Browserbase'
+description: 'Connect Browserbase to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Browserbase credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `browserbase` |
+| **Category** | Dev Tools |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Browserbase Dashboard">
+    Log in to the Browserbase Dashboard at [browserbase.com](https://www.browserbase.com/overview).
+  </Step>
+  <Step title="Open project Settings">
+    Open Settings for the project at [browserbase.com/settings](https://www.browserbase.com/settings).
+  </Step>
+  <Step title="Copy the key">
+    Copy the API Key, and note the Project ID — most endpoints require it as a parameter.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Browserbase">
+    Go to **Managed Secrets** > **Add Provider** > **Browserbase**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://api.browserbase.com/v1/sessions",
+    grant_id="YOUR_GRANT_ID",
+)
+```
+
+## Notes
+
+- The key is injected via the `X-BB-API-Key` header. Most endpoints also take a `projectId`, passed in the request body by the caller.

@@ -1,0 +1,62 @@
+---
+title: 'Tavily'
+description: 'Connect Tavily to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Tavily credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `tavily` |
+| **Category** | Search |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Tavily Dashboard">
+    Log in to the Tavily Dashboard at [app.tavily.com](https://app.tavily.com/).
+  </Step>
+  <Step title="Open API Keys">
+    Open the API Keys section on the home page.
+  </Step>
+  <Step title="Generate or copy a key">
+    Generate a new key or copy the default one (starts with `tvly-`).
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Tavily">
+    Go to **Managed Secrets** > **Add Provider** > **Tavily**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://api.tavily.com/search",
+    grant_id="YOUR_GRANT_ID",
+)
+```

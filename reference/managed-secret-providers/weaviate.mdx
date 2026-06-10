@@ -1,0 +1,63 @@
+---
+title: 'Weaviate'
+description: 'Connect Weaviate to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Weaviate credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `weaviate` |
+| **Category** | AI |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Weaviate Cloud Console">
+    Log in to the [Weaviate Cloud Console](https://console.weaviate.cloud/).
+  </Step>
+  <Step title="Open API keys">
+    Open the cluster's **API Keys** section.
+  </Step>
+  <Step title="Copy a key">
+    Copy the admin or read-only API key.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Weaviate">
+    Go to **Managed Secrets** > **Add Provider** > **Weaviate**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-CLUSTER.weaviate.cloud/v1/graphql",
+    grant_id="YOUR_GRANT_ID",
+    json={"query": "{ Get { Article(limit: 5) { title url } } }"},
+)
+```

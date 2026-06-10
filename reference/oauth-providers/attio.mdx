@@ -18,8 +18,8 @@ Connect your users to Attio for relationship-driven CRM, pipeline management, an
 ## Step 1: Create an Attio OAuth App
 
 <Steps>
-  <Step title="Go to Attio Developer Settings">
-    Navigate to [Attio Developer Settings](https://app.attio.com/settings/developers) and sign in.
+  <Step title="Go to the Attio Developer Dashboard">
+    Navigate to the [Attio developer dashboard](https://build.attio.com/) and sign in.
   </Step>
 
   <Step title="Create a new integration">
@@ -117,8 +117,14 @@ Connect your users to Attio for relationship-driven CRM, pipeline management, an
 | `object_configuration:read` | Read access to object and attribute configuration |
 | `object_configuration:read-write` | Read and write access to object and attribute configuration |
 
+### MCP
+
+| Scope | Description |
+|-------|-------------|
+| `mcp` | Access the Attio MCP (Model Context Protocol) server |
+
 ## Notes
 
 - Attio scopes follow a read/read-write pattern. Request only the access level the application needs.
 - For most CRM use cases, `record_permission:read` and `list_entry:read` provide sufficient read-only access.
-- See the [Attio API documentation](https://developers.attio.com/docs/authorization) for more details on available endpoints.
+- See the [Attio API documentation](https://docs.attio.com/rest-api/tutorials/connect-an-app-through-oauth) for more details on available endpoints.

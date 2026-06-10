@@ -1,0 +1,71 @@
+---
+title: 'InfluxDB'
+description: 'Connect InfluxDB to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use InfluxDB credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `influxdb` |
+| **Category** | Database |
+| **Credential Type** | API Token |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to InfluxDB Cloud">
+    Log in to [InfluxDB Cloud](https://cloud2.influxdata.com/).
+  </Step>
+  <Step title="Open API Tokens">
+    Go to **Load Data** > **API Tokens**.
+  </Step>
+  <Step title="Generate a token">
+    Generate an All Access or custom (bucket-scoped) token and copy it — it is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add InfluxDB">
+    Go to **Managed Secrets** > **Add Provider** > **InfluxDB**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-REGION.cloud2.influxdata.com/api/v2/query",
+    grant_id="YOUR_GRANT_ID",
+    query_params={"org": "YOUR-ORG"},
+    json={
+        "query": 'from(bucket: "metrics") |> range(start: -1h) |> limit(n: 5)',
+        "type": "flux",
+    },
+)
+```
+
+## Notes
+
+- The token is injected as `Authorization: Token <token>`; InfluxDB 3 endpoints also accept `Bearer`.

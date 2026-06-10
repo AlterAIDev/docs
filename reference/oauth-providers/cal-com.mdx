@@ -19,7 +19,7 @@ Connect your users to Cal.com for open-source scheduling, appointment management
 
 <Steps>
   <Step title="Go to Cal.com OAuth Settings">
-    Navigate to [Cal.com OAuth Settings](https://app.cal.com/settings/developer/oauth-clients) and sign in.
+    Navigate to [Cal.com Settings > Developer > OAuth](https://app.cal.com/settings/developer/oauth) and sign in.
   </Step>
 
   <Step title="Create OAuth Client">
@@ -27,7 +27,7 @@ Connect your users to Cal.com for open-source scheduling, appointment management
   </Step>
 
   <Step title="Configure the client">
-    Enter the client name and add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) as the **Redirect URI**.
+    Enter the client name, add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) under **Redirect URIs** (up to 10), and select at least one scope (e.g. `BOOKING_READ`, `BOOKING_WRITE`).
   </Step>
 
   <Step title="Get credentials">
@@ -68,12 +68,21 @@ Connect your users to Cal.com for open-source scheduling, appointment management
 
 | Scope | Description |
 |-------|-------------|
-| `READ_BOOKING` | Read access to bookings |
-| `READ_PROFILE` | Read access to user profile |
-| `READ_AVAILABILITY` | Read access to availability schedules |
+| `BOOKING_READ` | Read access to bookings |
+| `BOOKING_WRITE` | Create, update, and cancel bookings |
+| `EVENT_TYPE_READ` | Read access to event types |
+| `EVENT_TYPE_WRITE` | Create and modify event types |
+| `SCHEDULE_READ` | Read access to availability schedules |
+| `SCHEDULE_WRITE` | Create and modify availability schedules |
+| `PROFILE_READ` | Read access to user profile |
+| `PROFILE_WRITE` | Update user profile |
+| `APPS_READ` | Read access to installed Cal.com apps |
+| `APPS_WRITE` | Install and configure Cal.com apps |
 
 ## Notes
 
-- Cal.com is an open-source scheduling platform, so self-hosted instances may have different OAuth endpoints.
-- For most scheduling use cases, `READ_BOOKING` and `READ_AVAILABILITY` provide sufficient access.
-- See the [Cal.com documentation](https://cal.com/docs/platform/quick-start) for more details on available API endpoints.
+- Scopes use the `RESOURCE_ACTION` format (e.g. `BOOKING_READ`, `BOOKING_WRITE`) — not `READ_BOOKING`.
+- Newly created OAuth clients start in **pending** status and require admin approval from the Cal.com team before they can be used.
+- Cal.com's standard OAuth (this provider) is a separate flow from Cal.com Platform's "managed users" system — that variant is not covered by this provider.
+- For most scheduling use cases, `BOOKING_READ` and `SCHEDULE_READ` provide sufficient access.
+- See the [Cal.com OAuth documentation](https://cal.com/docs/api-reference/v2/oauth) for more details on the flow, scopes, and available API endpoints.

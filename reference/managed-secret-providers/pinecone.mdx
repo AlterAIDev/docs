@@ -1,0 +1,71 @@
+---
+title: 'Pinecone'
+description: 'Connect Pinecone to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Pinecone credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `pinecone` |
+| **Category** | AI |
+| **Credential Type** | API Key |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Pinecone Console">
+    Log in to the Pinecone Console at [app.pinecone.io](https://app.pinecone.io/).
+  </Step>
+  <Step title="Navigate to API Keys">
+    Select a project and navigate to **API Keys**.
+  </Step>
+  <Step title="Create a key">
+    Click **Create API Key** and name it.
+  </Step>
+  <Step title="Copy the key">
+    Copy the key — it is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Pinecone">
+    Go to **Managed Secrets** > **Add Provider** > **Pinecone**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your API Key into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-INDEX-HOST.pinecone.io/query",
+    grant_id="YOUR_GRANT_ID",
+    json={"vector": [0.05, 0.61, 0.76, 0.74], "topK": 5, "includeMetadata": True},
+)
+```
+
+## Notes
+
+- The key is injected via the `Api-Key` header.
+- The same API key authorizes both the control plane (`api.pinecone.io`) and the index data plane — copy the index's host from the Pinecone Console and query it directly.

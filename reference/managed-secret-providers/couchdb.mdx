@@ -1,0 +1,67 @@
+---
+title: 'Apache CouchDB'
+description: 'Connect Apache CouchDB to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Apache CouchDB credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `couchdb` |
+| **Category** | Database |
+| **Credential Type** | Base64 Credentials |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Create a CouchDB user">
+    Create a CouchDB user with access to the databases the integration needs.
+  </Step>
+  <Step title="Encode the credentials">
+    Base64-encode the credentials: `echo -n 'username:password' | base64`.
+  </Step>
+  <Step title="Paste the encoded string">
+    Paste the encoded string into the credential field.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Apache CouchDB">
+    Go to **Managed Secrets** > **Add Provider** > **Apache CouchDB**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your Base64 Credentials into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-COUCHDB-HOST/mydb/_find",
+    grant_id="YOUR_GRANT_ID",
+    json={"selector": {"type": "user"}, "limit": 5},
+)
+```
+
+## Notes
+
+- CouchDB uses HTTP Basic authentication — the stored value is injected as `Authorization: Basic <encoded>`.

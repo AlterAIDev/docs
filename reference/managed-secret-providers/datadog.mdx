@@ -26,10 +26,10 @@ Use Datadog credentials to make authenticated API calls through Alter Vault with
     Click 'New Key' to create an API key and copy it.
   </Step>
   <Step title="Get the Application Key">
-    For the Application Key, go to Organization Settings → Application Keys.
+    For the Application Key, go to Organization Settings → Application Keys and create a new key tied to a user account.
   </Step>
   <Step title="Enter your Datadog site">
-    If using a non-US site, enter your Datadog site in the Datadog Site field (e.g. datadoghq.eu).
+    If the organization is on a non-US1 site (EU, US3, US5, AP1, AP2, gov), enter the matching site in the Datadog Site field (e.g. datadoghq.eu).
   </Step>
 </Steps>
 
@@ -62,11 +62,11 @@ Use Datadog credentials to make authenticated API calls through Alter Vault with
 ```python
 response = await alter_app.request(
     HttpMethod.GET,
-    "https://api.YOUR_DATADOG_SITE/api/v1/events",
-    grant_id="YOUR_GRANT_ID",  # e.g. datadoghq.com (US1), datadoghq.eu (EU), us3.datadoghq.com, etc.
+    "https://api.YOUR_DATADOG_SITE/api/v1/events",  # YOUR_DATADOG_SITE e.g. datadoghq.com (US1), datadoghq.eu (EU), us3.datadoghq.com, etc.
+    grant_id="YOUR_GRANT_ID",
 )
 ```
 
 ## Notes
 
-- The login URL redirects to your correct Datadog site. If your organization is on a non-US1 site (EU, US3, US5, AP1), you can also log in directly at your site's URL.
+- The login URL redirects to your correct Datadog site. If your organization is on a non-US1 site (EU, US3, US5, AP1, AP2, gov), you can also log in directly at your site's URL.

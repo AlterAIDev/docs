@@ -1,0 +1,128 @@
+---
+title: 'GitLab'
+description: 'Set up GitLab OAuth for repositories, merge requests, issues, and CI/CD'
+---
+
+## Overview
+
+Connect your users to GitLab for repositories, merge requests, issues, and CI/CD.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `gitlab` |
+| **Category** | Developer Tools |
+| **PKCE** | Supported (S256) |
+| **Token refresh** | Automatic (rotating refresh tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+<Note>
+  This provider targets **gitlab.com**. Self-managed GitLab instances use per-instance OAuth endpoints and are not covered.
+</Note>
+
+## Step 1: Create a GitLab OAuth Application
+
+<Steps>
+  <Step title="Open GitLab Applications">
+    Navigate to [User Settings > Applications](https://gitlab.com/-/user_settings/applications) (or a group/instance-level Applications page for shared apps) and sign in.
+  </Step>
+
+  <Step title="Add a new application">
+    Click **Add new application** and enter a name.
+  </Step>
+
+  <Step title="Configure the redirect URI">
+    Add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) to the **Redirect URI** field. Keep **Confidential** checked.
+  </Step>
+
+  <Step title="Select scopes">
+    Select the scopes the application needs. See [Available Scopes](#available-scopes) below.
+  </Step>
+
+  <Step title="Get credentials">
+    Click **Save application**, then copy the **Application ID** (Client ID) and **Secret** (Client Secret). The secret is only shown once.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add GitLab provider">
+    Go to **OAuth Providers** > **Add Provider** > **GitLab**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your GitLab Application ID
+    - **Client Secret**: Paste your GitLab Secret
+  </Step>
+
+  <Step title="Select scopes">
+    Choose the scopes the application needs.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Available Scopes
+
+### API access
+
+| Scope | Description |
+|-------|-------------|
+| `read_user` | Read-only access to the authenticated user's profile |
+| `read_api` | Read-only access to the API, including all groups and projects |
+| `api` | Full read/write access to the API, including all groups and projects, the container registry, and the package registry |
+
+### Repositories & registries
+
+| Scope | Description |
+|-------|-------------|
+| `read_repository` | Read-only access to repositories via Git-over-HTTP |
+| `write_repository` | Read/write access to repositories via Git-over-HTTP |
+| `read_registry` | Read-only (pull) access to container registry images |
+| `write_registry` | Read/write (push) access to container registry images |
+| `read_virtual_registry` | Read-only access to images through the dependency proxy |
+| `write_virtual_registry` | Read/write access to images through the dependency proxy |
+
+### CI/CD & operations
+
+| Scope | Description |
+|-------|-------------|
+| `create_runner` | Create runners |
+| `manage_runner` | Manage runners |
+| `k8s_proxy` | Perform Kubernetes API calls via the agent for Kubernetes |
+| `read_observability` | Read-only access to GitLab Observability |
+| `write_observability` | Write access to GitLab Observability |
+
+### AI & identity
+
+| Scope | Description |
+|-------|-------------|
+| `ai_features` | Access GitLab Duo AI features |
+| `ai_workflows` | Access GitLab Duo agent platform workflows |
+| `mcp` | Access the GitLab Model Context Protocol (MCP) server |
+| `openid` | Authenticate via OpenID Connect |
+| `profile` | Read-only profile data via OpenID Connect |
+| `email` | Read-only primary email via OpenID Connect |
+
+### Administration
+
+| Scope | Description |
+|-------|-------------|
+| `sudo` | Perform API actions as any user (administrators only) |
+| `admin_mode` | Perform API actions as an administrator with Admin Mode enabled (administrators only) |
+
+## Notes
+
+- Prefer `read_api` plus narrower scopes over `api` when the integration is read-only — `api` grants full read/write access.
+- OAuth access tokens expire after 2 hours; the rotating refresh token keeps the grant alive without re-authorization.
+- See the [GitLab OAuth documentation](https://docs.gitlab.com/ee/api/oauth2.html) for more details.

@@ -1,0 +1,72 @@
+---
+title: 'Turso'
+description: 'Connect Turso to Alter Vault for secure API access'
+---
+
+## Overview
+
+Use Turso credentials to make authenticated API calls through Alter Vault without exposing API keys in code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `turso` |
+| **Category** | Database |
+| **Credential Type** | Database Auth Token |
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Turso Dashboard">
+    Log in to the [Turso Dashboard](https://app.turso.tech/).
+  </Step>
+  <Step title="Generate a token">
+    Open the database and click **Generate Token** (or run `turso db tokens create <database>`).
+  </Step>
+  <Step title="Copy the token">
+    Choose full-access or read-only and copy the token.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share credentials publicly. Store them securely and only enter them in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Turso">
+    Go to **Managed Secrets** > **Add Provider** > **Turso**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste your Database Auth Token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR-DATABASE-YOUR-ORG.turso.io/v2/pipeline",
+    grant_id="YOUR_GRANT_ID",
+    json={
+        "requests": [
+            {"type": "execute", "stmt": {"sql": "SELECT * FROM users LIMIT 5"}},
+            {"type": "close"},
+        ]
+    },
+)
+```
+
+## Notes
+
+- Database tokens authorize the per-database HTTP API. Turso Platform API tokens are separate.

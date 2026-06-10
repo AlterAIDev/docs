@@ -1,0 +1,77 @@
+---
+title: 'Zoom'
+description: 'Set up Zoom OAuth for meetings, webinars, and recordings'
+---
+
+## Overview
+
+Connect your users to Zoom for meetings, webinars, and cloud recordings.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `zoom` |
+| **Category** | Communication |
+| **PKCE** | Not supported (confidential clients) |
+| **Token refresh** | Automatic (rotating refresh tokens) |
+| **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
+
+## Step 1: Create a Zoom OAuth App
+
+<Steps>
+  <Step title="Go to the Zoom App Marketplace">
+    Navigate to the [Zoom App Marketplace](https://marketplace.zoom.us/develop/create) and sign in.
+  </Step>
+
+  <Step title="Create a General App">
+    Click **Develop** > **Build App** and create a **General App**. Set the app type to **User-managed app** so each user authorizes their own account.
+  </Step>
+
+  <Step title="Configure the redirect URL">
+    Add the Alter callback URL (from the [Developer Portal](https://portal.alterauth.com)) to the **OAuth Redirect URL** field on the app's Basic Information page.
+  </Step>
+
+  <Step title="Add scopes">
+    Open the **Scopes** tab and add every API scope the integration needs. Zoom grants scopes from the app configuration — not from the authorization URL.
+  </Step>
+
+  <Step title="Get credentials">
+    Copy the **Client ID** and **Client Secret** from the app's Basic Information page.
+  </Step>
+</Steps>
+
+<Warning>
+  Never share your Client Secret publicly. Store it securely and only enter it in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Zoom provider">
+    Go to **OAuth Providers** > **Add Provider** > **Zoom**.
+  </Step>
+
+  <Step title="Enter credentials">
+    - **Client ID**: Paste your Zoom Client ID
+    - **Client Secret**: Paste your Zoom Client Secret
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. The provider is now active.
+  </Step>
+</Steps>
+
+## Scopes
+
+Zoom does not accept a scope parameter in the authorization URL. Scopes are configured on the Marketplace app's **Scopes** tab and granted as a bundle when the user consents. After changing scopes, users must re-authorize the app.
+
+Account-level (`:admin`) scopes require authorization by a user with the matching admin role permissions.
+
+## Notes
+
+- Zoom uses rotating refresh tokens — each refresh returns a new refresh token. Alter Vault stores the latest token automatically.
+- Access tokens expire after 1 hour; refresh tokens expire after roughly 90 days of inactivity, after which the user must re-authorize.
+- See the [Zoom OAuth documentation](https://developers.zoom.us/docs/integrations/oauth/) for more details.

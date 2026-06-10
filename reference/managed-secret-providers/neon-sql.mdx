@@ -1,0 +1,77 @@
+---
+title: 'Neon SQL'
+description: 'Run SQL over HTTP against a Neon Postgres branch through Alter Vault'
+---
+
+## Overview
+
+Store a Neon branch connection string in Alter Vault and let agents run parameterized SQL over HTTP — without the connection string ever reaching agent code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `neon-sql` |
+| **Category** | Database |
+| **Credential Type** | Connection String |
+
+<Note>
+  This is the data-plane sibling of the [Neon](/reference/managed-secret-providers/neon) template: use **Neon** (API key) to provision projects and branches, and **Neon SQL** (connection string) to query a branch.
+</Note>
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Log in to the Neon Console">
+    Log in to the [Neon Console](https://console.neon.tech/) and open the project.
+  </Step>
+  <Step title="Select a branch">
+    Select the branch the integration should query — or mint a dedicated branch per agent or per session using the Neon API template.
+  </Step>
+  <Step title="Copy the connection string">
+    Click **Connect** and copy the connection string. Prefer a role with only the privileges the integration needs (e.g. read-only).
+  </Step>
+</Steps>
+
+<Warning>
+  The connection string embeds the role's password. Never share it publicly — store it only in the Alter Vault Developer Portal.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Neon SQL">
+    Go to **Managed Secrets** > **Add Provider** > **Neon SQL**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste the full connection string into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+Send SQL as JSON to the branch endpoint's `/sql` path. The connection string is injected via the `Neon-Connection-String` header automatically.
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://ep-YOUR-ENDPOINT.us-east-2.aws.neon.tech/sql",
+    grant_id="YOUR_GRANT_ID",
+    json={
+        "query": "SELECT * FROM posts WHERE id = $1",
+        "params": [123],
+    },
+)
+```
+
+## Notes
+
+- This is Neon's one-shot query protocol: single statements and non-interactive batched transactions work; interactive sessions require the Postgres protocol and are not supported over HTTP.
+- Rotate access by resetting the role's password in the Neon Console and updating the stored credential.
