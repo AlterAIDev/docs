@@ -53,15 +53,13 @@ import { Agent, HttpMethod, PendingApproval } from "@alter-ai/alter-sdk";
 
 const agent = new Agent({ apiKey: process.env.AGENT_API_KEY! });
 
-const pending = await agent.proxyRequest(
-  HttpMethod.POST,
-  "https://api.stripe.com/v1/refunds",
-  {
-    grantId: STRIPE_GRANT_ID,
-    json: { charge: "ch_abc" },
-    reason: "Customer requested refund per ticket #1234",
-  },
-);
+const pending = await agent.proxyRequest({
+  method: HttpMethod.POST,
+  url: "https://api.stripe.com/v1/refunds",
+  grantId: STRIPE_GRANT_ID,
+  json: { charge: "ch_abc" },
+  reason: "Customer requested refund per ticket #1234",
+});
 
 if (pending instanceof PendingApproval) {
   await notifyApprover(pending.approvalUrl);
@@ -101,7 +99,7 @@ import {
 } from "@alter-ai/alter-sdk";
 
 try {
-  const result = await agent.awaitApproval(pending.approvalId, { timeout: 300 });
+  const result = await agent.awaitApproval(pending.approvalId, { timeoutMs: 300_000 });
   const refund = JSON.parse(Buffer.from(result.bodyB64, "base64").toString());
 } catch (e) {
   if (e instanceof ApprovalDeniedError) { /* … */ }

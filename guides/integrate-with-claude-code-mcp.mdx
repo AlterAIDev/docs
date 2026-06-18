@@ -22,7 +22,7 @@ The flow:
 
 ### 1. Provision the agent
 
-In the developer portal, create a new agent named `claude-code-mcp`. Mint a per-agent key (`alter_key_agent_…`) and store it where the MCP process will read it. Bind whichever providers the MCP server should be able to reach:
+In the developer portal, create a new agent named `claude-code-mcp`. Mint a per-agent key from **Agents → claude-code-mcp → Keys** (per-agent keys currently mint with the legacy `alter_key_…` prefix) and store it where the MCP process will read it. Bind whichever providers the MCP server should be able to reach:
 
 - For user-owned data, have the user run a Connect session with `agent=<this_agent_id>` to delegate access.
 - For operator-owned credentials, issue managed-secret grants to the agent.
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
 ### 4. Register the server with Claude Code
 
-In `~/.claude/claude_config.json` (or the equivalent for the platform):
+Claude Code reads project-scoped MCP servers from a `.mcp.json` file in the project root (the same file `alter init` creates when it registers the Alter onboarding MCP server). Add an entry for the server:
 
 ```json
 {
@@ -85,7 +85,7 @@ In `~/.claude/claude_config.json` (or the equivalent for the platform):
       "command": "python",
       "args": ["/absolute/path/to/server.py"],
       "env": {
-        "AGENT_API_KEY": "alter_key_agent_..."
+        "AGENT_API_KEY": "alter_key_..."
       }
     }
   }

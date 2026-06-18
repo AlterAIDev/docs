@@ -10,7 +10,7 @@ Connect your users to Figma for accessing design files, variables, comments, and
 | Property | Value |
 |----------|-------|
 | **Provider ID** | `figma` |
-| **Category** | Design & Developer Tools |
+| **Category** | Design |
 | **PKCE** | Supported |
 | **Token refresh** | Automatic |
 | **Redirect URI** | Shown in [Developer Portal](https://portal.alterauth.com) |
@@ -18,20 +18,28 @@ Connect your users to Figma for accessing design files, variables, comments, and
 ## Step 1: Create a Figma OAuth App
 
 <Steps>
-  <Step title="Go to the Figma Developer Portal">
-    Navigate to [figma.com/developers/apps](https://www.figma.com/developers/apps) and sign in.
+  <Step title="Go to the Figma My apps page">
+    Navigate to [figma.com/developers/apps](https://www.figma.com/developers/apps) (or click **My Apps** in the Figma top toolbar) and sign in.
   </Step>
 
   <Step title="Create a new app">
-    Click **New app** and enter the application name.
-  </Step>
-
-  <Step title="Configure the redirect URL">
-    On the OAuth credentials page, click **Add a redirect URL** and add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com).
+    Click **Create a new app** in the upper-right corner. Enter a name for the app, select the team or organization it belongs to, and click **Create**.
   </Step>
 
   <Step title="Get credentials">
-    Copy the **Client ID** and **Client Secret**.
+    Copy the **Client ID** and **Client Secret** immediately and store them securely — this is the only time Figma shows the Client Secret.
+  </Step>
+
+  <Step title="Configure the redirect URL">
+    In the configuration flow, open the **OAuth credentials** page, click **Add a redirect URL**, and add the Alter callback URL from the [Developer Portal](https://portal.alterauth.com).
+  </Step>
+
+  <Step title="Select OAuth scopes">
+    On the **OAuth scopes** page, select every scope the integration will request — only a subset of the scopes selected here can be requested at authorization time.
+  </Step>
+
+  <Step title="Publish the app">
+    Publish the app: private apps (the default) publish immediately for the selected team or organization; public apps are reviewed by Figma before they can authorize users.
   </Step>
 </Steps>
 
@@ -68,15 +76,28 @@ Connect your users to Figma for accessing design files, variables, comments, and
 
 | Scope | Description |
 |-------|-------------|
-| `files:read` | Read file and project data |
-| `file_variables:read` | Read design variables |
-| `file_variables:write` | Create and update design variables |
-| `file_comments:write` | Post comments on files |
-| `file_dev_resources:read` | Read developer resources |
-| `file_dev_resources:write` | Create and update developer resources |
-| `webhooks:write` | Create and manage webhooks |
+| `current_user:read` | Read the authenticated user's name, email, and profile image (included by default) |
+| `file_content:read` | Read the contents of files — nodes, layers, editor type (included by default) |
+| `file_metadata:read` | Read metadata of files (name, last modified, project, team) |
+| `file_comments:read` | Read comments and comment reactions in files |
+| `file_comments:write` | Post and delete comments and reactions in files |
+| `file_versions:read` | Read the version history for accessible files |
+| `file_dev_resources:read` | Read developer resources linked to Figma files |
+| `file_dev_resources:write` | Create and modify developer resources in Figma files |
+| `file_variables:read` | Read variables in Figma files (Enterprise plan only) |
+| `file_variables:write` | Create and modify variables in Figma files (Enterprise plan only) |
+| `selections:read` | Read the most recent selection in accessible files |
+| `library_analytics:read` | Read design system analytics (Enterprise plan only) |
+| `library_assets:read` | Read data of individual published components and styles |
+| `library_content:read` | Read published components and styles of files |
+| `project_metadata:read` | Read metadata of projects |
+| `projects:read` | List projects and the files in them |
+| `team_library_content:read` | Read published components and styles of teams |
+| `webhooks:read` | Read metadata of webhooks |
+| `webhooks:write` | Create and manage Figma webhooks |
 
 ## Notes
 
-- For most read-only integrations, `files:read` is sufficient.
-- See the [Figma API authentication documentation](https://www.figma.com/developers/api#authentication) for more details.
+- Figma deprecated the legacy `files:read` / `file_read` scopes in favor of the granular scopes above. For most read-only integrations, `file_content:read` plus `file_metadata:read` is sufficient.
+- A newly created app starts in a draft state: only the creator and plan admins can test it. It must be published (privately or publicly) before other users can authorize it; only public apps go through Figma's review.
+- See the [Figma OAuth apps documentation](https://developers.figma.com/docs/rest-api/oauth-apps/) for more details.

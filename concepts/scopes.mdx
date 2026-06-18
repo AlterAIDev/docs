@@ -31,14 +31,19 @@ Alter API keys carry their own scope set, separate from any provider's scopes. T
 - `grants:write` — revoke grants, create managed-secret grants.
 - `agents:read` — list agents.
 - `agents:write` — create / update / revoke agents.
-- `connect:create` — mint Connect sessions.
+- `connect:initiate` — mint Connect sessions.
+- `tokens:retrieve` — retrieve credentials for direct API calls.
+- `proxy:execute` — execute provider calls through the proxy surface.
+- `spans:emit` — emit user-defined telemetry spans.
+- `identity:resolve` — resolve verified identity contexts (see [Propagate identity to memory](/guides/propagate-identity-to-memory)).
+- `identity:assert` — mint signed identity assertions.
 - (Full list in the [scope catalog](https://portal.alterauth.com/scopes).)
 
 App-level keys carry a broad default set. Per-agent keys can be minted with narrower scope sets — an agent that only needs to issue OAuth calls (`request`) does not need `agents:write`.
 
 ### Attenuation
 
-`with_constraints(scopes=[...])` returns a sibling SDK instance whose narrowed scopes are surfaced through the SDK on every request. The constraint is the **intersection** of the key's scopes and the supplied list — it can only narrow, never broaden. Useful for handing a derived SDK instance to a less-trusted component (a plugin, a tool call) without minting a new key.
+`with_constraints(scopes=[...])` returns a sibling SDK instance whose narrowed scopes are surfaced through the SDK on every request. The constraint is the **intersection** of the key's scopes and the supplied list — it can only narrow, never broaden. Useful for handing a derived SDK instance to a less-trusted component (a plugin, a tool call) without minting a new key. The same call also accepts an optional `rule` — a one-off deny rule, evaluated server-side, that can only further restrict each request the returned instance makes; pass `scopes`, `rule`, or both.
 
 If the route requires a scope not in the intersection, the backend raises [`InsufficientScopeError`](/reference/errors) with the missing scope listed.
 

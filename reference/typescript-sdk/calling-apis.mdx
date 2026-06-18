@@ -102,12 +102,13 @@ Use direct mode when an upstream layer has already resolved which grant to use, 
 | Option | Type | Description |
 |---|---|---|
 | `grantId` | `string` | Explicit grant ID for direct resolution. Mutually exclusive with `provider`. |
-| `provider` | `string` | Provider slug for identity resolution. Mutually exclusive with `grantId`. |
+| `provider` | `string` | Identity-resolution key. OAuth: the provider id (e.g. `"google"`). Managed secret: the per-secret slug (e.g. `"stripe-production"`), unique per app. Mutually exclusive with `grantId`. |
 | `account` | `string` | Account disambiguator. Only valid alongside `provider`. |
+| `label` | `string` | Sibling-grant disambiguator — selects one of several same-provider grants (the resolution key is provider + label). Only valid alongside `provider`. |
 | `userToken` | `string` | Per-call user JWT. Overrides `userTokenGetter` for this call. |
 | `appUserId` | `string` | Per-call AppUser UUID. Equivalent in authority to `userToken` but skips JWT validation when the caller has already resolved the user upstream. |
 | `caller` | `string` | Per-call caller override for audit attribution. |
-| `json` | `Record<string, unknown>` | JSON request body. The SDK serializes and sets `Content-Type: application/json`. Mutually exclusive with `body`. |
+| `json` | `unknown` | JSON-serializable request body: plain objects, arrays, strings, finite numbers, booleans, or `null`. The SDK serializes and sets `Content-Type: application/json`. Mutually exclusive with `body`. |
 | `body` | `Uint8Array \| ArrayBuffer \| string` | Raw request body. The caller is responsible for `Content-Type` on binary payloads. Mutually exclusive with `json`. |
 | `extraHeaders` | `Record<string, string>` | Additional request headers. The credential-injection header is overwritten if present (the SDK logs a warning). |
 | `queryParams` | `Record<string, string \| number \| boolean>` | Query-string parameters. Values are coerced to strings. |
@@ -125,8 +126,8 @@ The body is consumed exactly once. Use `await response.json()`, `await response.
 
 ### Throws
 
-- [`AlterSDKError`](/reference/typescript-sdk/errors) — both `grantId` and `provider` set, neither set, both `json` and `body` set, invalid URL scheme, malformed `pathParams`, or the SDK has been closed.
-- [`AlterValueError`](/reference/typescript-sdk/errors) — `userToken` or `appUserId` is an empty string.
+- [`AlterSDKError`](/reference/typescript-sdk/errors) — both `grantId` and `provider` set, neither set, both `json` and `body` set, invalid URL scheme, or the SDK has been closed.
+- [`AlterValueError`](/reference/typescript-sdk/errors) — `userToken` or `appUserId` is an empty string, `appUserId` or `label` supplied without `provider`, or an unresolved `{name}` placeholder left in `url` after `pathParams`.
 - [`GrantNotFoundError`](/reference/typescript-sdk/errors), [`GrantExpiredError`](/reference/typescript-sdk/errors), [`GrantRevokedError`](/reference/typescript-sdk/errors), [`GrantDeletedError`](/reference/typescript-sdk/errors), [`CredentialRevokedError`](/reference/typescript-sdk/errors) — grant-state failures.
 - [`ReAuthRequiredError`](/reference/typescript-sdk/errors) — user JWT is invalid or expired.
 - [`AmbiguousGrantError`](/reference/typescript-sdk/errors) — multiple grants match the identity + provider tuple. Pass `account` or use `grantId`.
@@ -137,6 +138,15 @@ The body is consumed exactly once. Use `await response.json()`, `await response.
 - [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors) — transport failures.
 
 ### Examples
+
+<Note>
+**What `provider` contains depends on the credential kind** — it is the *resolution key*, not always a "provider name":
+
+- **OAuth** — the provider id (e.g. `"google"`, `"github"`).
+- **Managed secret** — the secret's **slug** (e.g. `"stripe-production"`), which is unique per app. This is the slug shown on the secret's page and returned as `managedSecretSlug` from [`listGrants()`](/reference/typescript-sdk/connect-and-grants#listgrants) — **not** the template name (`"stripe"`).
+
+Direct mode is different: `grantId` is a stable UUID. Use it (discoverable via `listGrants`) to target one specific secret deterministically when the slug/account aren't enough.
+</Note>
 
 #### Identity mode with per-call JWT
 
@@ -152,6 +162,17 @@ const response = await app.request(
     reason: "User-submitted bug report",
   },
 );
+```
+
+#### Identity mode for a managed secret (by slug)
+
+```typescript
+// `provider` is the managed secret's slug (e.g. "stripe-production"), not "stripe".
+const response = await app.request(HttpMethod.POST, "https://api.stripe.com/v1/charges", {
+  provider: "stripe-production",
+  userToken: callingUserJwt,
+  json: { amount: 1000, currency: "usd" },
+});
 ```
 
 #### Direct mode with audit context
@@ -188,11 +209,19 @@ if (response.retryInfo !== null) {
 async proxyRequest(args: {
   method: HttpMethod | string;
   url: string;
-  grantId: string;
-  jsonBody?: unknown;
-  headers?: Record<string, string>;
+  grantId?: string;
+  provider?: string;
+  account?: string;
+  label?: string;
+  json?: unknown;
+  extraHeaders?: Record<string, string>;
   queryParams?: Record<string, unknown>;
+  pathParams?: Record<string, string>;
   reason?: string;
+  context?: Record<string, string>;
+  caller?: string;
+  userToken?: string;
+  appUserId?: string;
 }): Promise<PendingApproval | ApprovalResult>
 ```
 
@@ -207,7 +236,7 @@ const result = await app.proxyRequest({
   method: "POST",
   url: "https://api.example.com/transfer",
   grantId,
-  jsonBody: { amount: 1000, currency: "usd" },
+  json: { amount: 1000, currency: "usd" },
   reason: "Quarterly payout",
 });
 ```
@@ -221,17 +250,35 @@ const result = await app.proxyRequest({
 
 For everything else, [`request()`](#request) avoids the extra hop.
 
+### Proxy-mode limits
+
+- The provider response body is buffered by the backend, base64-encoded, and may be truncated when very large. Proxy mode is not intended for downloads, Server-Sent Events, WebSockets, or long-lived streaming responses.
+- Auth and cookie-related provider response headers are stripped before the SDK receives the response. Flows that depend on `Set-Cookie`, `WWW-Authenticate`, or returned authorization headers may need [`request()`](#request) or the provider client directly.
+- Managed-secret proxy calls require destination hosts to be configured on the secret. If the allowlist is missing or does not match the requested host, the call is blocked before the credential is injected.
+- `proxyRequest()` does not automatically retry the initial call. Add application-level retry/backoff for network failures and timeouts. For HITL grants, retry carefully because submitting the same call again can create another pending approval.
+- The CLI passthrough command uses retrieve mode, not proxy mode. It is useful for testing [`request()`](#request), but it does not reproduce proxy-only behavior such as HITL execution, destination-host allowlist enforcement, or response truncation.
+
 ### Parameters
 
 | Field | Type | Description |
 |---|---|---|
 | `method` | [`HttpMethod`](/reference/typescript-sdk/types#httpmethod) `\| string` | HTTP method. Case-insensitive. |
-| `url` | `string` | Provider URL. Must be a non-empty string. |
-| `grantId` | `string` | Grant ID. Required — `proxyRequest()` has no identity-mode resolution. |
-| `jsonBody` | `unknown` | JSON-serializable body. Accepts plain objects, arrays, strings, numbers, booleans, and `null`. Class instances, `Date`, `Map`, and `Set` are rejected at the SDK boundary (they serialize to `{}` via `JSON.stringify`). |
-| `headers` | `Record<string, string>` | Additional headers. Authorization-bearing headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) are rejected — the backend injects credentials at execution time. |
+| `url` | `string` | Provider URL. Must be a non-empty string. Supports `{name}` placeholders resolved via `pathParams`. |
+| `grantId` | `string` | Direct-mode grant ID. Exactly one of `grantId` or `provider` must be supplied — `proxyRequest()` shares the same resolution contract as [`request()`](#request): one match resolves, zero is a not-found error, several throw [`AmbiguousGrantError`](/reference/typescript-sdk/errors). |
+| `provider` | `string` | Identity-mode key (e.g. `"google"`, or a managed secret's per-secret slug). Resolves the user via `userToken` (or the client's `userTokenGetter`); for an agent caller, disambiguate delegations with `appUserId`. Mutually exclusive with `grantId`. |
+| `account` | `string` | Account disambiguator for `provider` resolution. |
+| `label` | `string` | Sibling-grant disambiguator for `provider` resolution (the resolution key is provider + label). Only valid alongside `provider`. |
+| `json` | `unknown` | JSON-serializable body (same argument name as [`request()`](#request)). Accepts plain objects, arrays, strings, finite numbers, and booleans; `null`/`undefined` omit the body. Class instances, `Date`, `Map`, and `Set` are rejected at the SDK boundary. |
+| `extraHeaders` | `Record<string, string>` | Additional non-auth headers (same argument name as [`request()`](#request)). Authorization-bearing headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token`) are rejected — the backend injects credentials at execution time. |
 | `queryParams` | `Record<string, unknown>` | Query-string parameters. |
+| `pathParams` | `Record<string, string>` | Substitutions for `{name}` placeholders in `url`. Each value is URL-encoded. |
 | `reason` | `string` | Free-form reason. Stored on the audit row and shown to the approver when HITL is configured. |
+| `context` | `Record<string, string>` | Application metadata attached to the audit row (e.g. `runId`, `toolName`), same as [`request()`](#request). |
+| `caller` | `string` | Per-call caller override for audit attribution. |
+| `userToken` | `string` | Per-call user JWT for identity mode. Overrides `userTokenGetter`. Valid in both addressing modes. |
+| `appUserId` | `string` | Per-call AppUser UUID for agent-delegation disambiguation. Only valid with `provider` resolution. |
+
+`proxyRequest()` takes the same arguments as [`request()`](#request), by the same names. The only differences are inherent to the execution model: there is no raw-bytes `body` argument (the body must be a JSON value — pass it as `json`), auth headers are rejected, and the return type is an `ApprovalResult` / `PendingApproval`.
 
 ### Returns
 
@@ -247,7 +294,7 @@ const result = await app.proxyRequest({
   method: "POST",
   url: "https://api.example.com/transfer",
   grantId,
-  jsonBody: { amount: 1000 },
+  json: { amount: 1000 },
   reason: "Quarterly payout",
 });
 
@@ -267,7 +314,8 @@ The `status` field is `"pending"` on `PendingApproval`. `ApprovalResult` has no 
 
 ### Throws
 
-- [`AlterValueError`](/reference/typescript-sdk/errors) — `grantId` is missing or empty, `url` is missing, `jsonBody` has an unsupported shape, an authorization-bearing header was supplied, or the SDK has been closed.
+- [`AlterValueError`](/reference/typescript-sdk/errors) — neither `grantId` nor `provider` was supplied (or both were), an identifier value is an empty string, `account`/`label`/`appUserId` was supplied without `provider`, an unresolved `{name}` placeholder was left in `url` after `pathParams`, `url` is missing, `json` has an unsupported shape, or an authorization-bearing header was supplied.
+- [`AlterSDKError`](/reference/typescript-sdk/errors) — the SDK has been closed.
 - [`ApprovalDeniedError`](/reference/typescript-sdk/errors) — backend rejected the call (policy denial that does not require human review).
 - [`ApprovalExpiredError`](/reference/typescript-sdk/errors) — the approval window elapsed before a decision was recorded.
 - [`ApprovalExecutionFailedError`](/reference/typescript-sdk/errors) — backend failed to execute the proxied call after the approval was granted.
@@ -384,3 +432,28 @@ if (unknown.length > 0) {
 ```
 
 Throws [`BackendError`](/reference/typescript-sdk/errors), [`AlterValueError`](/reference/typescript-sdk/errors) (on a wire-shape regression), [`NetworkError`](/reference/typescript-sdk/errors), [`TimeoutError`](/reference/typescript-sdk/errors).
+
+## OpenTelemetry trace propagation
+
+When the application runs an OpenTelemetry SDK with an active span, every call the SDK makes to Alter automatically carries the standard W3C `traceparent` header — `request()`, `proxyRequest()`, approval polling, and the audit-reporting calls included. Alter uses it as the trace context for that request's audit events, and any spans the organization streams to its own OTLP collector join the application's traces instead of starting disconnected ones.
+
+No configuration is required: `@opentelemetry/api` is an *optional* peer dependency that the SDK never installs or requires. When the application has it — including under pnpm's isolated mode and Yarn PnP — the SDK uses it; without it (or without an active span) the header is simply omitted and nothing changes. The integration is best-effort by design: it can never fail a vault call (the very first call pays a one-time, in-process lookup of the optional module).
+
+```typescript
+import { trace } from "@opentelemetry/api";
+
+const tracer = trace.getTracer("the-application");
+
+// `app` from the quick start.
+await tracer.startActiveSpan("handle-user-request", async (span) => {
+  try {
+    // This call's audit events share the surrounding trace's ids.
+    const response = await app.request(HttpMethod.GET, url, { grantId });
+    console.log(response.status);
+  } finally {
+    span.end();
+  }
+});
+```
+
+Only trace/span identifiers and a sampling flag travel in the header — no payloads, no user identifiers.

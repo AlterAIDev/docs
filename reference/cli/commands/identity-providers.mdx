@@ -1,0 +1,102 @@
+---
+title: 'alter identity-providers'
+description: 'Stand up an end-user identity provider (OIDC) for an app from the CLI.'
+---
+
+An app can trust an external identity provider (Auth0, Clerk, Okta) so its end users sign in with their existing accounts. These commands stand one up.
+
+```
+alter identity-providers discover --issuer-url <url>
+alter identity-providers create   --issuer-url <url> [--audience ...] [--wallet-client-id ... --wallet-client-secret ...]
+alter identity-providers webhook enable  --provider <id> [--secret -|@file|<value>]
+alter identity-providers webhook disable --provider <id> [--yes]
+alter identity-providers webhook rotate  --provider <id> [--secret -|@file|<value>] [--yes]
+alter identity-providers webhook status  --provider <id>
+```
+
+App-scoped commands take `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. `discover` / `create` need `dashboard_identity_providers:create`; the `webhook` subcommands need `dashboard_identity_providers:webhooks`. The namespace is also available as `alter idp`, and `create` accepts the alias `configure`.
+
+<Note>
+**Create-only for the provider config, by design.** An app allows exactly one identity provider, and `create` returns a conflict if one already exists — it never re-points an existing provider. Changing the issuer / claim config or removing the provider are done from the dashboard, not the CLI. Configure claim mappings correctly the first time (use `discover` to preview them). The **webhook lifecycle** (enable / disable / rotate / status) *is* available from the CLI — those operations are per-provider and recoverable, and never touch the issuer/claim trust config.
+</Note>
+
+## discover
+
+Preview OIDC discovery for an issuer URL without saving anything. Returns the detected provider type, JWKS URI, and suggested claim mappings, so the mappings can be verified — or overridden on `create` — before the one-shot create.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--issuer-url <url>` | yes | OIDC issuer URL (e.g. `https://acme.okta.com`). The issuer itself, not a `/.well-known/...` URL. |
+
+```bash
+alter identity-providers discover --issuer-url https://acme.okta.com
+```
+
+## create
+
+Configure the identity provider for the app. Discovery runs against the issuer and must succeed — an unreachable or invalid issuer is rejected and nothing is saved. Claim mappings are auto-detected from the issuer; pass the override flags to set them explicitly.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--issuer-url <url>` | yes (unless `--input`) | OIDC issuer URL (e.g. `https://acme.okta.com`). The issuer itself, not a `/.well-known/...` URL. |
+| `--audience <aud>` | no | Expected JWT `aud` claim. When set, tokens without a matching audience are rejected. |
+| `--user-id-claim <claim>` | no | Override the user-identity claim (auto-detected; defaults to `sub`). |
+| `--group-claim <claim>` | no | Override the group-membership claim (auto-detected). |
+| `--role-claim <claim>` | no | Override the role claim (auto-detected). |
+| `--wallet-client-id <id>` | no | OIDC client ID for interactive wallet sign-in. Must be paired with `--wallet-client-secret`. |
+| `--wallet-client-secret <value>` | no | OIDC client secret for wallet sign-in. Use `-` to read from stdin or `@/path/to/file` — preferred over passing it inline. Must be paired with `--wallet-client-id`. |
+| `--input <path>` | no | JSON body from a file (`@path`) or stdin (`-`); replaces the per-field flags. |
+
+Without the wallet flags, the identity provider validates inbound tokens (the common case). To also enable interactive wallet sign-in, pass both wallet flags — they are all-or-nothing, and the credentials are verified against the provider before anything is saved. A hard rejection fails the create with nothing saved; if verification is inconclusive (for example a transient network issue), the save proceeds unverified and the CLI prints a notice on stderr — verify with a sign-in.
+
+```bash
+alter identity-providers create \
+  --issuer-url https://acme.okta.com \
+  --audience https://api.example.com
+```
+
+## webhook
+
+Manage the identity provider's webhook integration — how Alter receives events (e.g. group-sync) from the provider. These need the `dashboard_identity_providers:webhooks` scope, are app-scoped like the rest of the namespace (pass `--app <id>`, or use a linked workspace / `ALTER_APP_ID`), and identify the provider with `--provider <id>`. Enabling and rotating return the signing secret, which is shown **once**.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--app <app-id>` | yes* | The application (*or link a workspace / set `ALTER_APP_ID`). |
+| `--provider <provider-id>` | yes | The identity provider's ID. |
+| `--secret <value>` | no | Signing secret for `enable` / `rotate`. For Clerk, paste the Dashboard `whsec_` value (use `-` for stdin or `@/path` for a file). For Auth0, omit to have one generated. On `rotate`, `--secret -` requires `--yes` — the stdin secret and the confirmation prompt can't share the same stream. |
+| `--yes` | no | Skip the confirmation prompt on `disable` / `rotate` (for CI). Required when rotating with `--secret -`. Rotating invalidates the previous secret immediately. |
+
+```bash
+# Enable (Clerk: paste the dashboard secret from a file)
+alter identity-providers webhook enable --provider <id> --secret @/run/secrets/whsec
+
+# Check status, rotate, disable
+alter identity-providers webhook status  --provider <id>
+alter identity-providers webhook rotate  --provider <id>
+alter identity-providers webhook disable --provider <id>
+```
+
+## Recipes
+
+**Preview claim mappings, then create with an explicit user-ID claim**
+
+```bash
+alter identity-providers discover --issuer-url https://acme.okta.com
+alter identity-providers create \
+  --issuer-url https://acme.okta.com \
+  --user-id-claim sub
+```
+
+**Create with wallet sign-in, secret read from a file (CI-safe)**
+
+```bash
+alter identity-providers create \
+  --issuer-url https://acme.okta.com \
+  --wallet-client-id <oidc-client-id> \
+  --wallet-client-secret @/run/secrets/idp-client-secret
+```
+
+## Related
+
+- [`alter providers`](/reference/cli/commands/providers) — OAuth providers your users connect to
+- [Authentication](/reference/cli/authentication) — minting a token with the right scopes

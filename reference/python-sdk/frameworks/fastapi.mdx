@@ -15,7 +15,7 @@ pip install 'alter-sdk[fastapi]'
 from fastapi import FastAPI, Depends
 from alter_sdk.fastapi import AlterFastAPI
 
-alter = AlterFastAPI(api_key="alter_key_app_…", caller="chat-api")
+alter = AlterFastAPI(api_key="alter_rk_…", caller="chat-api")
 app = FastAPI()
 
 @app.post("/chat")
@@ -58,7 +58,7 @@ AlterFastAPI(
 `AlterFastAPI` is itself callable — FastAPI invokes `__call__` on each request. It extracts the `Authorization: Bearer <token>` via `HTTPBearer` (FastAPI returns 401 if missing), stores the token in a task-scoped ContextVar, and returns the SDK client.
 
 - `set_user_token(token: str) -> None` — manually set the user token for the current request context. Use this in non-FastAPI paths (e.g. MCP auth callbacks) that need to inject identity.
-- `auth_provider(*, base_url: str = "", providers: dict[str, list[str]] | None = None)` — construct an `AlterAuthProvider` for FastMCP (see [MCP](/reference/python-sdk/frameworks/mcp)).
+- `auth_provider(*, base_url: str, providers: dict[str, list[str]] | None = None)` — construct an `AlterAuthProvider` for FastMCP (see [MCP](/reference/python-sdk/frameworks/mcp)). `base_url` is required (must be `https`, or a loopback host for local dev).
 
 ## Operator app pattern
 
@@ -114,7 +114,7 @@ async def run(vault = Depends(alter)):
 from fastmcp import FastMCP
 
 auth = alter.auth_provider(
-    base_url="http://localhost:8000/mcp",
+    base_url="https://mcp.example.com",
     providers={"google": ["gmail.readonly"]},
 )
 mcp = FastMCP("Gmail", auth=auth)

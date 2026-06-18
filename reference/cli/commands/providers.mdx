@@ -8,7 +8,7 @@ Each app configures the OAuth providers its users can connect. These commands ma
 ```
 alter providers list-catalog
 alter providers list
-alter providers create  --provider <id> --scopes <list> [--client-id ...] [--client-secret ...]
+alter providers create  --provider <id> --scopes <list> --client-id ... --client-secret ... --redirect-uri ...
 alter providers show    --provider <id>
 alter providers update  --provider <id> [--scopes ...] [--status ...] [...]
 alter providers delete  --provider <id> [--force] [--yes]
@@ -41,9 +41,9 @@ Configure a provider for the app.
 | `--provider <id>` | yes | Provider ID (e.g. `google`, `slack`, `github`). |
 | `--scopes <list>` | yes | Comma-separated provider scopes (e.g. `email,profile`). At least one is required. |
 | `--credential-source <source>` | no | `custom` (default) or `shared_dev`. |
-| `--client-id <id>` | no | OAuth client ID. |
-| `--client-secret <value>` | no | OAuth client secret. Use `-` to read from stdin or `@/path/to/file` — preferred over passing it inline. |
-| `--redirect-uri <uri>` | no | Add a redirect URI. Repeatable, or comma-separated; both forms accumulate. |
+| `--client-id <id>` | when `--credential-source custom` (the default) | OAuth client ID. |
+| `--client-secret <value>` | when `--credential-source custom` (the default) | OAuth client secret. Use `-` to read from stdin or `@/path/to/file` — preferred over passing it inline. |
+| `--redirect-uri <uri>` | when `--credential-source custom` (the default) — at least one | Add a redirect URI. Repeatable, or comma-separated; both forms accumulate. |
 | `--input <path>` | no | JSON body from a file (`@path`) or stdin (`-`); replaces the per-field flags. |
 
 ```bash
@@ -51,7 +51,8 @@ alter providers create \
   --provider google \
   --scopes openid,email,https://www.googleapis.com/auth/calendar.readonly \
   --client-id <google-client-id> \
-  --client-secret @/run/secrets/google
+  --client-secret @/run/secrets/google \
+  --redirect-uri https://app.example.com/oauth/callback
 ```
 
 <Note>
@@ -103,7 +104,8 @@ alter providers create \
   --provider google \
   --scopes openid,email \
   --client-id <google-client-id> \
-  --client-secret @/run/secrets/google
+  --client-secret @/run/secrets/google \
+  --redirect-uri https://app.example.com/oauth/callback
 ```
 
 **Temporarily disable a provider, then re-enable it**

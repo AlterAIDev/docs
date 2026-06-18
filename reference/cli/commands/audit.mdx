@@ -3,19 +3,27 @@ title: 'alter audit'
 description: 'Read the audit log: runtime calls, portal actions, grant events, and traces.'
 ---
 
-Every credential-touching call and every admin action produces an [audit row](/concepts/audit-logs). These read-only commands query the log from four angles.
+Every credential-touching call and every admin action produces an [audit row](/concepts/audit-logs). These read-only commands query the log from several angles.
 
 ```
-alter audit list           [--since ...] [--start ...] [--end ...] [--action ...] [--policy-decision ...]
-alter audit show           <trace-id>
-alter audit portal-actions [--start ...] [--end ...] [--principal-kind ...] [--resource-type ...]
-alter audit grant-events   [--start ...] [--end ...] [--grant-type ...] [--provider ...]
-alter audit traces         [--start ...] [--end ...] [--actor ...]
+alter audit list            [--since ...] [--start ...] [--end ...] [--action ...] [--policy-decision ...]
+alter audit show            <trace-id>
+alter audit explain         <trace-id>
+alter audit portal-actions  [--start ...] [--end ...] [--principal-kind ...] [--resource-type ...]
+alter audit grant-events    [--start ...] [--end ...] [--grant-type ...] [--provider ...]
+alter audit traces          [--start ...] [--end ...] [--actor ...]
+alter audit threads         [--start ...] [--end ...] [--app ...] [--actor ...]
+alter audit thread          <thread-id>
+alter audit agents          [--start ...] [--end ...] [--app ...]
+alter audit agent           <actor-id> [--principal-kind actor|agent|key] [--additional-key-ids ...]
+alter audit integrity-check --start ... --end ... [--table ...]
 ```
 
-All commands need `dashboard_audit:read` and accept `--output`. For large pulls, use `--output jsonl` to stream into `jq` / `grep` without buffering. Filters are validated client-side, so a typo fails fast.
+All commands need `dashboard_audit:read` and accept `--output`. For large pulls, use `--output jsonl` to stream into `jq` / `grep` without buffering. That is also the CLI's export path — `alter audit list --since 30d --output jsonl > audit.ndjson` is the programmatic equivalent of the dashboard's CSV/NDJSON export. Enum, ID, and date filters are validated client-side, so a typo fails fast; free-form filters (`--action`, `--provider`, `--resource-type`) pass through and simply match nothing when misspelled.
 
-Time filters: `--start <iso>` / `--end <iso>` give absolute bounds on every list-style command. The `--since <duration>` shorthand (e.g. `1h`, `7d`) — a relative start — is **only available on `audit list`**; `audit portal-actions`, `audit grant-events`, and `audit traces` accept `--start` / `--end` only. On `audit list`, `--start` and `--since` are mutually exclusive.
+`alter audit explain <trace-id>` is the diagnostic companion to `show`: instead of raw events, it translates the trace's terminal state into a concrete fix — a policy denial names the policy posture to review (`alter policy show-app`); a scope mismatch names the rotate command; a revoked/expired grant points at re-consent or secret rotation; an unexplained provider `4xx` points at the request-shape lint in [`alter verify`](/reference/cli/commands/verify) (a provider `401`/`403` points at re-consent or credential rotation instead, and a `429` at backoff — do not run `verify` for those); a provider `5xx` says retry with backoff. The mapping is deterministic over fields the audit rows already carry — when nothing matches, it says so and defers to `show`.
+
+Time filters: `--start <iso>` / `--end <iso>` give absolute bounds on every list-style command. The `--since <duration>` shorthand (e.g. `1h`, `7d`) — a relative start — is **only available on `audit list`**; the other list-style commands accept `--start` / `--end` only. On `audit list`, `--start` and `--since` are mutually exclusive.
 
 ## list
 
@@ -28,8 +36,8 @@ Runtime audit rows — token retrievals and outbound API calls.
 | `--app <app-id>` | all | Filter by app. |
 | `--action <action>` | all | e.g. `token.retrieved`. |
 | `--actor <actor-id>` | all | Filter by actor. |
-| `--provider <provider>` | all | Filter by provider. |
-| `--policy-decision <decision>` | all | `ALLOW` or `DENY` (case-sensitive). |
+| `--provider <provider>` | all | Filter by provider ID (e.g. `google`), not display name. |
+| `--policy-decision <decision>` | all | `ALLOW`, `DENY`, or `ERROR` (case-sensitive). |
 | `--limit <n>` | `100` | Page size (1–1000). |
 | `--offset <n>` | `0` | Pagination offset. |
 
@@ -70,7 +78,7 @@ Grant-lifecycle events for both OAuth and managed-secret grants.
 | Flag | Description |
 |---|---|
 | `--grant-type <type>` | `oauth` or `managed_secret`. |
-| `--provider <provider>` | Filter by provider. |
+| `--provider <provider>` | Filter by provider ID (e.g. `google`), not display name. |
 | `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `100`). |
 
 ```bash
@@ -94,6 +102,73 @@ Trace summaries — one row per request trace, with event count and status.
 alter audit traces --app <app-id> \
   --start $(date -u -v-24H +%Y-%m-%dT%H:%M:%SZ)
 # GNU date (Linux): --start $(date -u -d "24 hours ago" +%Y-%m-%dT%H:%M:%SZ)
+```
+
+## threads
+
+Conversation threads — groups of related traces. One row per thread, with trace and event counts.
+
+| Flag | Description |
+|---|---|
+| `--actor <actor-id>` | Filter by actor. |
+| `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `50`, max `200`). |
+
+```bash
+alter audit threads --app <app-id>
+```
+
+## thread
+
+Show every trace and event for one thread, by thread ID.
+
+```bash
+alter audit thread <thread-id>
+```
+
+## agents
+
+Audit activity grouped by principal — one row per agent-identity key group, actor, or effective agent, with thread / trace / event counts. Key groups (`principal_kind: "key"`) are the primary kind: keys sharing one agent identity merge into a single row whose `keys` facets carry the per-key IDs and counts (`key_count` is the group's true distinct-key total).
+
+| Flag | Description |
+|---|---|
+| `--app`, `--start`, `--end`, `--limit`, `--offset` | As above (`--limit` default `50`, max `200`). |
+
+```bash
+alter audit agents --app <app-id>
+```
+
+## agent
+
+Show one principal's audit detail (its threads and traces), by ID.
+
+| Flag | Description |
+|---|---|
+| `--principal-kind <kind>` | `actor` (default), `agent`, or `key` — whether `<actor-id>` is an actor ID, an effective-agent ID, or an API-key ID (the primary agent identity in the grouped view). |
+| `--additional-key-ids <ids...>` | Sibling API-key IDs of a multi-key agent group (space-separate; at most 50). Requires `--principal-kind key`; merges every key's events into one timeline. |
+| `--app <app-id>` | Filter by app. |
+
+```bash
+alter audit agent <actor-id> --principal-kind agent
+# Merge a multi-key agent group's timeline (ids from `alter audit agents` → keys facets):
+alter audit agent <key-id> --principal-kind key --additional-key-ids <key-id-2> <key-id-3>
+```
+
+## integrity-check
+
+Verify audit-log integrity over a date window. Read-only: the server recomputes each row's content hash and reports any mismatches (tampering), mutating nothing. The window must be 90 days or less.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--start <iso>` | yes | Start of the window (inclusive). |
+| `--end <iso>` | yes | End of the window (exclusive). Window must be ≤ 90 days. |
+| `--table <name>` | no | Limit to one audit table (default: all): `api-calls`, `oauth-tokens`, or `managed-secrets`. |
+
+```bash
+# BSD/macOS date:
+alter audit integrity-check \
+  --start $(date -u -v-7d +%Y-%m-%dT%H:%M:%SZ) \
+  --end $(date -u +%Y-%m-%dT%H:%M:%SZ)
+# GNU date (Linux): --start $(date -u -d "7 days ago" +%Y-%m-%dT%H:%M:%SZ)
 ```
 
 ## Recipes

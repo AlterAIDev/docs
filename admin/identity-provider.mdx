@@ -13,7 +13,7 @@ Four layers, each optional after the first:
 
 1. **JWT verification** (required) — issuer URL, JWKS URL, audience, claim mappings.
 2. **OIDC sign-in** (optional) — adds a sign-in flow for `app.authenticate()` and the [Wallet](/admin/wallet).
-3. **Webhook deprovisioning** (optional) — real-time revocation when the IDP deletes a user.
+3. **Webhook deprovisioning** (optional) — real-time revocation when the IDP deletes or suspends a user, removes a group member, or deletes a group.
 4. **Directory sync** (optional) — bulk-imports users and groups from the IDP's management API, then keeps them reconciled on a schedule.
 
 <Warning>
@@ -49,14 +49,18 @@ Webhooks and directory sync are complementary, not alternatives:
 
 Directory sync needs a **management credential** — a read-only credential for the IDP's management API, created in the IDP's own console and pasted into the Alter portal (the app's **Identity** page → the identity provider card → **Directory Import**). The portal shows the same per-provider walkthrough inline under *"How to set up directory import"*.
 
-What each provider syncs:
+What each provider supports:
 
-| Provider | Users | Groups |
-|---|---|---|
-| Okta | Yes | Yes — Okta groups + memberships |
-| Clerk | Yes | Yes — Clerk organizations + memberships |
-| Auth0 | Yes | No — group-based grants resolve from the group claim on each sign-in token |
-| Custom OIDC | Not available | Not available — OIDC defines no management API |
+| Provider | Users synced | Groups synced | Group grants |
+|---|---|---|---|
+| Okta | Yes | Yes — Okta groups + memberships | Yes — requires **Group claim carries stable IDs** on the IDP config |
+| Clerk | Yes | Yes — Clerk organizations + memberships | Yes |
+| Auth0 | Yes | No | **Not available** |
+| Custom OIDC | Not available | Not available — OIDC defines no management API | **Not available** |
+
+<Warning>
+**Group grants are only available with Clerk and Okta.** A [group-bound grant](/concepts/credentials) is a security boundary, so Alter requires the IDP to deliver real-time group lifecycle webhooks — the events that revoke a removed member's access immediately. Clerk sends them for organizations; Okta sends them for groups (and additionally requires the **Group claim carries stable IDs** setting, so the group IDs in webhooks match the groups created at sign-in). Auth0 sends no group lifecycle events, so group grants cannot be created against an Auth0 identity provider; bind grants to users or to the app (system) instead. Custom OIDC providers have no group webhook or directory support.
+</Warning>
 
 <Note>
 The management credential is verified against the provider's management API **at save time**, the same way OIDC sign-in credentials are: a wrong secret, a missing permission, or a typo'd domain is rejected immediately and nothing is stored. If the provider can't be reached, the credential is saved with a notice to check the first import's status.
@@ -85,7 +89,7 @@ Once a credential is saved, the first import can be triggered immediately with *
 
     1. **Add Identity Provider** → paste the issuer URL → **Discover**. Auth0 is recognized; claim mappings pre-fill.
     2. Paste the audience.
-    3. For group-based authorization: add an [Auth0 Action](https://auth0.com/docs/customize/actions) emitting a `https://alter.dev/groups` (or any namespaced) claim on the access token. Map it in the portal **before** the first sign-in.
+    3. Optional — to record each user's group memberships (for visibility in the portal): add an [Auth0 Action](https://auth0.com/docs/customize/actions) emitting a `https://alter.dev/groups` (or any namespaced) claim on the access token, and map it in the portal **before** the first sign-in. Note that [group grants are not available with Auth0](#how-directory-sync-works) regardless of this claim — Auth0 sends no group lifecycle webhooks, so the claim records memberships but cannot back a group-bound grant.
     4. **Add Provider**.
 
     ### 2. OIDC sign-in (optional)
@@ -104,7 +108,7 @@ Once a credential is saved, the first import can be triggered immediately with *
 
     ### 4. Directory sync (optional)
 
-    Syncs **users only** — Auth0 groups are not imported (see [How directory sync works](#how-directory-sync-works)); group-bound grants keep resolving from the group claim on each sign-in token. Blocked Auth0 users sync as suspended; deleted users are deprovisioned on the next run.
+    Syncs **users only** — Auth0 groups are not imported, and group grants are not available for Auth0-backed apps (see [How directory sync works](#how-directory-sync-works)). Blocked Auth0 users sync as suspended; deleted users are deprovisioned on the next run.
 
     In Auth0:
 
@@ -117,7 +121,7 @@ Once a credential is saved, the first import can be triggered immediately with *
     ### Common pitfalls
 
     - **Custom domain mismatch** — JWTs use the custom domain but the portal has the tenant URL (or vice versa). Match exactly what's in the JWT `iss` claim.
-    - **Missing group claim** — Auth0 emits no groups by default. Without an Action, group-bound grants don't work.
+    - **Expecting group grants to work** — they don't on Auth0 (no group lifecycle webhooks; see [the support table](#how-directory-sync-works)). The group claim only records memberships for visibility. Bind grants to users or to the app (system) instead.
     - **Wrong Management API permission** — a Machine-to-Machine app without `read:users` is rejected when the credential is saved. Grant the permission under the application's **APIs** tab, not on a different API.
   </Tab>
 
@@ -126,7 +130,9 @@ Once a credential is saved, the first import can be triggered immediately with *
 
     In the **Clerk Dashboard**: note the instance URL (`https://<app>.clerk.accounts.dev` for dev, `https://clerk.<custom-domain>` for production). That's the issuer.
 
-    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer → **Discover**. Clerk is recognized; the user-ID claim pre-fills (`sub` = Clerk user ID). For group-based authorization, configure a Clerk **JWT template** (Clerk Dashboard → JWT Templates) that copies the active organization's role into a top-level claim — Clerk's default v2 session token nests the role at `o.rol`, which is not a top-level claim path. Enter that custom claim name in the Group Claim field **before** the first sign-in. **Add Provider**.
+    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer → **Discover**. Clerk is recognized; the user-ID claim pre-fills (`sub` = Clerk user ID).
+
+    For [group grants](#how-directory-sync-works) (groups = Clerk **organizations**): the group claim must carry the active organization's **ID** (`org_…`) — that ID is what Clerk's organization webhooks carry, so login and webhook resolve the same group and real-time revocation works. Clerk's default v2 session token nests organization data under `o` (`o.id`, `o.rol`), which is not a top-level claim path, so configure a Clerk **JWT template** (Clerk Dashboard → JWT Templates) emitting it as a top-level claim — e.g. `"groups": "{{org.id}}"` — and enter that claim name in the Group Claim field **before** the first sign-in (claim mappings lock after first authentication). **Add Provider**.
 
     ### 2. OIDC sign-in (optional)
 
@@ -136,9 +142,20 @@ Once a credential is saved, the first import can be triggered immediately with *
 
     Clerk needs the webhook URL first. In Alter: note the **Webhook URL**; do not click Enable yet.
 
-    In Clerk: **Webhooks → Add Endpoint** → paste the Alter URL. Subscribe to `user.updated`, `user.deleted`, `organizationMembership.deleted`, `organization.deleted`. Copy the **Signing Secret** (`whsec_...`).
+    In Clerk: **Webhooks → Add Endpoint** → paste the Alter URL. Subscribe to **exactly these four events** (others are ignored by the receiver and only add delivery noise):
 
-    Back in Alter: toggle **Enable Webhooks** → paste the secret → **Save**.
+    | Clerk event | What Alter does with it |
+    |---|---|
+    | `user.deleted` | Deprovisions the user and revokes their grants |
+    | `user.updated` | Keeps the user's email / display name in sync |
+    | `organizationMembership.deleted` | Revokes group-grant access the moment a member leaves an organization |
+    | `organization.deleted` | Handles a deleted organization (group) — revokes its group grants |
+
+    <Warning>
+    `organizationMembership.deleted` is camelCase in Clerk's event list and is a **different event** from `organization.deleted` — subscribe to both. Skipping `organizationMembership.deleted` silently breaks real-time group-grant revocation: a user removed from an organization keeps group-bound access until the next directory sync.
+    </Warning>
+
+    Copy the **Signing Secret** (`whsec_...`). Back in Alter: toggle **Enable Webhooks** → paste the secret → **Save**.
 
     ### 4. Directory sync (optional)
 
@@ -163,9 +180,11 @@ Once a credential is saved, the first import can be triggered immediately with *
        - `https://<org>.okta-emea.com/oauth2/default` — EMEA-region tenants
        - `https://<org>.oktapreview.com/oauth2/default` — preview / dev tenants
 
-    For group-based authorization: edit the authorization server → **Claims** → add a claim — name `groups`, include in **Access Token**, value type **Groups**, filter `Matches regex` `.*`.
+    For group-based authorization: edit the authorization server → **Claims** → add a claim — name `groups`, include in **Access Token**, value type **Groups**, filter `Matches regex` `.*`. This emits group **names**, which is enough for membership visibility.
 
-    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer URI → **Discover**. Okta is recognized. Paste the audience. Map the group claim **before** the first sign-in. **Add Provider**.
+    To use [group grants](#how-directory-sync-works), the claim must instead carry stable group **IDs** (`00g…`): configure the claim with an Expression that returns group IDs (Okta's group functions with `"group.id"`, e.g. `getFilteredGroups`), and tick **Group claim carries stable IDs** when adding the provider in Alter. Group grants on an Okta IDP without stable-ID keying are rejected — the IDs in Okta's group webhooks would never match name-keyed groups, which would break real-time revocation.
+
+    In the **Alter portal** → **Identity** → **Add Identity Provider** → paste the issuer URI → **Discover**. Okta is recognized. Paste the audience. Map the group claim (and set **Group claim carries stable IDs** if using group grants) **before** the first sign-in — claim mappings lock after first authentication. **Add Provider**.
 
     ### 2. OIDC sign-in (optional)
 
@@ -177,7 +196,22 @@ Once a credential is saved, the first import can be triggered immediately with *
 
     In Alter: note the **Webhook URL** shown on the Identity Provider detail page; do not click Enable yet.
 
-    In Okta: **Workflow → Event Hooks → Create Event Hook**. **URL** = the Alter webhook URL. **Authentication field** = `Authorization`. Set the secret to a value you control and copy it — Okta does not retrieve it for you later. Subscribe to `user.lifecycle.delete.initiated`, `user.lifecycle.deactivate`, `user.lifecycle.suspend`, plus their recovery counterparts `user.lifecycle.unsuspend`, `user.lifecycle.reactivate`, and `user.lifecycle.activate` so suspended users come back to active state in Alter when their Okta status is restored. Verify and Activate the Event Hook — Okta sends a GET challenge to the Alter URL automatically.
+    In Okta: **Workflow → Event Hooks → Create Event Hook**. **URL** = the Alter webhook URL. **Authentication field** = `Authorization`. Set the secret to a value you control and copy it — Okta does not retrieve it for you later. Subscribe to these events:
+
+    | Okta event | What Alter does with it |
+    |---|---|
+    | `user.lifecycle.delete.initiated` | Deprovisions the user and revokes their grants |
+    | `user.lifecycle.deactivate` | Deprovisions the user and revokes their grants |
+    | `user.lifecycle.suspend` | Suspends the user |
+    | `user.lifecycle.unsuspend`, `user.lifecycle.reactivate`, `user.lifecycle.activate` | Restore a previously-suspended user to active |
+    | `group.user_membership.remove` | Revokes group-grant access the moment a member is removed from a group |
+    | `group.lifecycle.delete` | Handles a deleted group — revokes its group grants |
+
+    <Warning>
+    The two `group.*` events are **required for real-time group-grant revocation**. Without them, a user removed from an Okta group keeps group-bound access until the next directory sync (up to 6 hours).
+    </Warning>
+
+    Verify and Activate the Event Hook — Okta sends a GET challenge to the Alter URL automatically.
 
     Back in Alter: toggle **Enable Webhooks** → paste the same secret value → **Save**.
 
@@ -197,7 +231,9 @@ Once a credential is saved, the first import can be triggered immediately with *
     ### Common pitfalls
 
     - **Custom Authorization Server** — issuer URI is `https://<org>.okta.com/oauth2/<server-id>`, not the org URL.
-    - **Missing group claim** — Okta emits no groups by default. Without the claim, group-bound grants don't work.
+    - **Missing group claim** — Okta emits no groups by default. Without the claim, group memberships are not recorded and group-bound grants don't work.
+    - **Group claim emits names, not IDs** — group grants require stable group IDs in the claim plus the **Group claim carries stable IDs** setting (see step 1). A name-emitting claim still records memberships but cannot back a group grant.
+    - **Group webhook events not subscribed** — without `group.user_membership.remove` and `group.lifecycle.delete` on the Event Hook, group-grant revocation waits for the next directory sync instead of firing in real time.
     - **Audience mismatch** — default is `api://default`; JWTs with a different audience fail verification.
     - **Missing admin role on the API service app** — token exchange succeeds but every directory read returns 403, so the credential is rejected at save time. Assign **Read-only Administrator** to the app itself (not to a user).
     - **Public key pasted instead of private** — the JWK must contain the private parts (`d`, `p`, `q`, …). The public half from the key dialog cannot sign the client assertion and is rejected at save time.

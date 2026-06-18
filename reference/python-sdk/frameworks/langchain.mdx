@@ -15,7 +15,7 @@ pip install 'alter-sdk[langchain]'
 from alter_sdk import App
 from alter_sdk.langchain import alter_tool, AlterMCPInterceptor
 
-alter_app = App(api_key="alter_key_app_…")
+alter_app = App(api_key="alter_rk_…")
 
 @alter_tool(alter_app, provider="google")
 async def list_emails(query: str) -> str:
@@ -38,8 +38,7 @@ def alter_tool(
     vault: App | Agent,
     provider: str,
     *,
-    scope: list[str] | None = None,
-    constraints: dict[str, Any] | None = None,
+    label: str | None = None,
     name: str | None = None,
     description: str | None = None,
 ) -> Callable[[F], StructuredTool]
@@ -49,10 +48,11 @@ def alter_tool(
 |---|---|---|---|
 | `vault` | `App \| Agent` | — | SDK client instance. Positional. |
 | `provider` | `str` | — | OAuth provider id (e.g. `"google"`, `"github"`). Positional. |
-| `scope` | `list[str] \| None` | `None` | Reserved code-level scope declaration. Stored on `tool.metadata["alter_scope"]`. Not yet forwarded to `request()`. |
-| `constraints` | `dict \| None` | `None` | Reserved code-level constraints. Stored on `tool.metadata["alter_constraints"]`. |
+| `label` | `str \| None` | `None` | Optional sibling-grant label used by the Connect-session fallback. |
 | `name` | `str \| None` | `None` | Tool name. Defaults to the function name. |
 | `description` | `str \| None` | `None` | Tool description. Defaults to the function docstring. |
+
+Use `app.with_constraints(...)` / `agent.with_constraints(...)` before passing the SDK client to `alter_tool()` when a tool needs enforceable scope narrowing or a request rule.
 
 **Returns:** a decorator that, applied to an async function, returns a `StructuredTool`.
 

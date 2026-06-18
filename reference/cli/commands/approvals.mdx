@@ -1,0 +1,20 @@
+---
+title: 'alter approvals'
+description: 'Inspect human-in-the-loop (HITL) approval configuration.'
+---
+
+Read-only inspection of an organization's human-in-the-loop approval configuration.
+
+```
+alter approvals defaults
+```
+
+Requires `dashboard_approvals:read`. This surfaces config only — the approval *workflow* (listing or deciding individual requests) is managed in the dashboard, not the CLI.
+
+## defaults
+
+Show the deployment defaults and per-grant bounds the HITL approval system uses.
+
+```bash
+alter approvals defaults
+```

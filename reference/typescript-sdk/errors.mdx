@@ -24,7 +24,7 @@ try {
     return;
   }
   if (error instanceof ScopeReauthRequiredError) {
-    // The user re-authorized provider scopes are needed.
+    // The user must re-authorize with wider provider scopes.
     console.warn(`Missing scopes: ${error.missingScopes?.join(", ")}`);
   }
   throw error;
@@ -41,7 +41,9 @@ try {
 ### Backend errors
 
 - `BackendError` — generic backend failure. `details.status_code` is populated when an HTTP status code is the proximate cause.
-- `ReAuthRequiredError` — the calling user JWT is invalid or expired.
+- `RestrictedGrantRequiresProxyError` — the grant is restricted to the proxy call path; use `proxyRequest()`.
+- `SiblingLabelConflictError` — the sibling label is already in use on this connection; pick another label.
+- `ReAuthRequiredError` — the user must re-authorize via Alter Connect. Parent class of the grant-state errors below (`GrantExpiredError`, `GrantRevokedError`, `GrantDeletedError`, `CredentialRevokedError`), so one `instanceof` catch covers every "send the user back through Connect" condition.
 
 ### Grant state
 
@@ -64,8 +66,9 @@ try {
 
 ### Provider
 
-- `ProviderAPIError` — provider returned a 4xx/5xx that is not a scope failure.
+- `ProviderAPIError` — provider returned a 4xx/5xx that is not a scope or credential-rejection failure.
 - `ScopeReauthRequiredError` — provider returned 403 `insufficient_scope`, or the backend already knew the grant's scopes are drifted. Exposes `missingScopes` and `providerId`.
+- `ProviderUnauthorizedError` — provider returned 401: the credential was revoked, expired, or otherwise invalidated provider-side. Exposes `grantId`, `providerId`, `statusCode`, `responseBody`. Recovery: re-authorize an OAuth grant via a new Connect session, or update the stored managed secret. A 401 whose `WWW-Authenticate` challenge carries `error="insufficient_scope"` (RFC 6750 — the credential is still valid, it just lacks a scope) surfaces as a generic `ProviderAPIError` instead.
 
 ### Connect flow
 

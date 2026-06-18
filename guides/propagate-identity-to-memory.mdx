@@ -1,0 +1,198 @@
+---
+title: 'Propagate identity into memory layers'
+description: 'Partition agent memory, sessions, and channels by verified Alter identity — one stable key per real-world entity.'
+---
+
+Memory layers (Mem0, Zep, LangGraph stores, Honcho) and multi-user agent runtimes converge on the same primitive: **a caller-supplied string identity is the partition key**. None of them verify that string — they trust whatever the orchestrating process passes. A prompt-injected tool call that passes another user's ID, a bug that defaults to `"default_user"`, or keying on a mutable email all leak memory across users.
+
+Alter closes that gap: the same verified identity that gates credential access also partitions memory. This guide shows how to consume it.
+
+## Resolve the identity
+
+`resolve_identity` returns the canonical identity set Alter resolved for the request — the stable end-user key (`app_user_id`), the agent key, the application key, group memberships, and the ambient trace context.
+
+<CodeGroup>
+
+```python Python
+identity = await agent.resolve_identity(user_token=jwt)
+
+identity.app_user_id   # canonical end-user key (stable UUID)
+identity.agent_id      # canonical agent key
+identity.group_ids     # stable external group IDs
+identity.user_status   # "active" | "suspended" — fail closed on anything but active
+```
+
+```typescript TypeScript
+const identity = await agent.resolveIdentity({ userToken: jwt });
+
+identity.appUserId;   // canonical end-user key (stable UUID)
+identity.agentId;     // canonical agent key
+identity.groupIds;    // stable external group IDs
+identity.userStatus;  // "active" | "suspended" — fail closed on anything but active
+```
+
+</CodeGroup>
+
+Two rules, both load-bearing:
+
+1. **Key on `app_user_id`, never on email or the raw IDP `sub`.** Emails change; `sub` values can collide or churn across identity-provider reconfigurations. The canonical key is stable for the life of the user. When the application must join against its own IDP-keyed data, use the `external_subject_id` + `idp_id` pair the context also carries.
+2. **The memory call's identity argument is plumbing, not a tool parameter the LLM fills in.** Partition keys must originate from the resolved `IdentityContext` — never from model output. A prompt-injected tool call must not be able to choose whose memory it reads.
+
+An agent that already holds a delegation from a user can resolve that user **without** a token, by `app_user_id` alone — the consent edge the user created when they delegated their grant is the authorization. No delegation, no resolution: the request fails with an opaque not-found.
+
+<CodeGroup>
+
+```python Python
+# Agent-only: authorized by the delegation this agent holds for the user.
+identity = await agent.resolve_identity(app_user_id=known_user_id)
+```
+
+```typescript TypeScript
+// Agent-only: authorized by the delegation this agent holds for the user.
+const identity = await agent.resolveIdentity({ appUserId: knownUserId });
+```
+
+</CodeGroup>
+
+## Derive the memory scope
+
+`memory_scope()` derives deterministic, prefixed partition keys. The prefixes prevent cross-type collisions and make a leaked key self-describing.
+
+<CodeGroup>
+
+```python Python
+scope = identity.memory_scope()
+
+scope.user_key    # "alter:user:<app_user_id>"          (None for headless)
+scope.agent_key   # "alter:agent:<agent_id>"            (None for app callers)
+scope.app_key     # "alter:app:<app_id>"
+scope.run_key     # "alter:run:<run_id>"                (from the trace context)
+scope.namespace   # ("alter", <app_id>, <app_user_id>)  (tuple form)
+```
+
+```typescript TypeScript
+const scope = identity.memoryScope();
+
+scope.userKey;    // "alter:user:<app_user_id>"          (null for headless)
+scope.agentKey;   // "alter:agent:<agent_id>"            (null for app callers)
+scope.appKey;     // "alter:app:<app_id>"
+scope.runKey;     // "alter:run:<run_id>"                (from the trace context)
+scope.namespace;  // ["alter", <app_id>, <app_user_id>]  (tuple form)
+```
+
+</CodeGroup>
+
+## Map the scope onto the memory layer
+
+The deliverable to a memory layer is a small set of stable strings — adapting Alter identity to any of these is a formatting exercise:
+
+| Target | Mapping |
+|---|---|
+| **Mem0** | `user_id=scope.user_key`, `agent_id=scope.agent_key`, `run_id=scope.run_key`; the fourth dimension, `app_id=scope.app_key`, applies to the Mem0 **platform** client (`MemoryClient`) — the OSS `Memory` class scopes on the first three. Mem0's implicit-null scoping then gives per-user isolation for free |
+| **Zep** | Zep `user_id` = `scope.user_key` (Zep's own guidance: reuse the calling system's user ID); thread ID = `scope.run_key`; group graphs keyed on `alter:group:<group_id>` from `identity.group_ids` |
+| **LangGraph / LangMem** | `namespace=("alter", "{app_id}", "{app_user_id}")` via the store's template-variable mechanism — i.e. `scope.namespace`; `thread_id` = the run ID for the checkpointer |
+| **Honcho** | peer ID for the human = `scope.user_key`; peer ID for the agent = `scope.agent_key`; workspace = `scope.app_key` — one stable peer ID per real-world entity, reused everywhere |
+| **OpenClaw** | `session.identityLinks` canonical key = the `app_user_id`: channel peer IDs (`telegram:123…`, `discord:456…`) map to the Alter user, so per-peer DM sessions collapse per *verified human*, not per channel handle |
+| **Hermes** | gateway allowlist / permission-tier entries and Honcho peer IDs keyed on `scope.user_key`; profile-per-tenant deployments select the profile by `app_id` |
+| **FGA / ReBAC engines** | tuple subjects `user:alter:user:<id>` and `agent:alter:agent:<id>` — agents as first-class principals in the relationship graph |
+
+A minimal Mem0 example:
+
+```python
+from mem0 import Memory
+
+memory = Memory()
+scope = identity.memory_scope()
+
+# Write and search are ALWAYS scoped by the verified identity — the
+# LLM never chooses the user_id.
+memory.add(messages, user_id=scope.user_key, agent_id=scope.agent_key)
+results = memory.search(query, user_id=scope.user_key)
+```
+
+And a LangGraph store namespace:
+
+```python
+store.put(scope.namespace, key="preferences", value={"theme": "dark"})
+items = store.search(scope.namespace)
+```
+
+## Verify identity downstream (assertions)
+
+Resolved identity trusts the agent process to pass the keys on — the right model for in-process memory calls. When the boundary is a separate service (a memory gateway, a retrieval proxy, anything reachable by prompt-injected tool calls), upgrade to a **verifiable assertion**: a short-lived Alter-signed JWT carrying the end user as `sub` and the acting agent as `act`.
+
+<CodeGroup>
+
+```python Python
+assertion = await agent.assert_identity(
+    user_token=jwt,
+    audience="https://memory.internal",
+)
+# Hand assertion.token to the downstream service.
+```
+
+```typescript TypeScript
+const assertion = await agent.assertIdentity({
+  userToken: jwt,
+  audience: "https://memory.internal",
+});
+// Hand assertion.token to the downstream service.
+```
+
+</CodeGroup>
+
+The verifier needs nothing Alter-specific — standard JWT validation against the published JWKS:
+
+```python
+# On the downstream service (the verifier):
+import os
+
+import jwt
+from jwt import PyJWKClient
+
+# The trust anchor is VERIFIER-SIDE CONFIGURATION — never the token.
+# Deriving the JWKS host from the unverified iss claim would let any
+# attacker-issued token nominate its own key server and "verify".
+EXPECTED_ISSUER = os.environ["IDENTITY_ISSUER"]  # the Alter host you trust
+
+unverified_iss = jwt.decode(token, options={"verify_signature": False}).get("iss")
+if unverified_iss != EXPECTED_ISSUER:
+    raise ValueError("unexpected issuer")
+
+# Only after the issuer matched configuration: fetch ITS published keys.
+jwks = PyJWKClient(f"{EXPECTED_ISSUER}/.well-known/alter-identity-jwks.json")
+signing_key = jwks.get_signing_key_from_jwt(token)
+
+# Pin the explicit media type (RFC 8725) so no other token class
+# verifying against the same keys can be substituted.
+if jwt.get_unverified_header(token).get("typ") != "alter-identity+jwt":
+    raise ValueError("not an Alter identity assertion")
+
+claims = jwt.decode(
+    token,
+    signing_key.key,
+    algorithms=["ES256"],
+    audience="https://memory.internal",  # must match the minted audience
+    issuer=EXPECTED_ISSUER,
+)
+claims["sub"]           # "alter:user:<app_user_id>" — partition on this
+claims.get("act")       # {"sub": "alter:agent:<agent_id>"} — the acting agent
+```
+
+Properties to rely on:
+
+- **An assertion is an identity statement, not an access token.** It grants nothing by itself — the downstream service maps it to its *own* authorization (FGA tuples, namespace ACLs).
+- **Short TTL by design** (default 120 seconds, bounds 10–300). Deprovisioning and consent revocation propagate within one TTL.
+- **`act` is honest about agent authentication.** The `alter.agent_auth` claim states how the agent was authenticated, so verifiers can apply policy to it.
+- **Typed header.** Assertions carry `typ: alter-identity+jwt`; pinning it in the verifier rejects any other JWT class at the door.
+
+## Lifecycle: deprovisioning and groups
+
+- A **deprovisioned** user fails closed immediately: `resolve_identity` and `assert_identity` both reject from the moment the identity provider deprovisions the user, and the user's agent delegations are revoked in the same cascade. Wire the application's deprovisioning flow to delete `alter:user:<id>`-keyed data from the memory stores — the stable key makes the deletion deterministic.
+- **Group membership changes propagate**: `group_ids` reflects unrevoked memberships at resolution time, and short assertion TTLs bound staleness for verifiers keying shared memory on `alter:group:<group_id>`.
+
+## Related
+
+- [Identity concepts](/concepts/identity) — how Alter resolves app, agent, and end-user identity
+- [Call APIs on behalf of users](/guides/call-apis-on-behalf-of-users) — the credential half of the same consent model
+- [Give an agent scoped access](/guides/give-an-agent-scoped-access) — delegations, the consent edges identity resolution reuses

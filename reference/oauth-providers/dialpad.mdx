@@ -64,15 +64,17 @@ Connect your users to Dialpad for business phone systems, video conferencing, an
 
 | Scope | Description |
 |-------|-------------|
-| `calls` | Access to call logs and call management |
-| `contacts` | Access to contacts |
-| `users` | Access to user information |
-| `sms` | Access to SMS messages |
-| `recordings` | Access to call recordings |
+| `calls:list` | Read call logs (default) |
+| `change_log` | Read change-log events (default) |
+| `recordings_export` | Export call recordings |
+| `message_content_export` | Export message content |
+| `screen_pop` | Trigger screen-pop events |
+| `fax_message` | Send and read fax messages |
+| `offline_access` | Obtain a refresh token for offline access (default, required) |
 
 ## Notes
 
-- Select only the scopes the application needs. For basic call analytics, `calls` and `users` are typically sufficient.
-- The `recordings` scope provides access to call recordings, which may contain sensitive data. Request this only when needed.
+- Select only the scopes the application needs. For basic call analytics, `calls:list` is typically sufficient (include `offline_access` for a refresh token).
+- The `recordings_export` scope provides access to call recordings, which may contain sensitive data. Request this only when needed.
 - Non-default scopes (`recordings_export`, `message_content_export`, `calls:list`, `fax_message`, `offline_access`) require Dialpad approval. Request them in the registration form or by emailing `api@dialpad.com`.
 - See the [Dialpad API documentation](https://developers.dialpad.com/docs/oauth) for more details on available endpoints.

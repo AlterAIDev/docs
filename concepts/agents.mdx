@@ -5,7 +5,7 @@ description: 'Workload identities with their own API key, audit trail, and bound
 
 **An agent is a named workload identity with its own API key, audit trail, and bound access set.** Use an agent when one app key is not enough — when multiple distinct workloads should be revocable, rotatable, and auditable independently.
 
-An agent is created by an operator (in the developer portal or via `app.agents.create()`). At runtime, the agent process holds a per-agent API key (`alter_key_agent_…`) and calls `agent.request()` the same way an app does. The backend resolves the calling identity from the key signature, scopes the request to the agent's access set, and attributes the audit row to the agent.
+An agent is created by an operator (in the developer portal or via `app.agents.create()`). At runtime, the agent process holds its own API key — an agent key (`alter_ak_…`) minted from App → **API Keys**, or a per-agent key bound to this specific agent (currently minted with the legacy `alter_key_…` prefix) — and calls `agent.request()` the same way an app does. The backend resolves the calling identity from the key signature, scopes the request to the agent's access set, and attributes the audit row to the agent.
 
 ## When to use an agent
 
@@ -41,7 +41,7 @@ See [Give an AI agent scoped access](/guides/give-an-agent-scoped-access) for th
 
 ## Per-agent key lifecycle
 
-Each agent can hold multiple API keys. Keys are minted in the portal (or via `app.agents.mint_key()`), shown once, and stored only as a hashed fingerprint on the backend. Keys can be:
+Each agent can hold multiple API keys. Keys are minted in the portal (or via `app.agents.mint_key()`), shown once, and stored only as a hashed fingerprint on the backend. Per-agent keys currently mint with the legacy `alter_key_…` prefix. Keys can be:
 
 - **Active** — usable; the default state on mint.
 - **Deprecated** — still authenticates, but the SDK surfaces a deprecation warning every time the key is used so operators can find lingering callers before fully revoking.

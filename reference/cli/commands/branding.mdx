@@ -1,0 +1,53 @@
+---
+title: 'alter branding'
+description: 'Read and update an app's branding / theming config.'
+---
+
+Branding controls how the Connect widget and wallet look for an app (logo, colors, font). These commands read and update it; the visual editor in the dashboard is usually the easier way to author a theme.
+
+```
+alter branding get   --app <app-id>
+alter branding set   --app <app-id> --input <@file|-> [--replace]
+alter branding reset --app <app-id> [--yes]
+```
+
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. `get` needs `dashboard_branding:read`; `set` / `reset` need `dashboard_branding:write`. Branding is plain recoverable config — `reset` restores Alter defaults and can be undone by setting it again.
+
+## get
+
+```bash
+alter branding get
+```
+
+## set
+
+Update branding from a JSON body. Two verbs mirror the dashboard's branding editor:
+
+- **default (PATCH)** — a partial merge-update of an **existing** config; fields you omit are left unchanged. If no branding is configured yet, this reports that you need `--replace` to create it first.
+- **`--replace` (PUT)** — create or fully replace branding. Use this for initial setup; it requires `logo_url` plus all three colors (`primary`, `text`, `background`). `font_family` is optional.
+
+Hex colors (`#RRGGBB`) and the logo-plus-colors requirement are validated locally before the request, matching the dashboard.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--input <path>` | yes | JSON branding body from a file (`@/path/to/branding.json`) or stdin (`-`). |
+| `--replace` | no | Create or fully replace branding (PUT) instead of merge-updating (PATCH). |
+
+```bash
+# First-time setup (create):
+alter branding set --replace --input @branding.json
+# Later tweak (merge-update an existing config):
+alter branding set --input @branding.json
+```
+
+## reset
+
+Reset branding to Alter defaults. Recoverable — re-run `set` to restore a custom theme.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--yes` | off | Skip the interactive confirmation prompt (for CI). |
+
+```bash
+alter branding reset --yes
+```

@@ -20,7 +20,7 @@ alter grants revoke --app <app-id> --grant <grant-id> [--reason "..."] [--yes]
 |---|---|---|
 | `--app <app-id>` | — | App ID. Falls back to `ALTER_APP_ID`. |
 | `--status <status>` | all | `active`, `expired`, or `revoked`. Case-sensitive. |
-| `--provider <id>` | all | Filter by provider ID (e.g. `google`, `github`, or a managed-secret template slug). |
+| `--provider <id>` | all | Filter by provider. OAuth: the provider id (e.g. `google`, `github`). Managed secret: the per-secret slug (e.g. `stripe-production`), unique per app. |
 | `--app-user <uuid>` | all | Filter to one end-user. |
 | `--search <text>` | — | Substring match on user identifier or display name (max 100 chars; backend-side). |
 | `--limit <n>` | `100` | Page size (1–1000). |

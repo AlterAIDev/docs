@@ -60,6 +60,7 @@ The hierarchy is built so that catching a parent class handles every leaf that r
 
 - **"The user needs to re-authorize."** Catch `ReAuthRequiredError`. Triggers: revoked grant, expired grant, broken credential, deleted grant. Response: show the Connect widget.
 - **"The user needs to re-authorize with a wider scope."** Catch `ScopeReauthRequiredError` (subclass of `ProviderAPIError`). Trigger: the provider returned 403 and the grant's stored scopes don't cover the route. Response: show the Connect widget; the new authorization upgrades the grant in place.
+- **"The provider rejected the credential."** Catch `ProviderUnauthorizedError` (subclass of `ProviderAPIError`). Trigger: the provider returned 401 on a `request()` call — the credential was revoked, expired, or otherwise invalidated provider-side. One exception: a 401 whose `WWW-Authenticate` challenge carries `error="insufficient_scope"` (RFC 6750) means the credential is still valid but lacks a scope, so it surfaces as a generic `ProviderAPIError` instead. Response: for an OAuth grant, show the Connect widget (a new Connect session re-authorizes the grant); for a managed-secret grant, update the stored secret with a valid value.
 - **"The agent has no access to this provider."** Catch `NoDelegatedGrantError`. Trigger: an agent called `request(provider=...)` and no delegation or agent-owned managed-secret grant resolved. Response: prompt a user to delegate, or issue a managed-secret grant to the agent.
 - **"A transient backend condition."** Catch `TokenRefreshInProgressError`. Trigger: a parallel refresh holds the lock. Response: retry with backoff.
 - **"A network problem."** Catch `NetworkError`. Trigger: connection failure, DNS, timeout. Response: retry with backoff (catch `TimeoutError` separately if a different retry profile is needed for timeouts vs connection refused).
@@ -140,6 +141,21 @@ except ScopeReauthRequiredError as e:
     session = await app.create_connect_session(allowed_providers=[e.provider_id])
     notify_user(session.connect_url)
 ```
+
+### `ProviderUnauthorizedError`
+
+Raised when the provider returns 401 to a `request()` call — the provider rejected the credential (revoked, expired, or otherwise invalidated provider-side). The 401 sibling of `ScopeReauthRequiredError`; both extend `ProviderAPIError`, so existing `ProviderAPIError` handlers keep catching it. A 401 whose `WWW-Authenticate` challenge carries `error="insufficient_scope"` (RFC 6750) is deliberately excluded — the credential is still valid, it just lacks a scope — and surfaces as a generic `ProviderAPIError` instead.
+
+| Attribute | Description |
+|---|---|
+| `grant_id` | The grant whose credential was rejected. |
+| `provider_id` | The provider. |
+| `status_code`, `response_body` | The provider's raw response. |
+
+Recovery depends on the grant family:
+
+- **OAuth grant** — re-authorize via a new Connect session (same pattern as `ScopeReauthRequiredError`: `create_connect_session(allowed_providers=[e.provider_id])` and surface the URL to the user).
+- **Managed-secret grant** — the stored secret is no longer accepted by the provider; update it with a valid value.
 
 ### `PolicyViolationError`
 

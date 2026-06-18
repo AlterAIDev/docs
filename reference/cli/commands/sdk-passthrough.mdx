@@ -3,10 +3,11 @@ title: 'alter sdk-passthrough'
 description: 'Make a one-off authenticated provider request through a grant.'
 ---
 
-`sdk-passthrough` is an escape hatch for making a single authenticated request to a provider's API through a grant — the kind of thing you'd otherwise do with the runtime SDK's `request()`. It exists for debugging ("fetch a token for this grant and hit the provider once to see what comes back"), deliberately namespaced so it reads as *"I'm doing something unusual"* rather than blending in with the management commands.
+`sdk-passthrough` is an escape hatch for making one-off runtime SDK calls — the kind of thing you'd otherwise do with the runtime SDK's `request()` or `resolveIdentity()`. It exists for debugging ("fetch a token for this grant and hit the provider once to see what comes back", "which identity does the backend resolve for this key?"), deliberately namespaced so it reads as *"I'm doing something unusual"* rather than blending in with the management commands.
 
 ```
-alter sdk-passthrough request <grant-id> --url <url> [--method ...] [--body ...] [--header ...]
+alter sdk-passthrough request <grant-id> --url <url> [--method ...] [--body ...] [--header ...] [--api-key <key>]
+alter sdk-passthrough resolve-identity [--user-token <jwt>] [--app-user-id <uuid>] [--include-profile] [--api-key <key>]
 ```
 
 <Note>
@@ -43,13 +44,39 @@ alter sdk-passthrough request <grant-id> \
   --body '{"channel":"#general","text":"hello"}'
 ```
 
+## resolve-identity
+
+Resolve the canonical identity context for the runtime key (the SDK's `resolveIdentity()` — requires the `identity:resolve` scope on the key). Prints the identity JSON plus the derived memory-scope partition keys, so an operator can verify exactly which app / agent / end-user identity the backend resolves before wiring those keys into a memory store.
+
+| Flag | Required | Description |
+|---|---|---|
+| `--user-token <jwt>` | no | End-user IDP JWT to resolve. Validated against the application's configured identity provider. |
+| `--app-user-id <uuid>` | no | Agent-only consent-edge shortcut: resolve this end user **without** a token. Requires a key **bound to a managed agent** that holds a delegation from that user — keys minted on the agent-keys surface currently use the legacy `alter_key_…` prefix; `alter_ak_…` keys are accepted too. The backend authorizes on the key's agent *binding*, not its prefix; the CLI only rejects definitively non-agent prefixes (`alter_rk_…`, `alter_dk_…`, `alter_pk_…`) locally. |
+| `--include-profile` | no | Opt into PII (email + display name) on the response. Off by default. |
+| `--api-key <key>` | no | Runtime API key, if not using `ALTER_API_KEY`. Same rules as `request` above. |
+
+With neither `--user-token` nor `--app-user-id`, the call is headless and resolves the key's own identity — the application, plus the agent identity when the key is bound to a managed agent.
+
+There is deliberately no `assert-identity` counterpart: assertion-minting produces a signed credential-shaped token whose only consumers are programmatic verifiers, so it ships on the SDKs only.
+
+```bash
+# An agent-BOUND key (minted on the agent-keys surface).
+export ALTER_API_KEY="alter_key_..."
+
+# Which identity does this key resolve for this user's JWT?
+alter sdk-passthrough resolve-identity --user-token "$USER_JWT" | jq .
+
+# Consent-edge shortcut (agent key + a delegation from this user)
+alter sdk-passthrough resolve-identity --app-user-id 22222222-2222-2222-2222-222222222222 | jq .memory_scope
+```
+
 ## Recipes
 
 **Debug a grant from scratch**
 
 ```bash
 # 1. Mint a runtime key (printed once) and export it.
-alter keys mint --name debug --scopes grants:read --output json
+alter keys mint --name debug --scopes tokens:retrieve --output json
 export ALTER_API_KEY="alter_rk_..."
 # 2. Call the provider through the grant and inspect the response.
 alter sdk-passthrough request <grant-id> --url https://www.googleapis.com/oauth2/v3/userinfo | jq .

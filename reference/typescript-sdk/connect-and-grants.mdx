@@ -81,6 +81,10 @@ async createConnectSession(
 | `agent` | `string` | Agent UUID or managed-agent name. When set, on approval the SDK returns a delegation grant that the agent uses as `grantId` on `request()`. |
 | `userToken` | `string` | Per-call user JWT. Overrides `userTokenGetter`. Required when there is no JWT context configured. |
 
+<Warning>
+**One provider account uses one scope set.** Within a single application and provider, all agents that connect the **same end-user account** share one authorization. Requesting **different** `requiredScopes` for different agents on that same account is **not supported** — the most recent connect determines the scopes for all of them, so an earlier agent can lose a scope it relied on. Use a **consistent** `requiredScopes` set (or the Dev Portal default) per provider within an app. *This is a known limitation we may revisit.*
+</Warning>
+
 Returns [`ConnectSession`](/reference/typescript-sdk/types#connectsession) — `connectUrl` is what the user opens; `sessionToken` is what you pass to [`pollConnectSession()`](#pollconnectsession).
 
 ```typescript
@@ -211,12 +215,12 @@ The browser launch uses the optional `open` peer dependency. When that package i
 Open the application's configured IDP login page in the user's default browser, poll until the user authenticates, and return their IDP JWT.
 
 ```typescript
-async authenticate(options?: { timeout?: number }): Promise<AuthResult>
+async authenticate(options?: { timeoutMs?: number }): Promise<AuthResult>
 ```
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `timeout` | `number` | `300_000` | Maximum wait. **Milliseconds.** |
+| `timeoutMs` | `number` | `300_000` | Maximum wait. **Milliseconds.** |
 
 Returns [`AuthResult`](/reference/typescript-sdk/types#authresult) with `userToken` and `userInfo`.
 
@@ -288,7 +292,7 @@ Both `AppListGrantsOptions` and `AgentListGrantsOptions` accept the same filters
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `providerId` | `string` | — | Filter to one provider. |
+| `providerId` | `string` | — | Filter to one provider. OAuth: the provider id (e.g. `"google"`). Managed secret: the per-secret slug (e.g. `"stripe-production"`), unique per app. |
 | `status` | `string` | — | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
 | `account` | `string` | — | Filter by `accountIdentifier` (multi-account disambiguation). |
 | `endUserToken` | `string` | — | Scope to one end user by their JWT — their direct grants plus live group-member grants. On `App`, takes precedence over `userTokenGetter`; on `Agent`, narrows the *delegated* OAuth grants (agent-owned managed-secret grants are unaffected). An invalid token is a hard `401`, never a silent fall-through to app scope. |

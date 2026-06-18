@@ -1,0 +1,93 @@
+---
+title: 'Snowflake'
+description: 'Run SQL over the Snowflake SQL API through Alter Vault'
+---
+
+## Overview
+
+Store a Snowflake programmatic access token (PAT) in Alter Vault and let agents run SQL over the Snowflake SQL API — without the token ever reaching agent code.
+
+| Property | Value |
+|----------|-------|
+| **Provider ID** | `snowflake` |
+| **Category** | Database |
+| **Credential Type** | Programmatic Access Token |
+
+<Note>
+  A programmatic access token is a long-lived static credential, so it stores cleanly in Alter Vault. Key-pair JWT and OAuth tokens are short-lived and are not used here.
+</Note>
+
+## Step 1: Get Credentials
+
+<Steps>
+  <Step title="Sign in to Snowsight">
+    Sign in to [Snowsight](https://app.snowflake.com/).
+  </Step>
+  <Step title="Ensure a network policy is in place">
+    Snowflake requires the user to be governed by a network policy before it will issue programmatic access tokens.
+  </Step>
+  <Step title="Generate a programmatic access token">
+    In a worksheet, run:
+
+    ```sql
+    ALTER USER my_user ADD PROGRAMMATIC ACCESS TOKEN agent_token
+      ROLE_RESTRICTION = 'MY_ROLE'
+      DAYS_TO_EXPIRY = 90;
+    ```
+
+    Scope the token with `ROLE_RESTRICTION` so it carries only the privileges the integration needs.
+  </Step>
+  <Step title="Copy the token secret">
+    Copy the `token_secret` from the command output — it is shown only once.
+  </Step>
+</Steps>
+
+<Warning>
+  The token grants access to the bound role's data. Store it only in the Alter Vault Developer Portal, and rotate it before `DAYS_TO_EXPIRY` elapses.
+</Warning>
+
+## Step 2: Add to Alter Vault
+
+<Steps>
+  <Step title="Open the Developer Portal">
+    Go to [portal.alterauth.com](https://portal.alterauth.com) and navigate to the application.
+  </Step>
+
+  <Step title="Add Snowflake">
+    Go to **Managed Secrets** > **Add Provider** > **Snowflake**.
+  </Step>
+
+  <Step title="Enter credentials">
+    Paste the programmatic access token into the credential field.
+  </Step>
+
+  <Step title="Save">
+    Click **Save**. You'll receive a `grant_id` to use with the SDK.
+  </Step>
+</Steps>
+
+## Using in Code
+
+Submit SQL to the account's SQL API endpoint. The token is injected via the `Authorization: Bearer` header automatically.
+
+```python
+response = await alter_app.request(
+    HttpMethod.POST,
+    "https://YOUR_ACCOUNT.snowflakecomputing.com/api/v2/statements",
+    grant_id="YOUR_GRANT_ID",
+    json={
+        "statement": "SELECT id, name FROM customers WHERE region = ?",
+        "bindings": {"1": {"type": "TEXT", "value": "EMEA"}},
+        "warehouse": "MY_WH",
+        "database": "MY_DB",
+        "schema": "PUBLIC",
+        "timeout": 60,
+    },
+)
+```
+
+## Notes
+
+- `YOUR_ACCOUNT` is the account identifier in the host (`<account_identifier>.snowflakecomputing.com`); the SQL API path is `/api/v2/statements`.
+- The SQL API runs one statement per request (set `MULTI_STATEMENT_COUNT` for batches); interactive sessions require a driver and are not available over the REST API.
+- Programmatic access tokens require a network policy on the user and expire after `DAYS_TO_EXPIRY` — rotate the stored credential before then.

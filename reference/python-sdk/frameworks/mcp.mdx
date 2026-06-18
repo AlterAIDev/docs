@@ -17,7 +17,7 @@ from alter_sdk import App
 from alter_sdk.mcp import AlterMCP, AlterAuthProvider, AlterContext
 
 mcp = FastMCP("my-server")
-alter_app = App(api_key="alter_key_app_…")
+alter_app = App(api_key="alter_rk_…")
 alter = AlterMCP(alter_app)
 
 @mcp.tool()
@@ -48,8 +48,7 @@ Wrapper around an SDK client that exposes the `@alter.tool()` decorator.
 def tool(
     provider: str,
     *,
-    scope: list[str] | None = None,
-    constraints: dict[str, Any] | None = None,
+    label: str | None = None,
     agent: Agent | None = None,
 ) -> Callable[[F], F]
 ```
@@ -57,17 +56,18 @@ def tool(
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `provider` | `str` | — | OAuth provider id (e.g. `"google"`, `"github"`, `"slack"`). |
-| `scope` | `list[str] \| None` | `None` | Reserved code-level scope declaration. Stored on `AlterContext.scope` for introspection. Not yet forwarded. |
-| `constraints` | `dict \| None` | `None` | Reserved. Stored on `AlterContext.constraints`. |
+| `label` | `str \| None` | `None` | Optional sibling-grant label for multi-grant resolution. |
 | `agent` | `Agent \| None` | `None` | Optional `Agent` whose identity should drive this tool's requests. Same-Task nesting records the outer agent as `parent_agent`. |
 
 The decorator:
 
-1. Creates an [`AlterContext`](#altercontext) pre-configured with the provider and any code-level scope / constraints.
+1. Creates an [`AlterContext`](#altercontext) pre-configured with the provider and optional label.
 2. Sets an ambient audit ContextVar so `vault.request()` calls inside the tool body pick up the tool name automatically.
 3. Hides the `AlterContext` parameter from FastMCP's generated tool schema.
 4. Catches `GrantNotFoundError` and returns an MCP error with a fresh Connect URL.
 5. Catches `ScopeReauthRequiredError` and returns an MCP error with a re-auth hint.
+
+Use `app.with_constraints(...)` / `agent.with_constraints(...)` before passing the SDK client to `AlterMCP` when a tool needs enforceable scope narrowing or a request rule.
 
 ```python
 from fastmcp import FastMCP
@@ -90,8 +90,7 @@ AlterContext(
     vault: App | Agent,
     *,
     provider: str,
-    scope: list[str] | None = None,
-    constraints: dict[str, Any] | None = None,
+    label: str | None = None,
     context: dict[str, str] | None = None,
 )
 ```
@@ -101,8 +100,7 @@ AlterContext(
 | Property | Type | Description |
 |---|---|---|
 | `provider` | `str` | The OAuth provider id declared on the decorator. |
-| `scope` | `tuple[str, ...] \| None` | Reserved scope declaration. |
-| `constraints` | `Mapping[str, Any] \| None` | Reserved constraints declaration (immutable view). |
+| `label` | `str \| None` | Optional sibling-grant label declared on the decorator. |
 
 ### request
 
@@ -113,6 +111,18 @@ resp = await ctx.request(
     "GET",
     "https://gmail.googleapis.com/gmail/v1/users/me/messages",
     query_params={"q": "from:alice"},
+)
+```
+
+### proxy_request
+
+Forwards to the underlying `vault.proxy_request()` with `provider=`, `label=`, and `context=` pre-filled. Use this for restricted grants or HITL / approval-gated calls.
+
+```python
+result = await ctx.proxy_request(
+    "POST",
+    "https://api.example.com/v1/actions",
+    json={"approved": True},
 )
 ```
 
@@ -132,7 +142,7 @@ AlterAuthProvider(
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `vault` | `App \| Agent` | — | SDK client to back the OAuth flow. |
-| `base_url` | `str` | — | Public URL where the MCP server is mounted (e.g. `"http://localhost:8000/mcp"`). Required for OAuth metadata discovery. |
+| `base_url` | `str` | — | Public URL where the MCP server is mounted (e.g. `"https://mcp.example.com"`). Required for OAuth metadata discovery. |
 | `providers` | `dict[str, list[str]] \| None` | `None` | Map of `provider_id → required scopes` for the Connect flow. |
 
 ```python
@@ -140,10 +150,10 @@ from fastmcp import FastMCP
 from alter_sdk import App
 from alter_sdk.mcp import AlterAuthProvider
 
-vault = App(api_key="alter_key_app_…")
+vault = App(api_key="alter_rk_…")
 auth = AlterAuthProvider(
     vault,
-    base_url="http://localhost:8000/mcp",
+    base_url="https://mcp.example.com",
     providers={"google": ["gmail.readonly"]},
 )
 

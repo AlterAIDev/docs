@@ -11,7 +11,7 @@ The SDK exposes two top-level shapes. They differ in *who the backend believes i
 
 | | `App` | `Agent` |
 |---|---|---|
-| **Constructor** | `App(api_key=alter_key_app_…)` | `Agent(api_key=alter_key_agent_…)` |
+| **Constructor** | `App(api_key=alter_rk_…)` | `Agent(api_key=alter_ak_…)` (per-agent keys bound to a managed agent currently use the legacy `alter_key_…` prefix) |
 | **Identity at backend** | The app itself | The named agent |
 | **Reachable grants** | Every grant on the app, scoped by the key | Only grants bound to this agent (managed-secret grants or delegated OAuth grants) |
 | **Audit attribution** | `app_id` only | `app_id` + `agent_id` |
@@ -119,6 +119,16 @@ The token sits in SDK process memory for the duration of one call. Threat-model 
 - Centralized policy enforcement at the call site, not just at token mint — the backend can deny based on the actual request body, headers, or method.
 - Token refresh handled transparently mid-call without the SDK observing the new token.
 
+### Proxy limitations
+
+Proxy mode is intentionally narrower than retrieve mode:
+
+- Large and streaming responses are not a fit. The backend buffers the provider response, returns it base64-encoded, and truncates very large bodies. Use retrieve mode or the provider client directly for downloads, Server-Sent Events, WebSockets, or long-lived streams.
+- Some provider response headers are intentionally unavailable. Auth and cookie-related headers such as `Set-Cookie`, `WWW-Authenticate`, and `Authorization` are stripped before the response reaches the SDK. Provider flows that depend on those headers may need retrieve mode.
+- Managed-secret proxy calls require destination hosts to be configured on the secret. If the allowlist is missing or does not match the requested host, the call is blocked before the credential is injected. Configure the allowed hosts before using proxy mode with a managed-secret grant.
+- The initial proxy call is a single attempt. Applications should add their own retry/backoff policy for network failures and timeouts. For HITL grants, retry carefully: submitting the same proxy call again can create another pending approval.
+- CLI passthrough is not a proxy-mode debugger. `alter sdk-passthrough request` uses retrieve mode, so it does not reproduce proxy-only behavior such as HITL execution, destination-host allowlist enforcement, response truncation, or backend execution errors.
+
 ### Why HITL is proxy-only
 
 In retrieve mode the SDK holds the token. The approver sees a request payload at approval time; the SDK can then call the provider with a different payload using the same token. There is no integrity binding between the approved payload and the executed payload.
@@ -209,6 +219,19 @@ Modes can be mixed in one application — different SDK instances for different 
 A JWT can match more than one grant if the user has connected the same provider multiple times (personal + work Gmail) or holds [`several sibling grants on one connection`](/concepts/credentials#multiple-grants-on-one-connection). The backend raises [`AmbiguousGrantError`](/reference/errors) whose `candidates` list the matching grants (grant ID, label, and account context); application code passes the chosen `grant_id` — or `account=…` / `label=…` — on retry to pick one.
 
 **Resolution never guesses.** When more than one grant matches, the call fails with the candidate list — there is no "default grant" and no "most recently connected wins". A silently-picked credential is an account mix-up waiting to happen; the explicit error, with the fix enclosed, is the contract. For production workloads, `grant_id` (mode 2) is the recommended path: the Connect flow returns it at consent time, and it stays unambiguous no matter how many grants a user adds later.
+
+## Exporting identity (resolve and assert)
+
+Everything above describes how Alter resolves identity to pick a *credential*. The same resolved identity is also directly consumable, so downstream layers — memory stores, channel routers, authorization engines — can key their data segregation on it:
+
+- **Resolved identity** — `resolve_identity()` returns the canonical `IdentityContext` (stable `app_user_id`, `agent_id`, `app_id`, group memberships, trace context). The calling process is trusted to pass the keys on — the right model for in-process memory calls. Requires the `identity:resolve` scope.
+- **Asserted identity** — `assert_identity()` mints a short-lived Alter-signed JWT (`sub` = the end user, `act` = the acting agent) that downstream services *verify* against Alter's published JWKS instead of trusting the agent process. Requires the `identity:assert` scope. The assertion is identity-only — it carries no credentials and grants nothing by itself.
+
+Identity never travels without authorization: an agent can only resolve or assert an end user it holds a `user_token` for, or an existing delegation (consent edge) to — the same zero-trust edges that gate credential access. Deprovisioned users fail closed on both surfaces.
+
+A delegation therefore also authorizes *identity visibility* for the delegated user — canonical IDs by default, plus email and display name only when the caller explicitly opts in per call (the profile opt-in, recorded on the audit trail). If the application's consent language describes what a delegated agent can do, include identity/profile visibility alongside credential access.
+
+See [Propagate identity into memory layers](/guides/propagate-identity-to-memory) for the full cookbook (per-vendor mappings, `memory_scope()` keys, and the downstream verification snippet).
 
 ## What's next
 

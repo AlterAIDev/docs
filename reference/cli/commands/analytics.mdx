@@ -1,0 +1,98 @@
+---
+title: 'alter analytics'
+description: 'Read-only usage analytics for the organization.'
+---
+
+Read-only usage analytics — API-call volume, provider/app breakdowns, policy decision counts, latency, and errors. Handy for CI dashboards and monitoring jobs.
+
+```
+alter analytics api-calls   [--app ...] [--provider ...] [--start ...] [--end ...] [--granularity ...]
+alter analytics by-provider [--app ...] [--start ...] [--end ...]
+alter analytics by-app      [--start ...] [--end ...]
+alter analytics summary
+alter analytics policy      [--app ...] [--start ...] [--end ...]
+alter analytics latency     [--app ...] [--start ...] [--end ...]
+alter analytics errors      [--app ...] [--start ...] [--end ...]
+alter analytics dashboard
+```
+
+All subcommands require the `dashboard_analytics:read` scope and return aggregates only (never policy configuration). When `--start` / `--end` are omitted the window defaults to the last 30 days. Output defaults to JSON since the payloads are nested.
+
+Common flags — each subcommand accepts only the filters its endpoint honors:
+
+| Flag | Default | Description | Accepted by |
+|---|---|---|---|
+| `--app <app-id>` | all apps | Filter by application ID. | `api-calls`, `by-provider`, `policy`, `latency`, `errors` |
+| `--start <iso>` | 30 days ago | Window start (ISO 8601). | all except `summary` and `dashboard` |
+| `--end <iso>` | now | Window end (ISO 8601). | all except `summary` and `dashboard` |
+
+`by-app` is already a per-app breakdown, so it takes no `--app` filter; `summary` and `dashboard` are org-wide rollups with no filters at all.
+
+## api-calls
+
+API-call volume over time, with success/failure breakdown.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--provider <provider-id>` | all | Filter to one OAuth provider. |
+| `--granularity <bucket>` | `day` | Time bucket: `hour`, `day`, `week`, or `month`. |
+
+```bash
+alter analytics api-calls --granularity week
+```
+
+## by-provider
+
+API-call breakdown by OAuth provider.
+
+```bash
+alter analytics by-provider --start 2026-05-01
+```
+
+## by-app
+
+API-call breakdown by application.
+
+```bash
+alter analytics by-app
+```
+
+## summary
+
+High-level summary statistics (totals, success rate, busiest provider/app).
+
+```bash
+alter analytics summary
+```
+
+## policy
+
+Policy decision analytics — ALLOW vs DENY counts and the top denied providers.
+
+```bash
+alter analytics policy --output table
+```
+
+## latency
+
+Latency metrics (average and percentiles, broken down by provider).
+
+```bash
+alter analytics latency
+```
+
+## errors
+
+Error breakdown by status code and provider.
+
+```bash
+alter analytics errors
+```
+
+## dashboard
+
+Org-level summary stats (app counts, user metrics, connection statistics, popular providers, API usage). No date/app filters.
+
+```bash
+alter analytics dashboard
+```

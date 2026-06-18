@@ -1,0 +1,28 @@
+---
+title: 'alter design'
+description: 'Validate the ALTER_INTEGRATION.md design document before provisioning.'
+---
+
+The design document (`ALTER_INTEGRATION.md`) records how an integration uses Alter — the goal, the runtime identity (app vs agent), the key type, principals, providers, and how grants are acquired — in machine-checkable YAML frontmatter. `alter design validate` runs a deterministic rule set over it so identity mistakes (for example, an app runtime key serving an agent workload) fail **before** anything is provisioned. Pair with [`alter verify`](/reference/cli/commands/verify), which re-validates the design and then checks the implementation against it.
+
+```
+alter design validate [--design <path>] [--remote] [--app <app-id>] [--output json|table]
+```
+
+## validate
+
+Validates the design document. Local by default — no network and no login required, so it can gate automation. Exit code `0` means the design passed (warnings allowed); `1` means rule violations; `4` means the design file was not found.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--design <path>` | `./ALTER_INTEGRATION.md` | Path to the design document. |
+| `--remote` | off | Additionally verify the design's `providers` against the app's actual configuration. Requires `alter auth login` and an app (pass `--app`, link a workspace, or set `ALTER_APP_ID`). |
+
+The rules enforced include:
+
+- **Identity ↔ key type** — `runtime_identity: agent` requires `key_type: agent` (a per-agent key from `alter agents mint-key`); `runtime_identity: app` requires `key_type: runtime` (from `alter keys mint`).
+- **Goal ↔ grant acquisition** — `user-data` acquires grants via browser consent; `backend-secret` via managed-secret grants; `agent` via delegation or an agent-bound managed-secret grant (created via the CLI or dashboard — never the SDK).
+- **Principal hygiene** — `user` and `agent` principals never share one credential path.
+- **Dashboard-only steps declared** — `idp: jwt-resolution` requires the identity-provider setup to be listed in `dashboard_steps` (it is dashboard-only).
+
+JSON output reports `status`, the `rules_version`, and each violation's `rule`, `severity`, and `message`.

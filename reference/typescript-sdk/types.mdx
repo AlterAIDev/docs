@@ -11,6 +11,9 @@ import type {
   AlterLogger,
   ApprovalResult,
   ConnectSession,
+  IdentityContext,
+  IdentityAssertion,
+  MemoryScope,
   // …
 } from "@alter-ai/alter-sdk";
 ```
@@ -532,9 +535,75 @@ interface ResourceScopes {
 }
 ```
 
+## RequestRule
+
+A one-off deny rule passed to `withConstraints({ rule })` — cryptographically
+bound to every request the constrained client makes and enforced on
+credential-using calls.
+
+```typescript
+interface RequestRule {
+  ruleType: string;
+  ruleBody: Record<string, unknown>;
+}
+```
+
 ## APICallAuditLog
 
 Reserved — represents an audit row that the SDK schedules in the background. Application code does not construct or read this directly; the type is exported for callers that want to mock the audit submission pipeline in tests.
+
+## Identity
+
+### IdentityContext
+
+Returned by `app.resolveIdentity()` and `agent.resolveIdentity()`. The canonical identity set the platform resolved for the request — key external data (memory partitions, channel sessions, authorization tuples) on these IDs, never on email or a raw IDP `sub`.
+
+| Field | Type | Description |
+|---|---|---|
+| `appId` | `string` | The calling application (tenant). |
+| `appUserId` | `string \| null` | Canonical end-user key. `null` for headless calls. |
+| `externalSubjectId` | `string \| null` | Stable external join key — the IDP subject identifier. |
+| `idpId` | `string \| null` | Identity provider the subject belongs to. |
+| `userStatus` | `string \| null` | `"active"` \| `"suspended"`. Deprovisioned users are rejected at resolution, never returned. |
+| `groupIds` | `readonly string[]` | Stable external group IDs of the user's unrevoked memberships. |
+| `agentId` | `string \| null` | Canonical agent key. `null` for plain app callers. |
+| `actorId` | `string \| null` | Audit correlation label only — NOT a partition key. |
+| `trace` | `IdentityTrace \| null` | Echo of the ambient run/thread trace context. |
+| `email` | `string \| null` | Only with `includeProfile: true`. |
+| `displayName` | `string \| null` | Only with `includeProfile: true`. |
+
+Method `memoryScope(): MemoryScope` derives the deterministic memory partition keys. See [Propagate identity into memory layers](/guides/propagate-identity-to-memory).
+
+### IdentityTrace
+
+| Field | Type |
+|---|---|
+| `runId` | `string \| null` |
+| `threadId` | `string \| null` |
+
+### MemoryScope
+
+Deterministic, prefixed partition keys derived from an `IdentityContext`.
+
+| Field | Type | Description |
+|---|---|---|
+| `userKey` | `string \| null` | `"alter:user:<app_user_id>"`; `null` for headless contexts. |
+| `agentKey` | `string \| null` | `"alter:agent:<agent_id>"`; `null` for app callers. |
+| `appKey` | `string` | `"alter:app:<app_id>"`. |
+| `runKey` | `string \| null` | `"alter:run:<run_id>"` from the trace context. |
+| `namespace` | `readonly string[]` | `["alter", <app_id>, <app_user_id>]`; `["alter", <app_id>]` headless. |
+
+### IdentityAssertion
+
+Returned by `app.assertIdentity()` and `agent.assertIdentity()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `token` | `string` | Compact ES256 JWS — verify against the published Alter identity JWKS. Redacted from `toString()` / inspect output. |
+| `expiresAt` | `Date` | Absolute expiry (short TTL by design — default 120s, bounds 10–300s). |
+| `identity` | `IdentityContext` | The identity the assertion encodes. |
+
+The assertion is identity-only: it carries no provider tokens, no credentials, no raw IDP claims, and grants nothing by itself — downstream systems map it to their own authorization.
 
 ## Enums
 

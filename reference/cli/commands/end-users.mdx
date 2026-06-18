@@ -1,0 +1,37 @@
+---
+title: 'alter end-users'
+description: 'Inspect an app's wallet / Connect end-users (read-only).'
+---
+
+End-users are the wallet / Alter Connect identities that hold an app's grants. These commands inspect them; they are read-only (end-user lifecycle is driven by sign-in and OAuth flows, not the CLI).
+
+```
+alter end-users list --app <app-id> [--search ...] [--limit ...] [--offset ...]
+alter end-users show --app <app-id> --user <user-id>
+```
+
+Both commands require the `dashboard_end_users:read` scope and are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. A natural companion to [`alter grants list`](/reference/cli/commands/grants).
+
+## list
+
+| Flag | Default | Description |
+|---|---|---|
+| `--search <query>` | — | Match on email or display name (max 100 chars). |
+| `--limit <n>` | `100` | Page size (1–1000). |
+| `--offset <n>` | `0` | Pagination offset. |
+
+```bash
+alter end-users list --search alice@example.com
+```
+
+## show
+
+Full detail for one end-user — identity-provider provenance, groups, and grant summary.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--user <user-id>` | required | The end-user's ID. |
+
+```bash
+alter end-users show --user <user-id>
+```

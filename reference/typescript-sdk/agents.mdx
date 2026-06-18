@@ -239,11 +239,19 @@ Always `await` the call. `trace()` returns a Promise; without `await`, code foll
 
 ### Agent.withConstraints
 
-Return a constrained sibling `Agent` with a narrowed scope set. See [`withConstraints` on the Client page](/reference/typescript-sdk/client#withconstraints).
+Return a constrained sibling `Agent`. Pass `scopes` to narrow the scope set, `rule` to attach a one-off deny rule, or both; at least one is required. Calling it on a closed client throws [`AlterSDKError`](/reference/typescript-sdk/errors). See [`withConstraints` on the Client page](/reference/typescript-sdk/client#withconstraints) for the full surface, including the `RequestRule` shape.
 
 ```typescript
 const readOnly = agent.withConstraints({ scopes: ["grants:read"] });
 const page = await readOnly.listGrants();
+
+// Attach a one-off deny rule:
+const restricted = agent.withConstraints({
+  rule: {
+    ruleType: "json_match",
+    ruleBody: { when: { method: "POST" }, effect: "deny" },
+  },
+});
 ```
 
 The constrained sibling preserves the parent agent's [`trace()`](#agenttrace) identity — the run ID, thread ID, and metadata propagate through the scope-narrowed client.

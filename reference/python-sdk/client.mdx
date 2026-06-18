@@ -9,14 +9,14 @@ The SDK exposes two top-level client classes — `App` for application/operator 
 from alter_sdk import App, Agent, CallerType
 
 # Application-side
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 # Workload-side
-agent = Agent(api_key="alter_key_agent_…")
+agent = Agent(api_key="alter_ak_…")
 
 # Lifecycle
 await app.close()
-async with Agent(api_key="alter_key_agent_…") as a:
+async with Agent(api_key="alter_ak_…") as a:
     ...
 ```
 
@@ -32,16 +32,18 @@ App(
     caller: str | None = None,
     caller_type: CallerType | str = CallerType.SERVICE,
     user_token_getter: Callable[[], str | Awaitable[str]] | None = None,
+    logger: logging.Logger | None = None,
 )
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `api_key` | `str` | — | App API key (`alter_key_app_…`). Required. |
+| `api_key` | `str` | — | App API key (`alter_rk_…`). Required. |
 | `timeout` | `float` | `30.0` | HTTP request timeout in seconds. |
 | `caller` | `str \| None` | `None` | Optional caller identifier for audit attribution. |
 | `caller_type` | `CallerType \| str` | `CallerType.SERVICE` | `SERVICE` (default — backend infrastructure) or `AGENT` (shows in the Agents tab). |
 | `user_token_getter` | callable | `None` | Optional sync/async callable returning a user JWT for identity-mode `request()`. |
+| `logger` | `logging.Logger \| None` | module logger | Optional logger for SDK diagnostics. |
 
 ### Properties
 
@@ -60,6 +62,7 @@ App(
 - [`create_connect_session()`](/reference/python-sdk/connect-and-grants#create_connect_session), [`create_managed_secret_connect_session()`](/reference/python-sdk/connect-and-grants#create_managed_secret_connect_session), [`connect()`](/reference/python-sdk/connect-and-grants#connect), [`poll_connect_session()`](/reference/python-sdk/connect-and-grants#poll_connect_session), [`create_connect_session_for_error()`](/reference/python-sdk/connect-and-grants#create_connect_session_for_error)
 - [`authenticate()`](/reference/python-sdk/connect-and-grants#authenticate), [`create_auth_session()`](/reference/python-sdk/connect-and-grants#create_auth_session), [`poll_auth_session()`](/reference/python-sdk/connect-and-grants#poll_auth_session), `verify_user_token()`
 - [`get_approval_status()`](/reference/python-sdk/connect-and-grants#get_approval_status), [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval)
+- `resolve_identity()`, `assert_identity()` — the identity-export surface (see [Propagate identity into memory layers](/guides/propagate-identity-to-memory) and [Identity types](/reference/python-sdk/types#identity))
 - `agents` namespace (see [Agents & Keys](/reference/python-sdk/agents#appagents-namespace))
 - `keys` namespace (see [Agents & Keys](/reference/python-sdk/agents#keys-namespace))
 - `scopes` namespace (see [Calling APIs](/reference/python-sdk/calling-apis#scopeslist))
@@ -68,21 +71,35 @@ App(
 
 ### with_constraints
 
-Return a macaroon-style constrained sub-client. Every request from the returned `App` carries a permanent scope-constraints assertion that narrows the underlying key to the supplied scope set. The supplied scopes must already be implied by the key — the backend rejects broadening attempts with HTTP 400 `constraint_not_narrowing`.
+Return a macaroon-style constrained sub-client. Every request from the returned `App` carries a permanent attenuation that can only narrow access, never broaden it. Two attenuations are available, and at least one of `scopes` / `rule` must be supplied:
+
+- `scopes` narrows the underlying key to the supplied scope set. The supplied scopes must already be implied by the key — the backend rejects broadening attempts with HTTP 400 `constraint_not_narrowing`.
+- `rule` attaches an optional one-off rule, evaluated server-side, that can only further restrict each request the returned client makes — it can never widen access. It is either a **deny** rule or a **require-approval** (HITL) rule. Deny shape: `{"rule_type": "json_match", "rule_body": {"when": {<attr>: str | list[str]}, "effect": "deny"}}`, where `<attr>` is one of `method`, `provider_id`, `app_id`, `agent_id`, `api_key_id`, `environment`, `client_ip`, `resource_kind`, and `effect` is always `"deny"`. Require-approval shape: `{"rule_type": "require_approval", "rule_body": {"effect": "require_approval", "approval": {"approvers"?: [...], "channels"?: ["email"], ...}, "when"?: {...}}}` — a matching request is held for human approval (returned as a pending approval) instead of denied; `channels: []` sends no email. A raw-token retrieval carries no request method/URL, so `method`-keyed conditions are treated as satisfied there (a raw token can issue any method) — scope method restrictions through the proxy surface, which carries the request method. Endpoints cannot be scoped by a rule (the URL is not a matchable attribute). If a request is frozen for human approval (HITL 202), the per-request rule is not re-evaluated on the deferred post-approval execution — it cannot widen access (the rule did not match the frozen request, and the grant plus every stored policy rule still bound the execution), but prefer a stored rule when the constraint must hold at execute time.
 
 ```python
-App.with_constraints(*, scopes: list[str]) -> App
+App.with_constraints(*, scopes: list[str] | None = None, rule: RequestRule | dict[str, Any] | None = None) -> App
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `scopes` | `list[str]` | — | Non-empty list of scope strings to attenuate to. |
+| `scopes` | `list[str] \| None` | `None` | Optional non-empty list of scope strings to attenuate to. |
+| `rule` | `RequestRule \| dict \| None` | `None` | Optional one-off rule (deny, or require-approval/HITL) carried on every request the returned client makes; enforced on credential-using calls (token retrieval, proxied provider requests). |
 
-**Raises:** `AlterValueError` (empty list, nested constraint call), `AlterSDKError` (client closed).
+At least one of `scopes` / `rule` is required.
+
+**Raises:** `AlterValueError` (neither `scopes` nor `rule` supplied, malformed `scopes` / `rule`, nested constraint call), `AlterSDKError` (client closed).
 
 ```python
 narrowed = app.with_constraints(scopes=["grants:read"])
 await narrowed.list_grants()
+
+# Attach a one-off deny rule:
+restricted = app.with_constraints(
+    rule={
+        "rule_type": "json_match",
+        "rule_body": {"when": {"method": "POST"}, "effect": "deny"},
+    },
+)
 ```
 
 ### get_agent
@@ -92,7 +109,7 @@ await narrowed.list_grants()
 
 The underlying client carries the same app key (operator credentials) with `caller=<agent_id>`. Paths that bypass the delegation gate — including `request(grant_id=<user-owned uuid>)` — remain reachable. The returned `Agent` can read user OAuth tokens the named agent has no delegation row for.
 
-Use a genuine agent key (`Agent(api_key="alter_key_agent_…")`) when delegation-scoped access is the actual security requirement. The first `request(grant_id=…)` call emits a one-time `UserWarning` to surface this footgun.
+Use a genuine agent key (`Agent(api_key="alter_ak_…")`) when delegation-scoped access is the actual security requirement. The first `request(grant_id=…)` call emits a one-time `UserWarning` to surface this footgun.
 </Warning>
 
 ```python
@@ -119,7 +136,7 @@ The parent `App`'s `user_token_getter` is intentionally NOT inherited. To bridge
 ```python
 await app.close()
 
-async with App(api_key="alter_key_app_…") as app:
+async with App(api_key="alter_rk_…") as app:
     ...
 ```
 
@@ -143,15 +160,17 @@ Agent(
     timeout: float = 30.0,
     caller: str | None = None,
     user_token_getter: Callable[[], str | Awaitable[str]] | None = None,
+    logger: logging.Logger | None = None,
 )
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `api_key` | `str` | — | Agent API key (`alter_key_agent_…`). Required. |
+| `api_key` | `str` | — | Agent API key (`alter_ak_…`). Required. |
 | `timeout` | `float` | `30.0` | HTTP request timeout in seconds. |
 | `caller` | `str \| None` | `None` | Optional caller identifier for audit attribution. |
 | `user_token_getter` | callable | `None` | Optional sync/async callable returning a user JWT. Used for Connect-time delegation and per-call delegation disambiguation. The JWT does NOT grant access — the agent's authority comes from the per-agent delegation record bound at Connect time. |
+| `logger` | `logging.Logger \| None` | module logger | Optional logger for SDK diagnostics. |
 
 `Agent` pins `caller_type=AGENT` internally; it is not constructor-configurable.
 
@@ -176,6 +195,7 @@ Agent(
 - [`create_connect_session()`](/reference/python-sdk/connect-and-grants#create_connect_session), [`connect()`](/reference/python-sdk/connect-and-grants#connect)
 - [`revoke_delegation()`](/reference/python-sdk/connect-and-grants#revoke_delegation) — self-revoke only.
 - [`get_approval_status()`](/reference/python-sdk/connect-and-grants#get_approval_status), [`await_approval()`](/reference/python-sdk/connect-and-grants#await_approval)
+- `resolve_identity()`, `assert_identity()` — the identity-export surface; the agent shape additionally accepts the consent-edge `app_user_id` shortcut (see [Propagate identity into memory layers](/guides/propagate-identity-to-memory))
 - [`trace()`](/reference/python-sdk/agents#trace) — audit-scope context manager.
 - `with_constraints()` (below)
 
@@ -183,10 +203,10 @@ Operator surfaces (`agents` namespace CRUD, `authenticate`, `verify_user_token`,
 
 ### with_constraints
 
-Identical semantics to [`App.with_constraints()`](#with_constraints) — returns a constrained sub-`Agent` whose every request carries the scope-constraints assertion.
+Identical semantics to [`App.with_constraints()`](#with_constraints) — returns a constrained sub-`Agent` whose every request carries the same attenuation (the rule is enforced on credential-using calls). Pass `scopes` to narrow the scope set, `rule` to attach a one-off deny rule, or both; at least one is required.
 
 ```python
-Agent.with_constraints(*, scopes: list[str]) -> Agent
+Agent.with_constraints(*, scopes: list[str] | None = None, rule: RequestRule | dict[str, Any] | None = None) -> Agent
 ```
 
 ### trace
@@ -198,7 +218,7 @@ Async context manager that scopes audit identity for every nested `request()` ca
 ```python
 await agent.close()
 
-async with Agent(api_key="alter_key_agent_…") as agent:
+async with Agent(api_key="alter_ak_…") as agent:
     ...
 ```
 

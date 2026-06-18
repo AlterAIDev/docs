@@ -13,7 +13,7 @@ The flow:
 
 ## Prerequisites
 
-- An [app](/admin/setting-up-your-app) with a `alter_key_app_…` operator key.
+- An [app](/admin/setting-up-your-app) with a runtime API key (`alter_rk_…`, or legacy `alter_key_…`).
 - For OAuth delegation flows: at least one [provider configured](/admin/setting-up-your-app#configuring-providers) and an [identity provider](/admin/identity-provider) wired.
 - For managed-secret flows: at least one [managed-secret provider configured](/reference/managed-secret-providers).
 
@@ -67,7 +67,7 @@ const session = await app.createConnectSession({
 
 On Approve, Alter writes both the connection and a [delegation](/concepts/credentials#delegation) row binding it to the named agent.
 
-**Path B — operator issues a managed secret to the agent.** From the Developer Portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot**. Agent-bound managed-secret grants are created from the Developer Portal flow; the SDK's `create_managed_secret_grant` / `createManagedSecretGrant` methods do not accept `AgentPrincipal`. The resulting `grant_id` is what the agent process uses in `request(grant_id=...)`.
+**Path B — operator issues a managed secret to the agent.** From the Developer Portal: **Managed Secrets → [Provider] → New Grant → Agent → research-bot** (the Alter CLI's managed-secrets grant commands support agent principals too). Agent-bound grants are an operator action: the SDK's `create_managed_secret_grant` / `createManagedSecretGrant` methods accept an agent principal at the type level, but the backend rejects it (HTTP 422) — use the Portal or CLI. The resulting `grant_id` is what the agent process uses in `request(grant_id=...)`.
 
 ### 3. Call providers from the agent
 
@@ -75,25 +75,37 @@ The agent process loads its own key and calls `request()` exactly as an app woul
 
 <CodeGroup>
 ```python Python
+import asyncio, os
 from alter_sdk import Agent, HttpMethod
 
-agent = Agent(api_key=os.environ["AGENT_API_KEY"])
+async def main():
+    async with Agent(api_key=os.environ["AGENT_API_KEY"]) as agent:
+        # Use a managed-secret grant. The json body is forwarded to the provider
+        # verbatim — use the provider's wire field names (Anthropic: max_tokens).
+        response = await agent.request(
+            HttpMethod.POST,
+            "https://api.anthropic.com/v1/messages",
+            grant_id=os.environ["ANTHROPIC_GRANT_ID"],
+            json={
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 1024,
+                "messages": [{"role": "user", "content": "Say hello."}],
+            },
+        )
+        print(response.status_code, response.json())
 
-# Use a managed-secret grant
-response = await agent.request(
-    HttpMethod.POST,
-    "https://api.anthropic.com/v1/messages",
-    grant_id=ANTHROPIC_GRANT_ID,
-    json={"model": "claude-sonnet-4-6", "max_tokens": 1024, "messages": [...]},
-)
+        # Or use a delegated OAuth grant via provider+user_token, where
+        # user_jwt is the end user's IDP-issued JWT.
+        user_jwt = os.environ["USER_JWT"]
+        response = await agent.request(
+            HttpMethod.GET,
+            "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+            provider="google",
+            user_token=user_jwt,
+        )
+        print(response.status_code)
 
-# Or use a delegated OAuth grant via provider+user_token
-response = await agent.request(
-    HttpMethod.GET,
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    provider="google",
-    user_token=user.jwt,
-)
+asyncio.run(main())
 ```
 
 ```typescript TypeScript
@@ -101,11 +113,25 @@ import { Agent, HttpMethod } from "@alter-ai/alter-sdk";
 
 const agent = new Agent({ apiKey: process.env.AGENT_API_KEY! });
 
-const response = await agent.request(
-  HttpMethod.POST,
-  "https://api.anthropic.com/v1/messages",
-  { grantId: ANTHROPIC_GRANT_ID, json: { model: "claude-sonnet-4-6", maxTokens: 1024, messages: [...] } },
-);
+try {
+  // The json body is forwarded to the provider verbatim — use the provider's
+  // wire field names (Anthropic: max_tokens, not camelCase).
+  const response = await agent.request(
+    HttpMethod.POST,
+    "https://api.anthropic.com/v1/messages",
+    {
+      grantId: process.env.ANTHROPIC_GRANT_ID!,
+      json: {
+        model: "claude-sonnet-4-6",
+        max_tokens: 1024,
+        messages: [{ role: "user", content: "Say hello." }],
+      },
+    },
+  );
+  console.log(response.status, await response.json());
+} finally {
+  await agent.close();
+}
 ```
 </CodeGroup>
 

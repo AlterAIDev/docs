@@ -1,0 +1,52 @@
+---
+title: 'alter verify'
+description: 'Verify the implementation matches the ALTER_INTEGRATION.md design.'
+---
+
+`alter verify` checks that the code in a repository actually matches its [design document](/reference/cli/commands/design) — locally, against the real files and the **installed** SDK, so the check cannot drift from the SDK version the project uses. It is CI-friendly: one command, one exit code (`0` pass, `1` violations, `4` design file missing).
+
+```
+alter verify [--design <path>] [--dir <path>] [--skip-sdk-check] [--key <key-id>] [--runtime] [--grant <grant-id>] [--trace <trace-id>] [--agent <agent-id>] [--app <app-id>] [--output json|table]
+```
+
+What runs, in order:
+
+1. **Design re-validation** — the full `alter design validate` rule set runs again (deterministic, so re-running beats trusting a prior pass).
+2. **Implementation scan** — every SDK-touching source file in the repo is linted: the constructed client class must match the design's `runtime_identity` (an `App` client in an agent design fails, and vice versa); impersonation (`get_agent`) in agent designs fails; creating an agent-bound managed-secret grant from the SDK fails (the platform rejects it — use `alter managed-secrets grants create … --principal-type agent`); hardcoded key literals fail; `user_token` usage without `idp: jwt-resolution` warns.
+3. **Provider request-shape lint** — request bodies aimed at documented provider endpoints are checked against rules transcribed from the providers' official API references (for example, Anthropic's Messages API takes `max_tokens`, never `maxTokens`, and requires a non-empty `messages`; Slack's `chat.postMessage` requires `channel`). The body is forwarded to the provider verbatim, so this is the only pre-runtime catch for wrong wire-format fields.
+4. **Installed-SDK symbol check** — every symbol imported from the Alter SDK must exist in the version actually installed in the project (catches hallucinated APIs at the source).
+5. **Scope least-privilege (optional, `--key`)** — infers the runtime scopes the scanned code actually needs and compares them with the minted key's real scopes: a wildcard scope **fails**, missing scopes fail (with the exact rotate command), unused scopes warn. Requires `alter auth login`.
+6. **Runtime attribution (optional, `--runtime`)** — after the first real call, the audit attribution must match the design's identity (agent designs must attribute to the agent via `--agent`; app designs must be app-attributed). Pass `--grant <grant-id>` (or `--trace <trace-id>`) to check the **exact** verifying call deterministically — the latest audit row for that grant/trace. Without `--grant`/`--trace` the check samples recent history instead, which cannot isolate the verifying call and races concurrent traffic, so it emits **warnings** rather than failing. Requires `alter auth login`.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--design <path>` | `./ALTER_INTEGRATION.md` | Path to the design document (relative to `--dir`). |
+| `--dir <path>` | `.` | Repository root to scan. |
+| `--skip-sdk-check` | off | Skip the installed-SDK symbol check (e.g. before dependencies are installed). |
+| `--key <key-id>` | — | Least-privilege check: compare this key's scopes against what the code requires. |
+| `--runtime` | off | Run the audit-attribution check (authenticated; run after the first real call). |
+| `--grant <grant-id>` | — | With `--runtime`: check the attribution of this grant's latest audit row, deterministically (no recent-history sampling). The `grant_id` the SDK returned from connect. |
+| `--trace <trace-id>` | — | With `--runtime`: pin the single call by distributed-trace id — the most precise filter. |
+| `--agent <agent-id>` | — | The agent the audit rows should attribute to. Required with `--runtime` for agent designs. |
+| `--app <app-id>` | — | App the authenticated checks run against. Falls back to `ALTER_APP_ID` or the workspace pin (`alter link`); `--key` and `--runtime` exit with a usage error if no app resolves. |
+
+JSON output reports `status`, `files_scanned`, `required_scopes` (the inferred minimal set), and each finding's `gate` (`A` design, `B` implementation, `C` runtime), `rule`, `severity`, `file`, `line`, and `message`.
+
+## Run it in CI
+
+`alter verify` is built for CI: it reads the committed `ALTER_INTEGRATION.md` and the working tree, prints JSON by default, and exits non-zero on any violation — so the design document stays continuously validated instead of rotting after onboarding. A minimal GitHub Actions job:
+
+```yaml
+alter-verify:
+  runs-on: ubuntu-latest
+  steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - run: npm install -g @alter-ai/cli
+    - run: npm ci   # or pip install -r requirements.txt — the SDK must be installed for the symbol check
+    - run: alter verify
+```
+
+The offline gates need no credentials. To add the authenticated checks (`--key`, `--runtime`), provide a CI-scoped PAT via your secret store and run `alter auth login` non-interactively first — or keep CI offline-only and run the authenticated checks locally.

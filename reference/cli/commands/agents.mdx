@@ -9,14 +9,19 @@ A managed agent is a first-class identity for an AI workload, with its own keys 
 alter agents list       [--status ...] [--type ...] [--provider ...] [--search ...]
 alter agents create     --name <name> [--display-name ...] [--type ...] [--scopes ...] [--input ...]
 alter agents show       --agent <agent-id>
+alter agents audit      --agent <agent-id> [--limit ...] [--offset ...]
+alter agents registry-list  [--limit ...] [--offset ...]
+alter agents registry-show  --agent <actor-id>
 alter agents update     --agent <agent-id> [--display-name ...] [--metadata ...]
 alter agents revoke     --agent <agent-id> [--yes]
-alter agents mint-key   --agent <agent-id>
-alter agents list-keys  --agent <agent-id>
-alter agents revoke-key --agent <agent-id> --key <key-id> [--force] [--yes]
+alter agents mint-key        --agent <agent-id>
+alter agents list-keys       --agent <agent-id>
+alter agents revoke-key      --agent <agent-id> --key <key-id> [--force] [--yes]
+alter agents deprecate-key   --agent <agent-id> --key <key-id>
+alter agents undeprecate-key --agent <agent-id> --key <key-id>
 ```
 
-All commands are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show` / `list-keys`) need `dashboard_agents:read`; `create` / `update` / `mint-key` need `dashboard_agents:write`; `revoke` and `revoke-key` need `dashboard_agents:admin`.
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. Reads (`list` / `show` / `list-keys`) need `dashboard_agents:read`; `create` / `update` / `mint-key` / `deprecate-key` / `undeprecate-key` need `dashboard_agents:write`; `revoke` and `revoke-key` need `dashboard_agents:admin`. `audit` needs `dashboard_audit:read` (it reads the audit log, not the agent registry).
 
 <Note>
 Both `agents create` and `agents mint-key` return an API key that is shown **once**. Capture it when printed.
@@ -35,6 +40,29 @@ Both `agents create` and `agents mint-key` return an API key that is shown **onc
 
 ```bash
 alter agents list --status active --type service
+```
+
+## audit
+
+Paginated audit feed for one agent — the portal actions taken against it (create / update / revoke and key lifecycle), newest first. Needs `dashboard_audit:read`.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--limit <n>` | `50` | Page size (1–500). |
+| `--offset <n>` | `0` | Pagination offset. |
+| `--output <format>` | `table` | `json`, `jsonl`, or `table`. |
+
+```bash
+alter agents audit --agent <agent-id> --output table
+```
+
+## registry-list / registry-show
+
+The read-only agent **registry** — agents seen in audit data, with activity stats (last activity, 30-day count). This is distinct from `agents list` / `show`, which manage the configured agent identities; the registry is the observability view. Both need `dashboard_agents:read`.
+
+```bash
+alter agents registry-list
+alter agents registry-show --agent <actor-id>
 ```
 
 ## create
@@ -91,6 +119,16 @@ alter agents revoke-key --agent <agent-id> --key <key-id>
 ```
 
 `revoke-key` accepts `--force` to override the last-active-key guard (leaving the agent with no active key) and `--yes` to skip the prompt.
+
+Before revoking, you can **deprecate** a key to signal it should be retired. A deprecated key still authenticates — the backend just returns an advisory deprecation header to callers so they can migrate first. It is fully reversible, so there is no prompt.
+
+```bash
+# Mark a key deprecated (still works; advisory only)
+alter agents deprecate-key --agent <agent-id> --key <key-id>
+
+# Undo it
+alter agents undeprecate-key --agent <agent-id> --key <key-id>
+```
 
 ## Recipes
 

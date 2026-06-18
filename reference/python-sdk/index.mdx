@@ -19,17 +19,17 @@ The SDK exposes two top-level clients. They share the request surface but differ
 
 <CardGroup cols={2}>
   <Card title="App" icon="building" href="/reference/python-sdk/client#app">
-    Construct with an `alter_key_app_…` key. Acts as the application — provisions agents, mints Connect sessions, manages grants, and proxies provider calls under stored grants.
+    Construct with an `alter_rk_…` key. Acts as the application — provisions agents, mints Connect sessions, manages grants, and proxies provider calls under stored grants.
   </Card>
   <Card title="Agent" icon="robot" href="/reference/python-sdk/client#agent">
-    Construct with an `alter_key_agent_…` key. Workload-scoped: can only reach credentials delegated or directly bound to the agent. The right entry point for AI agents and tool-calling workloads.
+    Construct with an `alter_ak_…` key. Workload-scoped: can only reach credentials delegated or directly bound to the agent. The right entry point for AI agents and tool-calling workloads.
   </Card>
 </CardGroup>
 
 Both classes are async. Always close them (`await app.close()`) or use as an async context manager.
 
 ```python
-async with App(api_key="alter_key_app_…") as app:
+async with App(api_key="alter_rk_…") as app:
     page = await app.list_grants()
 ```
 

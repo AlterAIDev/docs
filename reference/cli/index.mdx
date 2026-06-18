@@ -64,9 +64,14 @@ The CLI mirrors the dashboard's resource model. Each namespace maps to a concept
 | [`agents`](/reference/cli/commands/agents) | Managed-agent identities + their keys | [Agents](/concepts/agents) |
 | [`providers`](/reference/cli/commands/providers) | OAuth provider configuration | [Providers](/concepts/providers) |
 | [`managed-secrets`](/reference/cli/commands/managed-secrets) | Backend credentials, grants, and access | [Managed secrets](/concepts/credentials#managed-secrets) |
-| [`policy`](/reference/cli/commands/policy) | App-level policy (read-only) | [Policies](/concepts/policies) |
+| [`identity-providers`](/reference/cli/commands/identity-providers) | End-user identity provider setup + webhook lifecycle | [Identity providers](/guides/call-apis-on-behalf-of-users) |
+| [`policy`](/reference/cli/commands/policy) | App-level policy reads + policy-rule management | [Policies](/concepts/policies) |
 | [`audit`](/reference/cli/commands/audit) | The audit log | [Audit logs](/concepts/audit-logs) |
+| [`analytics`](/reference/cli/commands/analytics) | Read-only usage analytics | — |
 | [`grants`](/reference/cli/commands/grants) | End-user OAuth + managed-secret grants | — |
+| [`end-users`](/reference/cli/commands/end-users) | Read-only end-user list/detail | — |
+| [`branding`](/reference/cli/commands/branding) | Connect-widget / wallet theming | — |
+| [`approvals`](/reference/cli/commands/approvals) | Read-only HITL approval defaults | — |
 | [`sdk-passthrough`](/reference/cli/commands/sdk-passthrough) | One-off authenticated provider requests | — |
 
 Every namespace follows the same shape: `alter <namespace> <verb> [arguments] [flags]`. Run any command with `--help` for its full option list.
@@ -89,8 +94,9 @@ See [output & scripting](/reference/cli/scripting) for how to combine these in p
 A few dashboard operations are intentionally **dashboard-only**, because a single scripted call should never be able to weaken security for an entire organization:
 
 - **Minting or revoking PATs** — a PAT can't manage another PAT, including itself.
-- **Org-wide key policy** and **identity-provider configuration** — these affect every key and every grant in the org.
-- **App-level policy edits** — the CLI can [read](/reference/cli/commands/policy) app policy but not change it.
+- **Org-wide key policy** — it affects every key and every grant in the org.
+- **Identity-provider re-pointing, deletion, and config reads** — the CLI can [create](/reference/cli/commands/identity-providers) an app's identity provider and manage its webhooks (both behind explicit, wildcard-excluded scopes), but changing or removing an already-trusted issuer, and reading the full config, stay dashboard-only.
+- **Org-level policy rules** — rules that apply across every app in the organization are authored and read in the dashboard only. Per-app [policy rules](/reference/cli/commands/policy) (including IP-allowlist and time-window rules) are the scriptable surface, behind their own explicit permissions.
 
 This mirrors how GitHub keeps org-security settings web-only. The boundary is deliberate, not a missing feature.
 

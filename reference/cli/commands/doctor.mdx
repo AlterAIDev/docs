@@ -1,0 +1,16 @@
+---
+title: 'alter doctor'
+description: 'Diagnose the Alter wiring end to end — one self-check instead of five guesses.'
+---
+
+`alter doctor` runs every wiring check end to end and reports each one as `ok` / `warn` / `fail` / `skip` with a concrete fix — authentication, the linked app, configured providers, active keys (including a wildcard-scope warning), OAuth grants, and managed secrets. All checks run (one broken link never hides the others); the command exits `1` only when a check fails. Warnings are informational — for example, zero OAuth providers is normal for an app that only uses managed secrets.
+
+```
+alter doctor [--app <app-id>] [--dir <path>] [--output json|table]
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--dir <path>` | `.` | Directory to resolve the linked workspace (`.alter/config.yaml`) from. |
+
+Every probe is read-only. When authentication fails, the authed checks report `skip` rather than crashing — fix the `auth` row first (`alter auth login`) and re-run. Typical use: run `alter doctor` before debugging any "my call doesn't work" problem, and after finishing setup as a final wiring confirmation.

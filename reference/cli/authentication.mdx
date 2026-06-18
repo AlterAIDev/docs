@@ -119,10 +119,10 @@ A PAT's scopes are `<resource>:<verb>` strings. Each resource supports a fixed v
 | `dashboard_agents` | `read`, `write`, `admin` | [`agents`](/reference/cli/commands/agents) |
 | `dashboard_providers` | `read`, `write`, `admin` | [`providers`](/reference/cli/commands/providers) |
 | `dashboard_secrets` | `read`, `write`, `delete` | [`managed-secrets`](/reference/cli/commands/managed-secrets) |
-| `dashboard_app_policy` | `read`, `write`, `admin` | [`policy`](/reference/cli/commands/policy) |
+| `dashboard_app_policy` | `read`, `rules_create`, `rules_update`, `rules_delete` | [`policy`](/reference/cli/commands/policy) — the `rules_*` verbs are mintable for API automation and consumed by `alter policy rules …` |
 | `dashboard_audit` | `read` | [`audit`](/reference/cli/commands/audit) |
 | `dashboard_pats` | `read` | [`pats whoami`](#status-and-sign-out) |
 
-Two resources separate `delete` into its own verb instead of bundling it under `admin`: `dashboard_apps` and `dashboard_secrets`. Deleting an app or a managed secret is an irreversible cascade, so it requires an explicit opt-in at mint time — the same posture as GitHub's separate `delete_repo` scope. A token with `write` or `admin` can do everything *except* those cascade deletes.
+Two resources separate `delete` into its own verb instead of bundling it under `admin`: `dashboard_apps` and `dashboard_secrets`. Deleting an app or a managed secret is an irreversible cascade, so it requires an explicit opt-in at mint time — the same posture as GitHub's separate `delete_repo` scope. A token with `write` or `admin` can do everything *except* those cascade deletes. `dashboard_app_policy` applies the same explicit opt-in to its `rules_update` and `rules_delete` verbs: updating or deleting a deny rule can *loosen* enforcement, so neither is ever granted by a wildcard — select them by name at mint time (`rules_create` only ever restricts, so it stays a routine automation verb).
 
 If a command returns [exit code 7 (`FORBIDDEN`)](/reference/cli/scripting#exit-codes), the PAT is valid but missing a scope — mint a new one with the broader set. Re-running `alter auth login` alone won't help, since it produces a token with the same scopes.

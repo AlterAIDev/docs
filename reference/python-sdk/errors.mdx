@@ -15,7 +15,7 @@ from alter_sdk import (
     PolicyViolationError, InsufficientScopeError,
     TokenRefreshInProgressError,
     ConnectFlowError, ConnectDeniedError, ConnectConfigError, ConnectTimeoutError,
-    ProviderAPIError, ScopeReauthRequiredError,
+    ProviderAPIError, ScopeReauthRequiredError, ProviderUnauthorizedError,
     NetworkError, TimeoutError,
     ApprovalError, ApprovalDeniedError, ApprovalExpiredError,
     ApprovalTimeoutError, ApprovalExecutionFailedError,
@@ -25,6 +25,7 @@ from alter_sdk import (
     KeyNotFoundError, LastActiveKeyError,
     MeRequiresAgentKeyError, AgentCannotMintSubagentsError,
     AgentScopeNarrowingNotSupportedError,
+    RestrictedGrantRequiresProxyError, SiblingLabelConflictError,
     IdempotencyKeyBodyMismatchError,
     IdempotencyKeyAgentRevokedError,
     IdempotencyKeyAgentInactiveError,
@@ -55,13 +56,17 @@ Every typed error carries `.message` and `.details: dict[str, Any]`. Specific su
 
 | Exception | Extra attributes |
 |---|---|
-| `GrantRevokedError`, `CredentialRevokedError`, `GrantNotFoundError`, `TokenRefreshInProgressError`, `ScopeReauthRequiredError` | `grant_id`, sometimes `provider_id`, `agent_id`, `app_user_id` |
+| `GrantRevokedError`, `TokenRefreshInProgressError` | `grant_id` |
+| `CredentialRevokedError` | `grant_id`, `provider_id`, `app_user_id` |
+| `GrantNotFoundError` | `provider_id`, `agent_id`, `app_user_id` (no `grant_id` — the grant lookup is what failed) |
+| `ScopeReauthRequiredError` | `grant_id`, `provider_id` |
 | `AmbiguousGrantError` | `provider_id`, `account_identifiers`, `account_was_provided`, `app_user_ids`, `grant_ids` |
 | `NoDelegatedGrantError` | `provider_id`, `agent_id`, `app_user_id` |
 | `PolicyViolationError` | `policy_error` |
 | `InsufficientScopeError` | `required`, `granted`, `missing`, `scope_version`, `current_scope_version`, `scope_version_mismatch`, `documentation_url` (aliases: `required_scopes`, `granted_scopes`, `docs_url`) |
-| `ProviderAPIError`, `ScopeReauthRequiredError` | `status_code`, `response_body` |
+| `ProviderAPIError`, `ScopeReauthRequiredError`, `ProviderUnauthorizedError` | `status_code`, `response_body` |
 | `ScopeReauthRequiredError` | also `missing_scopes` (from `WWW-Authenticate: Bearer error="insufficient_scope"`) |
+| `ProviderUnauthorizedError` | `grant_id`, `provider_id` — provider returned 401 (credential rejected provider-side); re-authorize an OAuth grant via a new Connect session, or update the stored managed secret. A 401 whose `WWW-Authenticate` challenge carries `error="insufficient_scope"` (RFC 6750 — the credential is still valid, it just lacks a scope) surfaces as a generic `ProviderAPIError` instead |
 | `ApprovalError` (and subclasses) | `approval_id` |
 | `AgentError` (and subclasses) | `code`, `hint` |
 

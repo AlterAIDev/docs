@@ -1,0 +1,22 @@
+---
+title: 'alter init'
+description: 'Add the Alter onboarding MCP server to a project''s MCP client config.'
+---
+
+`alter init` writes the hosted Alter onboarding MCP server into the project's MCP client configuration, so a coding agent (Claude Code, Cursor) can guide the integration end to end — classify the use case, walk the setup or modification flow, wire the SDK, and point at the verification gates.
+
+```
+alter init [--client claude|cursor] [--url <url>] [--name <name>] [--dir <path>] [--force]
+```
+
+The onboarding MCP serves guidance only — it is unauthenticated and holds no credentials, so this command touches no secrets.
+
+| Flag | Default | Description |
+|---|---|---|
+| `--client <client>` | auto-detect | `claude` writes `.mcp.json`; `cursor` writes `.cursor/mcp.json`. Auto-detect picks `cursor` when a `.cursor/` directory exists. |
+| `--url <url>` | the hosted onboarding MCP | Endpoint to register (override for staging/self-hosted). |
+| `--name <name>` | `alter-onboarding` | The server entry's name in the config. |
+| `--dir <path>` | `.` | Project root to write into. |
+| `--force` | off | Replace an existing entry with the same name. Other entries are always preserved. |
+
+Existing config files are merged, never clobbered: other MCP server entries are kept as-is, an invalid JSON file is refused rather than overwritten, and replacing an existing same-name entry requires `--force` (exit code `5` otherwise). After writing, restart the MCP client and ask the coding agent to call the server's `get_started` tool.

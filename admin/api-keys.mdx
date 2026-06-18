@@ -3,13 +3,16 @@ title: 'API Keys'
 description: 'Minting, rotating, and revoking app keys and per-agent keys.'
 ---
 
-Alter has three key shapes, each minted and managed in the developer portal.
+Alter has four key shapes, each minted and managed in the developer portal.
 
 | Prefix | Used by | Where it's minted |
 |---|---|---|
-| `alter_key_app_…` | Backend services using the `App` SDK class | App → **API Keys** |
-| `alter_key_agent_…` | AI agents using the `Agent` SDK class | App → **Agents → \<agent\> → Keys** |
-| Derived sub-keys | Short-lived, scope-narrowed keys for plugins or tool calls | Programmatic only via `app.keys.derive()` |
+| `alter_rk_…` (runtime) | Backend services using the `App` SDK class | App → **API Keys**, key type **runtime** (the default; CLI: `alter keys mint`) |
+| `alter_ak_…` (agent) | AI agents using the `Agent` SDK class | App → **API Keys**, key type **agent** (CLI: `alter keys mint --key-type agent`) |
+| `alter_dk_…` (derived) | Short-lived, scope-narrowed sub-keys for plugins or tool calls | Programmatic only via `app.keys.derive()` |
+| `alter_key_…` (legacy) | Per-agent keys bound to one managed agent | App → **Agents → \<agent\> → Keys** (CLI: `alter agents mint-key`) |
+
+Keys minted before the scoped formats also use the legacy `alter_key_…` prefix, and per-agent keys still mint with the legacy prefix today. Legacy keys keep working, but the prefix does not indicate whether the key is an app or an agent key.
 
 Every key authenticates the same way — the SDK handles signing and presentation transparently. The wire protocol is identical; the difference is which principal the backend resolves the call to.
 
@@ -29,7 +32,7 @@ To rotate without downtime:
 2. Deploy it to the running service.
 3. After confirming the new key is in use (Audit Logs → filter by key prefix), revoke the old one.
 
-There's no "rotate" action — minting + revoking is the rotation primitive.
+`alter keys rotate` performs the same exchange in one step: the new plaintext is returned once, and the old key keeps authenticating through a grace period until it is revoked.
 
 ### Revoke
 
@@ -89,7 +92,7 @@ limited = app.with_constraints(scopes=["grants:read"])
 await limited.list_grants()
 ```
 
-The returned SDK instance carries the narrowed scopes through to every request automatically. No key is minted; the constraint is in-process and disappears with the instance. See [Scopes](/concepts/scopes).
+The returned SDK instance carries the narrowed scopes through to every request automatically. No key is minted; the constraint is in-process and disappears with the instance. `with_constraints()` also accepts an optional `rule` — a one-off deny rule, evaluated server-side, that can only further restrict each request; pass `scopes`, `rule`, or both. See [Scopes](/concepts/scopes).
 
 ## Audit
 

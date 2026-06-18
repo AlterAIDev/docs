@@ -1,34 +1,158 @@
 ---
 title: 'alter policy'
-description: 'Read app-level policy from the command line.'
+description: 'Manage policy rules and read the app-level policy posture from the command line.'
 ---
 
-Read the app-level [policy](/concepts/policies) configuration for an app.
+Manage **policy rules** — rules that restrict or gate what requests are allowed (deny a request, or hold it for human approval) — at the app, agent, grant, or provider level, and summarize an app's app-level rules at a glance. App-level [policy](/concepts/policies) is rules-based: IP and time-of-day restrictions are ordinary policy rules (the `ip_allowlist` and `time_window` rule types below), and "require human approval" is the `require_approval` rule type, all managed with the same commands as every other rule.
 
 ```
 alter policy show-app
+alter policy rules create
+alter policy rules list
+alter policy rules get
+alter policy rules update
+alter policy rules delete
 ```
 
-This command is app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`. It needs `dashboard_app_policy:read` and accepts `--output`.
+All commands are app-scoped — pass `--app <id>`, or [link a workspace](/reference/cli/scripting#workspace-linking) / set `ALTER_APP_ID`.
+
+## Reading app policy
 
 ```bash
 alter policy show-app
 alter policy show-app --app <app-id> --output json
 ```
 
-## Why it's read-only
+Summarizes the app-level policy rules — the rules that apply to every request in the app — as a table of id, type, enabled, and name (`--output json` emits the full rows). It is the read-only posture view of the same rules `alter policy rules list` manages; needs `dashboard_app_policy:read`.
 
-The CLI can read app policy but not change it. Editing policy — app-level rules like time restrictions and IP allowlists, or anything org-wide — affects every grant in scope at once. A single scripted call should never be able to weaken security that broadly, so policy edits are **dashboard-only**.
+Rules that apply across an entire **organization** are dashboard-only by design — like org-wide key policy (where even *reading* is dashboard-only), a single scripted call should never see or weaken org-wide security, so there is deliberately no CLI surface for them.
 
-Org-wide key policy goes a step further: even *reading* it is dashboard-only, because the response is a security-posture fingerprint that would help an attacker tailor a follow-up. This mirrors how GitHub keeps org-security settings web-only. App-level policy reads are exposed here precisely because they're scoped to a single app.
+## Policy rules
+
+A policy rule is evaluated on every request, on top of a default-deny base: a request already needs ownership of the grant, the right scope, and a valid grant before any rule runs. When a rule's conditions match, it either denies the request or holds it for human approval (`require_approval`). Rules can only *restrict* that base — creating one never grants or widens access.
+
+### Targeting
+
+Each rule attaches to exactly one target, picked by a flag (the flags are mutually exclusive):
+
+| Flags | Rule applies to |
+|---|---|
+| *(none)* | every request in the app |
+| `--agent <agent-id>` | one agent only |
+| `--grant <grant-id>` | one grant (credential) only |
+| `--provider <provider>` | every grant on one **OAuth** provider (e.g. `--provider google`) |
+
+The target is part of the rule's address: `get`, `update`, and `delete` must repeat the target flag the rule was created with — a rule created with `--agent` is only found with the same `--agent <agent-id>`, and without it the command reports the rule as not found. Provider targeting covers OAuth providers only; for a managed-secret credential, target its grant with `--grant` instead.
+
+Rules end users set on their own accounts (from their wallet) are not addressable here — only the user can manage those.
+
+### Permissions
+
+Token permissions are split by what the operation can do:
+
+| Command | Needs | Notes |
+|---|---|---|
+| `rules list` / `rules get` | `dashboard_app_policy:read` | |
+| `rules create` | `dashboard_app_policy:rules_create` | Creating a rule only ever restricts access — a routine automation permission |
+| `rules update` | `dashboard_app_policy:rules_update` | Disabling a rule loosens enforcement, so this is never granted by a wildcard — select it explicitly when creating the token |
+| `rules delete` | `dashboard_app_policy:rules_delete` | Removing a deny rule loosens enforcement — also never granted by a wildcard |
+
+### Create
+
+```bash
+# App-wide, body from stdin (json_match is the default --type)
+echo '{"when": {"method": ["POST", "DELETE"]}, "effect": "deny"}' | \
+  alter policy rules create --body - --name "Read-only app"
+
+# Agent-scoped, body from a file; create disabled and enable later
+alter policy rules create --agent <agent-id> --body @rule.json --disabled
+
+# Provider-scoped
+echo '{"when": {"method": "DELETE"}, "effect": "deny"}' | \
+  alter policy rules create --provider google --body -
+
+# IP allowlist: deny every request NOT from these addresses / ranges
+echo '{"allow": ["203.0.113.5", "10.0.0.0/8"]}' | \
+  alter policy rules create --type ip_allowlist --body - --name "Office egress only"
+
+# Time window: deny requests outside business hours in the given timezone
+echo '{"business_hours_only": true, "weekdays_only": true, "timezone": "America/New_York"}' | \
+  alter policy rules create --type time_window --body - --name "Business hours"
+
+# Require approval: hold matching requests for human approval (does not deny)
+echo '{"effect": "require_approval", "when": {"method": ["POST", "DELETE"]}, "approval": {"approvers": ["lead@acme.com"], "channels": ["email"]}}' | \
+  alter policy rules create --type require_approval --body - --name "Approve writes"
+```
+
+`--body` takes `@<file>` or `-` for stdin (the same intake convention as every other JSON-accepting `alter` flag). `--type` picks the rule's evaluator and the body shape that goes with it (default `json_match`):
+
+| `--type` | Body shape | Effect on matching requests |
+|---|---|---|
+| `json_match` *(default)* | `{"when": {...}, "effect": "deny"}` | Denies requests matching ALL `when` conditions |
+| `ip_allowlist` | `{"allow": ["<ip-or-cidr>", ...]}` | Denies requests from any address NOT on the list |
+| `time_window` | `{"business_hours_only"?: bool, "weekdays_only"?: bool, "timezone"?: "<IANA>"}` (at least one boolean `true`) | Denies requests outside the allowed window |
+| `require_approval` | `{"effect": "require_approval", "approval": {...}, "when"?: {...}}` | Holds matching requests for human approval — does not deny |
+
+For `json_match`, `when` is a map of request attribute → expected value or list of values; ALL conditions must match for the rule to fire, and `effect` is always `"deny"`. Matchable attributes: `app_id`, `environment`, `agent_id`, `api_key_id`, `provider_id`, `resource_kind`, `client_ip` (exact IPs only — CIDR ranges belong in an `ip_allowlist` rule), `method`. Every body is validated locally before any network call. Optional: `--name`, `--description`, `--disabled`.
+
+For `require_approval`, the matching request is held for a human to approve rather than denied. The `when` map is OPTIONAL (omit it to require approval on every request at the target) and uses the same matcher as `json_match`. The `approval` object accepts: `approvers` (list of approver emails — empty/omitted means the connection's own owner approves), `expires_in_seconds` (60–86400, default 600), `channels` (`["email"]`, or `[]` to send no email and surface only the approval link), and the advanced overrides `step_up_max_session_age_seconds` (`-1` disables step-up), `max_pending` (1–100), and `result_retention_seconds`. Authorable at the app / agent / grant / provider level here; user-level approval rules are authored by the end user in the wallet.
+
+Authoring limits: at most 100 values per `json_match` condition list at 512 characters per value, 100 `ip_allowlist` entries at 49 characters each, 16 KiB for any serialized body, 120 characters for `--name`, and 2000 for `--description`.
+
+### List / get
+
+```bash
+alter policy rules list
+alter policy rules list --agent <agent-id> --output json
+alter policy rules list --limit 100 --offset 0
+alter policy rules get --rule <rule-id> --grant <grant-id>
+```
+
+`list` accepts `--limit` (1–100) and `--offset`, and renders a table by default (`--output json|jsonl|table`).
+
+### Update
+
+```bash
+alter policy rules update --rule <rule-id> --disable
+alter policy rules update --rule <rule-id> --enable
+alter policy rules update --agent <agent-id> --rule <rule-id> --name "New name" --description "Why"
+alter policy rules update --rule <rule-id> --body @new-rule.json
+```
+
+Partial update — only the flags you pass change (`--enable` and `--disable` are mutually exclusive; pass at least one change flag). A rule's evaluator type is fixed at creation; everything else — body, name, description, enabled — is editable in place, and a replacement `--body` must keep the shape of the rule's type (an `ip_allowlist` rule takes a new `{"allow": [...]}` body, and so on). Remember to repeat the rule's target flag (`--agent` / `--grant` / `--provider`) for non-app-level rules.
+
+### Delete
+
+```bash
+alter policy rules delete --rule <rule-id>
+alter policy rules delete --provider google --rule <rule-id> --yes   # CI / non-interactive
+```
+
+Deleting a deny rule means requests it currently blocks will be **allowed**, so the CLI asks for confirmation on a terminal; pass `--yes` in scripts. As with `update`, a non-app-level rule is only found when its target flag is repeated.
 
 ## Recipes
 
-**Snapshot app policy for review or diffing in CI**
+**Snapshot the app-level rules for review or diffing in CI**
 
 ```bash
-alter policy show-app --output json > app-policy.json
+alter policy show-app --output json > app-policy-rules.json
 ```
+
+**Apply a standard ruleset to an app (policy as code)**
+
+```bash
+for body in rules/*.json; do
+  alter policy rules create --app "$APP_ID" --body "@$body" --name "$(basename "$body" .json)"
+done
+```
+
+**Audit which rules are currently disabled**
+
+```bash
+alter policy rules list --output json | jq '.[] | select(.enabled == false)'
+```
+
+This lists **app-level** rules only — repeat it with `--agent` / `--grant` / `--provider` (or loop over the targets) to cover each rule family.
 
 ## Related
 

@@ -9,7 +9,7 @@ This page is the whitepaper-style reference for how Alter handles credentials en
 
 Three boundaries matter:
 
-1. **Application ↔ Alter SDK** — the application holds an API key (`alter_key_app_…` or `alter_key_agent_…`). The SDK signs every request with the key.
+1. **Application ↔ Alter SDK** — the application holds an API key (`alter_rk_…`, `alter_ak_…`, or a legacy `alter_key_…` key — per-agent keys currently mint with the legacy prefix). The SDK signs every request with the key.
 2. **Alter SDK ↔ Alter backend** — every request is cryptographically signed; the backend verifies the signature before performing any action.
 3. **Alter backend ↔ third-party provider** — Alter holds the OAuth tokens and credentials. Application code never sees them; the SDK or backend injects them into outgoing provider requests as headers, depending on the [runtime mode](/concepts/identity#retrieve-vs-proxy) the call uses.
 
@@ -69,7 +69,7 @@ Each [API key](/admin/api-keys) carries:
 - A binding to an app — keys cannot read cross-app data.
 - A type — app key, agent key, or derived key.
 
-A derived key inherits a subset of the parent's scopes (intersection only — never broader). Per-request attenuation via `with_constraints()` further narrows in-process without minting a new key.
+A derived key inherits a subset of the parent's scopes (intersection only — never broader). Per-request attenuation via `with_constraints()` further narrows in-process without minting a new key — it can narrow scopes, attach an optional one-off deny rule that is evaluated server-side and can only further restrict the request, or both.
 
 ## Audit trail
 

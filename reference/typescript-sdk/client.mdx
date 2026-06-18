@@ -9,8 +9,8 @@ import { App, Agent } from "@alter-ai/alter-sdk";
 
 The SDK exposes two top-level client classes. They share most of the request surface but model two different principal kinds on the wire. Pick the right class for the workload:
 
-- **`App`** — application-side. Holds the application's API key (`alter_key_app_…`). Provisions agents, mints Connect sessions, calls provider APIs under any stored grant.
-- **`Agent`** — workload-side. Holds an agent's API key (`alter_key_agent_…`). Can only reach credentials delegated or directly bound to the agent.
+- **`App`** — application-side. Holds the application's API key (`alter_rk_…`). Provisions agents, mints Connect sessions, calls provider APIs under any stored grant.
+- **`Agent`** — workload-side. Holds an agent's API key (`alter_ak_…`). Can only reach credentials delegated or directly bound to the agent.
 
 Methods that do not apply to a principal kind are intentionally absent from that class — TypeScript flags the missing methods at compile time.
 
@@ -38,7 +38,7 @@ new App(options: AppOptions)
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `apiKey` | `string` | — | Application API key (`alter_key_app_…`). Required. |
+| `apiKey` | `string` | — | Application API key (`alter_rk_…`). Required. |
 | `timeout` | `number` | `30000` | HTTP timeout in **milliseconds**. |
 | `caller` | `string` | — | Caller identifier for audit attribution. |
 | `callerType` | `CallerType \| "agent" \| "service"` | `SERVICE` | Distinguishes backend services from AI agents. Only effective when `caller` is set. |
@@ -67,6 +67,7 @@ The `App` class exposes:
 - [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession), [`createManagedSecretConnectSession()`](/reference/typescript-sdk/connect-and-grants#createmanagedsecretconnectsession), [`pollConnectSession()`](/reference/typescript-sdk/connect-and-grants#pollconnectsession), [`createConnectSessionForError()`](/reference/typescript-sdk/connect-and-grants#createconnectsessionforerror), [`connect()`](/reference/typescript-sdk/connect-and-grants#connect)
 - [`authenticate()`](/reference/typescript-sdk/connect-and-grants#authenticate), [`createAuthSession()`](/reference/typescript-sdk/connect-and-grants#createauthsession), [`pollAuthSession()`](/reference/typescript-sdk/connect-and-grants#pollauthsession), `verifyUserToken()`
 - [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval)
+- `resolveIdentity()`, `assertIdentity()` — the identity-export surface (see [Propagate identity into memory layers](/guides/propagate-identity-to-memory) and [Identity types](/reference/typescript-sdk/types#identitycontext))
 - `oauthProviders` namespace — [`oauthProviders.list()`](/reference/typescript-sdk/connect-and-grants#oauthproviderslist) (OAuth provider catalog)
 - [`withConstraints()`](#withconstraints), [`getAgent()`](#getagent), [`close()`](#close)
 
@@ -92,7 +93,7 @@ new Agent(options: AgentOptions)
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `apiKey` | `string` | — | Agent API key (`alter_key_agent_…`). Required. |
+| `apiKey` | `string` | — | Agent API key (`alter_ak_…`). Required. |
 | `timeout` | `number` | `30000` | HTTP timeout in **milliseconds**. |
 | `caller` | `string` | — | Caller identifier for audit attribution. |
 | `userTokenGetter` | `() => string \| Promise<string>` | — | Resolves the calling end-user JWT. Used for delegation disambiguation when the agent holds delegations from multiple users on the same provider. |
@@ -123,26 +124,47 @@ The `Agent` class exposes:
 - [`oauthProviders.list()`](/reference/typescript-sdk/connect-and-grants#oauthproviderslist) — OAuth provider catalog.
 - [`createConnectSession()`](/reference/typescript-sdk/connect-and-grants#createconnectsession), [`connect()`](/reference/typescript-sdk/connect-and-grants#connect)
 - [`getApprovalStatus()`](/reference/typescript-sdk/connect-and-grants#getapprovalstatus), [`awaitApproval()`](/reference/typescript-sdk/connect-and-grants#awaitapproval)
+- `resolveIdentity()`, `assertIdentity()` — the identity-export surface; the agent shape additionally accepts the consent-edge `appUserId` shortcut (see [Propagate identity into memory layers](/guides/propagate-identity-to-memory))
 - [`close()`](#close)
 
 ## withConstraints
 
-Return a constrained sibling client with a narrowed scope set.
+Return a constrained sibling client. Macaroon-style attenuation that can only narrow access, never broaden it. Two attenuations are available, and at least one of `scopes` / `rule` must be supplied:
+
+- `scopes` narrows the scope set. The argument must be a subset of the parent client's effective scope set; the backend enforces the narrowing on every authenticated call.
+- `rule` attaches an optional one-off rule, evaluated server-side, that can only further restrict each request the returned client makes — it can never widen access. It is either a **deny** rule (`{ ruleType: "json_match", ruleBody: { when: {...}, effect: "deny" } }`) or a **require-approval** (HITL) rule (`{ ruleType: "require_approval", ruleBody: { effect: "require_approval", approval: { approvers?: [...], channels?: ["email"], ... }, when?: {...} } }`), which holds a matching request for human approval instead of denying it (`channels: []` sends no email). A raw-token retrieval carries no request method/URL, so `method`-keyed conditions are treated as satisfied there (a raw token can issue any method) — scope method restrictions through the proxy surface, which carries the request method. Endpoints cannot be scoped by a rule (the URL is not a matchable attribute). If a request is frozen for human approval (HITL 202), the per-request rule is not re-evaluated on the deferred post-approval execution — it cannot widen access (the rule did not match the frozen request, and the grant plus every stored policy rule still bound the execution), but prefer a stored rule when the constraint must hold at execute time.
 
 ```typescript
-withConstraints(options: { scopes: readonly string[] }): App
-withConstraints(options: { scopes: readonly string[] }): Agent
+withConstraints(options: { scopes?: readonly string[]; rule?: RequestRule }): App
+withConstraints(options: { scopes?: readonly string[]; rule?: RequestRule }): Agent
 ```
 
-Macaroon-style attenuation: the returned client signs every request with an additional scope-constraints assertion. The scopes argument must be a subset of the parent client's effective scope set; the backend enforces the narrowing on every authenticated call.
+`RequestRule` is shaped:
+
+```typescript
+interface RequestRule {
+  ruleType: string;
+  ruleBody: Record<string, unknown>;
+}
+```
+
+For the `json_match` rule type, `ruleBody` is `{ when: { <attr>: string | string[] }, effect: "deny" }`, where `<attr>` is one of `method`, `provider_id`, `app_id`, `agent_id`, `api_key_id`, `environment`, `client_ip`, `resource_kind`, and `effect` is always `"deny"`. The `ruleBody` field names are the rule grammar's own — they are not camelCased.
 
 Both the parent and the constrained sibling share the same underlying HTTP pool. Closing the parent also makes the sibling unusable; closing the sibling alone leaves the parent untouched.
 
-`withConstraints()` cannot be chained — calling it on an already-constrained client throws [`AlterValueError`](/reference/typescript-sdk/errors).
+`withConstraints()` cannot be chained — calling it on an already-constrained client throws [`AlterValueError`](/reference/typescript-sdk/errors). It also throws [`AlterValueError`](/reference/typescript-sdk/errors) if neither `scopes` nor `rule` is supplied. Calling it on a closed client throws [`AlterSDKError`](/reference/typescript-sdk/errors).
 
 ```typescript
-const readonly = app.withConstraints({ scopes: ["grants:read"] });
-const page = await readonly.listGrants();
+const readOnly = app.withConstraints({ scopes: ["grants:read"] });
+const page = await readOnly.listGrants();
+
+// Attach a one-off deny rule:
+const restricted = app.withConstraints({
+  rule: {
+    ruleType: "json_match",
+    ruleBody: { when: { method: "POST" }, effect: "deny" },
+  },
+});
 ```
 
 ## getAgent
@@ -162,7 +184,7 @@ Throws [`AlterValueError`](/reference/typescript-sdk/errors) if `agentId` is not
 <Warning>
 **Impersonation, not delegation-scoped access.** `getAgent()` stamps subsequent API calls so they appear in the audit trail as having been made by `agentId`. It does NOT restrict the resulting `Agent` to that agent's delegations. The returned client reuses the application's API key, so paths that bypass the delegation lookup (such as `request({ grantId })` with a user-owned grant ID) remain reachable.
 
-For genuine delegation-scoped access, mint a dedicated agent key and construct `new Agent({ apiKey: "alter_key_agent_…" })` directly.
+For genuine delegation-scoped access, mint a dedicated agent key and construct `new Agent({ apiKey: "alter_ak_…" })` directly.
 
 The SDK emits a one-time `console.warn` the first time `request({ grantId })` is called on an impersonating `Agent` to surface this distinction at runtime.
 </Warning>
@@ -178,9 +200,10 @@ Drain pending audit and background tasks, then release HTTP resources.
 
 ```typescript
 async close(): Promise<void>
+async [Symbol.asyncDispose](): Promise<void>
 ```
 
-Both `App` and `Agent` expose `close()`. The SDK does not auto-close on process exit; call it explicitly (typically from a `try`/`finally`):
+Both `App` and `Agent` expose `close()` and `Symbol.asyncDispose`. The SDK does not auto-close on process exit; call it explicitly (typically from a `try`/`finally`) or use `await using` in runtimes that support explicit resource management:
 
 ```typescript
 const app = new App({ apiKey });
@@ -189,6 +212,9 @@ try {
 } finally {
   await app.close();
 }
+
+await using scopedApp = new App({ apiKey });
+// scopedApp.close() runs when the scope exits.
 ```
 
 `close()` is idempotent. Subsequent calls on a closed client throw [`AlterSDKError`](/reference/typescript-sdk/errors).

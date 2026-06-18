@@ -56,7 +56,7 @@ Results are cached in-process for 5 minutes. The catalog lists only **active** (
 ```python
 from alter_sdk import App
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 catalog = await app.oauth_providers.list()
 provider = catalog.providers["<provider_id>"]
@@ -96,7 +96,7 @@ async def connect(
 ```python
 from alter_sdk import App
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 results = await app.connect(providers=["google"], timeout=180)
 for r in results:
@@ -131,6 +131,10 @@ async def create_connect_session(
 | `required_scopes` | `dict[str, list[str]] \| None` | `None` | Per-provider scope ceiling. Each scope must be in the app's configured allowlist; the backend rejects attempts to widen with `scope_not_allowed`. |
 | `agent` | `str \| None` | `None` | Managed-agent UUID or name. When set, the resulting grant is delegated to this agent. |
 | `user_token` | `str \| None` | `None` | Explicit user JWT for identity binding. Wins over `user_token_getter`. |
+
+<Warning>
+**One provider account uses one scope set.** Within a single application and provider, all agents that connect the **same end-user account** share one authorization. Requesting **different** `required_scopes` for different agents on that same account is **not supported** — the most recent connect determines the scopes for all of them, so an earlier agent can lose a scope it relied on. Use a **consistent** `required_scopes` set (or the Dev Portal default) per provider within an app. *This is a known limitation we may revisit.*
+</Warning>
 
 **Returns:** [`ConnectSession`](/reference/python-sdk/types#connectsession).
 
@@ -347,7 +351,7 @@ async def list_grants(
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
+| `provider_id` | `str \| None` | `None` | Filter to one provider. OAuth: the provider id (e.g. `"google"`). Managed secret: the per-secret slug (e.g. `"stripe-production"`), unique per app. |
 | `status` | `str \| None` | `None` | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
 | `account` | `str \| None` | `None` | Filter by `account_identifier` (multi-account disambiguation). |
 | `end_user_token` | `str \| None` | `None` | Scope the list to one end user by their JWT — their own grants plus group grants they are a live member of. Takes precedence over a configured `user_token_getter`; an invalid token is rejected with `401`, never a silent fall-through to app scope. |
@@ -359,7 +363,7 @@ async def list_grants(
 ```python
 from alter_sdk import App, Provider
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 page = await app.list_grants(provider_id=Provider.GOOGLE, limit=50)
 for item in page.grants:
@@ -383,7 +387,7 @@ async def list_grants(
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `provider_id` | `str \| None` | `None` | Filter to a specific provider id. |
+| `provider_id` | `str \| None` | `None` | Filter to one provider. OAuth: the provider id (e.g. `"google"`). Managed secret: the per-secret slug (e.g. `"stripe-production"`), unique per app. |
 | `status` | `str \| None` | `None` | Filter by grant status (e.g. `"active"`, `"expired"`, `"revoked"`). |
 | `account` | `str \| None` | `None` | Filter by `account_identifier`. |
 | `end_user_token` | `str \| None` | `None` | Scope the agent's *delegated* OAuth grants to one end user by their JWT. Agent-owned managed-secret grants have no end user, so they are unaffected. |
@@ -508,7 +512,7 @@ async def create_managed_secret_grant(
 from alter_sdk import App
 from alter_sdk.models import UserPrincipal, GroupPrincipal, SystemPrincipal
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 # User-bound
 result = await app.create_managed_secret_grant(
@@ -516,7 +520,7 @@ result = await app.create_managed_secret_grant(
     principal=UserPrincipal(user_token=user_jwt, label="Acme Stripe"),
 )
 
-# Group-bound (Okta / Clerk / Auth0 group)
+# Group-bound (requires an identity provider that supports group grants)
 result = await app.create_managed_secret_grant(
     managed_secret_id="ms_datadog",
     principal=GroupPrincipal(
@@ -585,7 +589,7 @@ result = await app.proxy_request(
     "POST",
     "https://api.stripe.com/v1/refunds",
     grant_id=grant_id,
-    json_body={"charge": "ch_abc"},
+    json={"charge": "ch_abc"},
 )
 
 if isinstance(result, PendingApproval):

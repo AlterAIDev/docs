@@ -247,7 +247,7 @@ async def me() -> AgentInfo
 ```python
 from alter_sdk import Agent
 
-agent = Agent(api_key="alter_key_agent_…")
+agent = Agent(api_key="alter_ak_…")
 info = await agent.me()
 print(info.id, info.name, info.status, info.version)
 ```
@@ -286,23 +286,37 @@ async with agent.trace(run_id="run_abc", role="writer"):
 
 ### with_constraints
 
-Return a macaroon-style constrained sub-`Agent`. Every request from the returned `Agent` carries a permanent scope-constraints assertion that narrows the underlying key to the supplied scope set. The supplied scopes must already be implied by the key — the backend rejects broadening attempts with HTTP 400 `constraint_not_narrowing`.
+Return a macaroon-style constrained sub-`Agent`. Every request from the returned `Agent` carries a permanent attenuation that can only narrow access, never broaden it. Two attenuations are available, and at least one of `scopes` / `rule` must be supplied:
+
+- `scopes` narrows the underlying key to the supplied scope set. The supplied scopes must already be implied by the key — the backend rejects broadening attempts with HTTP 400 `constraint_not_narrowing`.
+- `rule` attaches an optional one-off deny rule, evaluated server-side, that can only further restrict each request the returned client makes. It is deny-only — it can never widen access. Shape: `{"rule_type": "json_match", "rule_body": {"when": {<attr>: str | list[str]}, "effect": "deny"}}`, where `<attr>` is one of `method`, `provider_id`, `app_id`, `agent_id`, `api_key_id`, `environment`, `client_ip`, `resource_kind`, and `effect` is always `"deny"`. A raw-token retrieval carries no request method/URL, so `method`-keyed conditions are treated as satisfied there (a raw token can issue any method) — scope method restrictions through the proxy surface, which carries the request method. Endpoints cannot be scoped by a rule (the URL is not a matchable attribute). If a request is frozen for human approval (HITL 202), the per-request rule is not re-evaluated on the deferred post-approval execution — it cannot widen access (the rule did not match the frozen request, and the grant plus every stored policy rule still bound the execution), but prefer a stored rule when the constraint must hold at execute time.
 
 ```python
-def with_constraints(*, scopes: list[str]) -> Agent
+def with_constraints(*, scopes: list[str] | None = None, rule: RequestRule | dict[str, Any] | None = None) -> Agent
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
-| `scopes` | `list[str]` | — | Non-empty list of scope strings to attenuate to. |
+| `scopes` | `list[str] \| None` | `None` | Optional non-empty list of scope strings to attenuate to. |
+| `rule` | `RequestRule \| dict \| None` | `None` | Optional one-off deny rule carried on every request the returned client makes; enforced on credential-using calls (token retrieval, proxied provider requests). |
 
-**Raises:** `AlterValueError` (empty list, nested constraint call), `AlterSDKError` (client closed).
+At least one of `scopes` / `rule` is required.
+
+**Raises:** `AlterValueError` (neither `scopes` nor `rule` supplied, malformed `scopes` / `rule`, nested constraint call), `AlterSDKError` (client closed).
 
 See also [`App.with_constraints()`](/reference/python-sdk/client#with_constraints) — same semantics for the operator client.
 
 ```python
 narrowed = agent.with_constraints(scopes=["grants:read"])
 await narrowed.list_grants()
+
+# Attach a one-off deny rule:
+restricted = agent.with_constraints(
+    rule={
+        "rule_type": "json_match",
+        "rule_body": {"when": {"method": "POST"}, "effect": "deny"},
+    },
+)
 ```
 
 ---
@@ -346,7 +360,7 @@ async def derive(
 import os
 from alter_sdk import App
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 derived = await app.keys.derive(
     scopes=["tokens:retrieve", "grants:read"],

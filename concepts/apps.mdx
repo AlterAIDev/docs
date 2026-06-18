@@ -9,7 +9,7 @@ An organization groups apps that belong to the same company or team. Most worksp
 
 ## What lives on an app
 
-- **API keys** — `alter_key_app_…` (operator keys) and `alter_key_agent_…` (per-agent keys). See [API keys](/admin/api-keys).
+- **API keys** — runtime keys (`alter_rk_…`) and agent keys (`alter_ak_…`), both minted from the app's **API Keys** page; per-agent keys bound to a managed agent — and keys minted before the scoped formats — use the legacy `alter_key_…` prefix. See [API keys](/admin/api-keys).
 - **Provider configurations** — OAuth client IDs and secrets per provider, managed-secret credentials, scope allowlists. See [Providers](/concepts/providers).
 - **Identity provider settings** — the IDP that authenticates the app's end users (Auth0, Clerk, Okta, custom OIDC). See [Connecting an identity provider](/admin/identity-provider).
 - **Grants** — every OAuth authorization a user has completed and every managed secret an operator has provisioned. See [Grants](/concepts/credentials).

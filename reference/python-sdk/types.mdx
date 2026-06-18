@@ -19,6 +19,7 @@ from alter_sdk import (
     AuthResult, AuthSession, APICallAuditLog,
     OAuthProviderCatalog, OAuthProviderCatalogItem, OAuthProviderScopeInfo,
     RetryInfo, RetryErrorInfo,
+    IdentityContext, IdentityTrace, MemoryScope, IdentityAssertion,
     HttpMethod, CallerType, Provider,
 )
 ```
@@ -186,16 +187,6 @@ GrantListItem = OAuthGrantItem | ManagedSecretGrantItem
 | `access_via` | `"ownership" \| "ms_delegation"` |
 | `delegated_at` | `str \| None` |
 
-### GrantListResult (legacy)
-
-| Field | Type |
-|---|---|
-| `grants` | `list[GrantInfo]` |
-| `total` | `int` |
-| `limit` | `int` |
-| `offset` | `int` |
-| `has_more` | `bool` |
-
 ### RevokeGrantResult
 
 | Field | Type |
@@ -246,7 +237,7 @@ The discriminator is `type`.
 |---|---|---|
 | `type` | `"group"` | Discriminator. |
 | `external_group_id` | `str` | 1-255 chars. |
-| `idp_id` | `str` | AppIdentityProvider id (UUID), 1-255 chars. |
+| `idp_id` | `str` | Identity provider id (UUID), 1-255 chars. |
 | `label` | `str` | 1-255 chars. |
 
 ### SystemPrincipal
@@ -474,6 +465,21 @@ Extends `APIKeyInfo`. Adds:
 
 ---
 
+## Constraints
+
+### RequestRule
+
+A one-off deny rule passed to `with_constraints(rule=...)` — cryptographically
+bound to every request the constrained client makes and enforced on
+credential-using calls.
+
+| Field | Type |
+|---|---|
+| `rule_type` | `str` |
+| `rule_body` | `dict` |
+
+---
+
 ## Approvals
 
 ### PendingApproval
@@ -555,3 +561,58 @@ Audit row built for a provider call.
 | `context` | `dict[str, str] \| None` |
 
 Method `sanitize() -> dict[str, Any]` strips sensitive headers (`Authorization`, `Cookie`, `x-api-key`, `x-amz-*`, etc.).
+
+---
+
+## Identity
+
+### IdentityContext
+
+Returned by `App.resolve_identity()` and `Agent.resolve_identity()`. The canonical identity set the platform resolved for the request — key external data (memory partitions, channel sessions, authorization tuples) on these IDs, never on email or a raw IDP `sub`.
+
+| Field | Type | Description |
+|---|---|---|
+| `app_id` | `str` | The calling application (tenant). |
+| `app_user_id` | `str \| None` | Canonical end-user key. `None` for headless calls. |
+| `external_subject_id` | `str \| None` | Stable external join key — the IDP subject identifier. |
+| `idp_id` | `str \| None` | Identity provider the subject belongs to. |
+| `user_status` | `str \| None` | `"active"` \| `"suspended"`. Deprovisioned users are rejected at resolution, never returned. |
+| `group_ids` | `list[str]` | Stable external group IDs of the user's unrevoked memberships. |
+| `agent_id` | `str \| None` | Canonical agent key. `None` for plain app callers. |
+| `actor_id` | `str \| None` | Audit correlation label only — NOT a partition key. |
+| `trace` | `IdentityTrace \| None` | Echo of the ambient run/thread trace context. |
+| `email` | `str \| None` | Only with `include_profile=True`. |
+| `display_name` | `str \| None` | Only with `include_profile=True`. |
+
+Method `memory_scope() -> MemoryScope` derives the deterministic memory partition keys. See [Propagate identity into memory layers](/guides/propagate-identity-to-memory).
+
+### IdentityTrace
+
+| Field | Type |
+|---|---|
+| `run_id` | `str \| None` |
+| `thread_id` | `str \| None` |
+
+### MemoryScope
+
+Deterministic, prefixed partition keys derived from an `IdentityContext`.
+
+| Field | Type | Description |
+|---|---|---|
+| `user_key` | `str \| None` | `"alter:user:<app_user_id>"`; `None` for headless contexts. |
+| `agent_key` | `str \| None` | `"alter:agent:<agent_id>"`; `None` for app callers. |
+| `app_key` | `str` | `"alter:app:<app_id>"`. |
+| `run_key` | `str \| None` | `"alter:run:<run_id>"` from the trace context. |
+| `namespace` | `tuple[str, ...]` | `("alter", <app_id>, <app_user_id>)`; `("alter", <app_id>)` headless. |
+
+### IdentityAssertion
+
+Returned by `App.assert_identity()` and `Agent.assert_identity()`.
+
+| Field | Type | Description |
+|---|---|---|
+| `token` | `str` | Compact ES256 JWS — verify against the published Alter identity JWKS. Redacted from `repr()`. |
+| `expires_at` | `datetime` | Absolute expiry (short TTL by design — default 120s, bounds 10–300s). |
+| `identity` | `IdentityContext` | The identity the assertion encodes. |
+
+The assertion is identity-only: it carries no provider tokens, no credentials, no raw IDP claims, and grants nothing by itself — downstream systems map it to their own authorization.

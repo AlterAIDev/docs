@@ -58,6 +58,7 @@
         "guides/call-apis-on-behalf-of-users",
         "guides/provision-secrets-for-backend-services",
         "guides/give-an-agent-scoped-access",
+        "guides/propagate-identity-to-memory",
         "guides/add-human-in-the-loop-approvals",
         "guides/embed-the-connect-widget",
         "guides/integrate-with-claude-code-mcp"
@@ -151,10 +152,19 @@
                 "reference/cli/commands/keys",
                 "reference/cli/commands/agents",
                 "reference/cli/commands/providers",
+                "reference/cli/commands/identity-providers",
                 "reference/cli/commands/managed-secrets",
                 "reference/cli/commands/policy",
                 "reference/cli/commands/audit",
                 "reference/cli/commands/grants",
+                "reference/cli/commands/analytics",
+                "reference/cli/commands/end-users",
+                "reference/cli/commands/branding",
+                "reference/cli/commands/approvals",
+                "reference/cli/commands/verify",
+                "reference/cli/commands/doctor",
+                "reference/cli/commands/design",
+                "reference/cli/commands/init",
                 "reference/cli/commands/sdk-passthrough"
               ]
             }
@@ -289,6 +299,7 @@
             "reference/managed-secret-providers/sentry",
             "reference/managed-secret-providers/shopify",
             "reference/managed-secret-providers/shortcut",
+            "reference/managed-secret-providers/snowflake",
             "reference/managed-secret-providers/stripe",
             "reference/managed-secret-providers/supabase",
             "reference/managed-secret-providers/tavily",

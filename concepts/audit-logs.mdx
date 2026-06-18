@@ -32,6 +32,7 @@ For every administrative action:
 For every user-provisioning event (the **Provisioning** tab in the portal's Audit Logs view):
 
 - Users and groups created, updated, or deprovisioned — whether by an [IDP webhook](/admin/identity-provider), a [directory sync](/admin/identity-provider#how-directory-sync-works) run, or a first sign-in.
+- Group membership transitions that change access: a member removed (group-grant access revoked) and a membership restored after the member reappears in the directory.
 - Each row records the originating path, the outcome (success, no-op, skipped, denied, error), and the reason.
 
 ## The two questions an audit trail answers

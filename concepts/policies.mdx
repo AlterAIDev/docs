@@ -5,6 +5,10 @@ description: 'Rules that decide whether a credential access is allowed.'
 
 **A policy is a rule that decides whether a credential access is allowed.** Every `app.request()` is evaluated against the relevant policies before the token is injected; if the policy denies, the call raises [`PolicyViolationError`](/reference/errors) and the provider is never reached.
 
+<Note>
+**Policies never *grant* access — they only narrow it.** Access is default-deny (zero-trust): a credential is already gated by **ownership** (the principal must own the grant), **scope** (the key must carry the capability), and the **grant's validity** (not expired or revoked). With no policy set, access still requires all three. A policy is an additional layer that can only *further restrict* — deny a request, limit it to certain times or IPs, or require human approval — never widen what's allowed.
+</Note>
+
 Policies sit between *who can call* (the [principal](/concepts/credentials#principals) on the grant) and *what they're allowed to call right now*. The principal binding answers "is Alice's grant?"; the policy answers "is now a valid time, from a valid place, within rate?"
 
 ## Where a policy lives
@@ -37,7 +41,7 @@ This is the opposite of fail-open systems where a missing policy is treated as "
 
 ## Audit
 
-Every policy decision (allow or deny) is recorded in the [audit log](/concepts/audit-logs) with the policy name, the inputs evaluated, and the outcome. Denied calls never reach the provider but always appear in the audit trail — they are first-class evidence for compliance reviews.
+Every policy decision (allow, deny, or error — error meaning the policy gate itself failed to evaluate and the request was denied fail-closed) is recorded in the [audit log](/concepts/audit-logs) with the policy name, the inputs evaluated, and the outcome. Denied calls never reach the provider but always appear in the audit trail — they are first-class evidence for compliance reviews.
 
 ## What's next
 

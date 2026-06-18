@@ -41,7 +41,8 @@ async def request(
     grant_id: str | None = None,
     provider: str | None = None,
     account: str | None = None,
-    json: dict[str, Any] | None = None,
+    label: str | None = None,
+    json: dict[str, Any] | list[Any] | str | bool | int | float | None = None,
     extra_headers: dict[str, str] | None = None,
     query_params: dict[str, Any] | None = None,
     path_params: dict[str, str] | None = None,
@@ -51,8 +52,6 @@ async def request(
     caller: str | None = None,
     user_token: str | None = None,
     app_user_id: str | None = None,
-    scope: list[str] | None = None,
-    constraints: dict[str, Any] | None = None,
 ) -> httpx.Response
 ```
 
@@ -61,9 +60,10 @@ async def request(
 | `method` | `HttpMethod \| str` | — | HTTP method. The [`HttpMethod`](/reference/python-sdk/types#httpmethod) enum is recommended for IDE autocomplete. |
 | `url` | `str` | — | Full provider URL. Must start with `http://` or `https://`. Supports `{name}` placeholders resolved via `path_params`. |
 | `grant_id` | `str \| None` | `None` | Direct-mode grant identifier. Mutually exclusive with `provider`. |
-| `provider` | `str \| None` | `None` | Identity-mode provider id (e.g. `"google"`). Requires `user_token_getter` on the client or `user_token=` per call. Mutually exclusive with `grant_id`. |
+| `provider` | `str \| None` | `None` | Identity-mode key. OAuth: the provider id (e.g. `"google"`). Managed secret: the per-secret slug (e.g. `"stripe-production"`), unique per app. Requires `user_token_getter` on the client or `user_token=` per call. Mutually exclusive with `grant_id`. |
 | `account` | `str \| None` | `None` | Disambiguator for identity mode when the resolved user has multiple grants on the same provider (see [`AmbiguousGrantError`](/reference/python-sdk/errors)). |
-| `json` | `dict \| None` | `None` | JSON-serialized request body. Mutually exclusive with `body`. |
+| `label` | `str \| None` | `None` | Sibling-grant disambiguator for identity mode — selects one of several same-provider grants (the resolution key is provider + label). Only valid alongside `provider`. |
+| `json` | `dict \| list \| str \| bool \| int \| float \| None` | `None` | JSON-serialized request body. Mutually exclusive with `body`. |
 | `body` | `bytes \| None` | `None` | Raw bytes request body. Mutually exclusive with `json`. |
 | `extra_headers` | `dict[str, str] \| None` | `None` | Extra request headers. `Authorization` is injected by the SDK and must not be set here. |
 | `query_params` | `dict[str, Any] \| None` | `None` | Query string parameters. |
@@ -73,15 +73,15 @@ async def request(
 | `caller` | `str \| None` | `None` | Per-call override of the client's caller identifier. |
 | `user_token` | `str \| None` | `None` | Per-call user JWT for identity mode. Wins over `user_token_getter`. |
 | `app_user_id` | `str \| None` | `None` | Per-call user identifier for agent-delegation disambiguation. |
-| `scope` | `list[str] \| None` | `None` | <Warning>Reserved — passing a non-None value raises `AlterValueError`.</Warning> |
-| `constraints` | `dict[str, Any] \| None` | `None` | <Warning>Reserved — passing a non-None value raises `AlterValueError`.</Warning> |
+
+To narrow scopes or attach a one-off deny rule to a call, mint a constrained sub-client with [`with_constraints()`](/reference/python-sdk/client#with_constraints) rather than passing per-call policy arguments.
 
 **Returns:** `httpx.Response`. Inspect `response.status_code`, `response.json()`, `response.text`, etc.
 
 **Raises:**
 
 - `AlterSDKError` — missing both `grant_id` and `provider`, supplying both, supplying both `json` and `body`, client closed, URL with disallowed scheme.
-- `AlterValueError` — bad `context` shape, malformed `user_token` / `app_user_id`, reserved `scope` / `constraints` set.
+- `AlterValueError` — bad `context` shape, malformed `user_token` / `app_user_id`, `app_user_id` or `label` supplied without `provider`, or an unresolved `{name}` placeholder left in `url` after `path_params`.
 - `GrantNotFoundError`, `GrantExpiredError`, `GrantRevokedError`, `GrantDeletedError`, `CredentialRevokedError` — grant-state failures (see [Errors](/reference/python-sdk/errors)).
 - `AmbiguousGrantError` — identity-mode resolution matched multiple grants. Inspect `e.account_identifiers` and retry with `account=`.
 - `NoDelegatedGrantError` — agent caller has no access path to the provider.
@@ -96,7 +96,7 @@ Pass `grant_id=` when the application has the grant identifier in hand (stored a
 ```python
 from alter_sdk import App, HttpMethod
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 resp = await app.request(
     HttpMethod.GET,
@@ -111,6 +111,15 @@ events = resp.json()
 
 Pass `provider=` when the caller is acting on behalf of a known user. The SDK resolves the user's JWT (from `user_token_getter` or `user_token=`) and looks up the grant.
 
+<Note>
+**What `provider` contains depends on the credential kind** — it is the *resolution key*, not always a "provider name":
+
+- **OAuth** — the provider id (e.g. `"google"`, `"slack"`).
+- **Managed secret** — the secret's **slug** (e.g. `"stripe-production"`), which is unique per app. This is the slug shown on the secret's page and returned as `managed_secret_slug` from [`list_grants()`](/reference/python-sdk/connect-and-grants#list_grants) — **not** the template name (`"stripe"`).
+
+Direct mode is different again: `grant_id=` is a stable UUID. Use `grant_id=` (discoverable via `list_grants`) when you need to target one specific secret deterministically — for example when a user holds several secrets and the slug/account aren't enough.
+</Note>
+
 <CodeGroup>
 ```python user_token_getter
 from alter_sdk import App
@@ -119,7 +128,7 @@ def jwt_for_current_user() -> str:
     return request_state.user_jwt
 
 app = App(
-    api_key="alter_key_app_…",
+    api_key="alter_rk_…",
     user_token_getter=jwt_for_current_user,
 )
 
@@ -133,13 +142,28 @@ resp = await app.request(
 ```python per-call
 from alter_sdk import App
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 resp = await app.request(
     "GET",
     "https://slack.com/api/conversations.list",
     provider="slack",
     user_token=user_jwt,
+)
+```
+
+```python managed secret (by slug)
+from alter_sdk import App, HttpMethod
+
+app = App(api_key="alter_key_app_…")
+
+# `provider` is the managed secret's slug (e.g. "stripe-production"), not "stripe".
+resp = await app.request(
+    HttpMethod.POST,
+    "https://api.stripe.com/v1/charges",
+    provider="stripe-production",
+    user_token=user_jwt,
+    json={"amount": 1000, "currency": "usd"},
 )
 ```
 </CodeGroup>
@@ -207,29 +231,55 @@ async def proxy_request(
     method: HttpMethod | str,
     url: str,
     *,
-    grant_id: str,
-    json_body: dict | list | str | bool | float | None = None,
-    headers: dict[str, str] | None = None,
+    grant_id: str | None = None,
+    provider: str | None = None,
+    account: str | None = None,
+    label: str | None = None,
+    json: dict | list | str | bool | int | float | None = None,
+    extra_headers: dict[str, str] | None = None,
     query_params: dict[str, Any] | None = None,
+    path_params: dict[str, str] | None = None,
     reason: str | None = None,
+    context: dict[str, str] | None = None,
+    caller: str | None = None,
+    user_token: str | None = None,
+    app_user_id: str | None = None,
 ) -> ApprovalResult | PendingApproval
 ```
+
+`proxy_request()` takes the same arguments as [`request()`](#request), by the same names. The only differences are inherent to the execution model: there is no raw-`bytes` `body` argument (the backend executes the call, so the body must be a JSON value — pass it as `json`), auth headers are rejected, and the return type is an `ApprovalResult` / `PendingApproval` instead of a live response.
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `method` | `HttpMethod \| str` | — | HTTP method. |
-| `url` | `str` | — | Full provider URL. |
-| `grant_id` | `str` | — | Direct grant identifier. This method requires `grant_id`; provider-based resolution is unavailable here. |
-| `json_body` | `dict \| list \| str \| bool \| float \| None` | `None` | JSON-serializable request body. |
-| `headers` | `dict[str, str] \| None` | `None` | Non-auth request headers. `Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token` are rejected by the backend (422) — the backend injects the credential at execution time. |
+| `url` | `str` | — | Full provider URL. Supports `{name}` placeholders resolved via `path_params`. |
+| `grant_id` | `str \| None` | `None` | Direct-mode grant identifier. Exactly one of `grant_id` or `provider` must be supplied — `proxy_request()` shares the same resolution contract as [`request()`](#request): one match resolves, zero raises a not-found error, several raise [`AmbiguousGrantError`](/reference/python-sdk/errors). |
+| `provider` | `str \| None` | `None` | Identity-mode key (e.g. `"google"`, or a managed secret's per-secret slug). Resolves the user via `user_token` (or the client's `user_token_getter`); for an agent caller, disambiguate delegations with `app_user_id`. Mutually exclusive with `grant_id`. |
+| `account` | `str \| None` | `None` | Account disambiguator for `provider` resolution. |
+| `label` | `str \| None` | `None` | Sibling-grant disambiguator for `provider` resolution (the resolution key is provider + label). Only valid alongside `provider`. |
+| `json` | `dict \| list \| str \| bool \| int \| float \| None` | `None` | JSON-serializable request body (same argument name as [`request()`](#request)). `None` omits the body. |
+| `extra_headers` | `dict[str, str] \| None` | `None` | Non-auth request headers (same argument name as [`request()`](#request)). `Authorization`, `Cookie`, `x-api-key`, `x-amz-security-token` are rejected — the backend injects the credential at execution time. |
 | `query_params` | `dict[str, Any] \| None` | `None` | Query string parameters. |
+| `path_params` | `dict[str, str] \| None` | `None` | Values substituted into `{name}` placeholders in `url`. URL-encoded. |
 | `reason` | `str \| None` | `None` | Audit reason. |
+| `context` | `dict[str, str] \| None` | `None` | Audit-correlation context (same shape and limits as [`request()`](#request)). Falls back to the ambient context from `Agent.trace()` / `@alter_tool` / `@alter.tool()` when omitted. |
+| `caller` | `str \| None` | `None` | Per-call override of the client's caller identifier. |
+| `user_token` | `str \| None` | `None` | Per-call user JWT for identity mode. Wins over `user_token_getter`. Valid in both addressing modes. |
+| `app_user_id` | `str \| None` | `None` | Per-call user identifier for agent-delegation disambiguation. Only valid with `provider` resolution. |
 
 **Returns:** [`ApprovalResult`](/reference/python-sdk/types#approvalresult) for synchronous (non-HITL) execution, or [`PendingApproval`](/reference/python-sdk/types#pendingapproval) when the grant requires approval (HTTP 202).
 
+### Proxy-mode limits
+
+- The provider response body is buffered by the backend, base64-encoded, and may be truncated when very large. Proxy mode is not intended for downloads, Server-Sent Events, WebSockets, or long-lived streaming responses.
+- Auth and cookie-related provider response headers are stripped before the SDK receives the response. Flows that depend on `Set-Cookie`, `WWW-Authenticate`, or returned authorization headers may need [`request()`](#request) or the provider client directly.
+- Managed-secret proxy calls require destination hosts to be configured on the secret. If the allowlist is missing or does not match the requested host, the call is blocked before the credential is injected.
+- `proxy_request()` does not automatically retry the initial call. Add application-level retry/backoff for network failures and timeouts. For HITL grants, retry carefully because submitting the same call again can create another pending approval.
+- The CLI passthrough command uses retrieve mode, not proxy mode. It is useful for testing [`request()`](#request), but it does not reproduce proxy-only behavior such as HITL execution, destination-host allowlist enforcement, or response truncation.
+
 **Raises:**
 
-- `AlterValueError` — payload not JSON-serializable, header validation failure, forbidden auth header.
+- `AlterValueError` — neither `grant_id` nor `provider` supplied (or both), an identifier value is an empty string, `account`/`label`/`app_user_id` supplied without `provider`, an unresolved `{name}` placeholder left in `url` after `path_params`, payload not JSON-serializable, header validation failure, forbidden auth header.
 - `BackendError` and subclasses — backend-side failure or grant-state error.
 - `NetworkError`, `TimeoutError` — connectivity failures.
 
@@ -241,13 +291,13 @@ When the grant has no approval requirement, the backend executes the call and re
 from alter_sdk import App, HttpMethod
 from alter_sdk.models import ApprovalResult
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 result = await app.proxy_request(
     HttpMethod.POST,
     "https://api.stripe.com/v1/charges",
     grant_id=grant_id,
-    json_body={"amount": 2000, "currency": "usd", "source": "tok_visa"},
+    json={"amount": 2000, "currency": "usd", "source": "tok_visa"},
 )
 assert isinstance(result, ApprovalResult)
 print(result.status_code, result.body_json())
@@ -264,7 +314,7 @@ result = await app.proxy_request(
     "POST",
     "https://api.stripe.com/v1/refunds",
     grant_id=grant_id,
-    json_body={"charge": "ch_abc123"},
+    json={"charge": "ch_abc123"},
     reason="customer_service_refund",
 )
 
@@ -349,7 +399,7 @@ boto3's API is synchronous. Wrap calls in `asyncio.to_thread()` from async code:
 import asyncio
 from alter_sdk import App
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 s3 = await app.boto3_client("s3", grant_id=aws_grant_id, region_name="us-west-2")
 
@@ -367,7 +417,7 @@ for obj in response.get("Contents", []):
 ```python
 from alter_sdk import Agent
 
-agent = Agent(api_key="alter_key_agent_…")
+agent = Agent(api_key="alter_ak_…")
 
 ddb = await agent.boto3_client(
     "dynamodb",
@@ -412,7 +462,7 @@ async def list() -> ScopeCatalog
 ```python
 from alter_sdk import App
 
-app = App(api_key="alter_key_app_…")
+app = App(api_key="alter_rk_…")
 
 catalog = await app.scopes.list()
 print("scope_version:", catalog.scope_version)
@@ -423,3 +473,22 @@ print("deprecated:", catalog.deprecated)
 ```
 
 The catalog is not cached by the SDK — callers are expected to call `list()` on demand. No scope is required to read the catalog.
+
+## OpenTelemetry trace propagation
+
+When the application runs an OpenTelemetry SDK with an active span, every call the SDK makes to Alter automatically carries the standard W3C `traceparent` header — `request()`, `proxy_request()`, approval polling, and the audit-reporting calls included. Alter uses it as the trace context for that request's audit events, and any spans the organization streams to its own OTLP collector join the application's traces instead of starting disconnected ones.
+
+No configuration is required, and OpenTelemetry is never installed by the SDK itself — it uses whatever OpenTelemetry the application installed. Without OpenTelemetry (or without an active span) the header is simply omitted and nothing changes. The integration is best-effort by design: it can never fail a vault call (the very first call pays a one-time, in-process lookup of the optional module). The optional `alter-sdk[otel]` extra records the supported `opentelemetry-api` version range in the application's dependency tree.
+
+```python
+from opentelemetry import trace
+
+tracer = trace.get_tracer("the-application")
+
+# Inside an async function; `app` from the quick start.
+with tracer.start_as_current_span("handle-user-request"):
+    # This call's audit events share the surrounding trace's ids.
+    response = await app.request(HttpMethod.GET, url, grant_id=grant_id)
+```
+
+Only trace/span identifiers and a sampling flag travel in the header — no payloads, no user identifiers.
