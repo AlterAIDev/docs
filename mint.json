@@ -40,7 +40,12 @@
     {
       "name": "Blog",
       "icon": "newspaper",
-      "url": "https://alterauth.com/blog"
+      "url": "https://blog.alterauth.com/"
+    },
+    {
+      "name": "MCP Server",
+      "icon": "plug",
+      "url": "https://mcp.alterauth.com"
     }
   ],
   "navigation": [
